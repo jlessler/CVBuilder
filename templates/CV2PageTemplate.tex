@@ -1,0 +1,155 @@
+%!TEX TS-program = MikTex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass[martgin, line, 10pt]{article}
+
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{multicol}
+
+% LAYOUT
+%--------------------------------
+% Margins
+\usepackage{geometry} 
+\geometry{a4paper, left=.5in, right=.5in, top=.5in, bottom=.5in}
+
+% Do not indent paragraphs
+\setlength\parindent{0in}
+
+% Enable multicolumns
+\usepackage{multicol}
+\setlength{\columnsep}{-3.5cm}
+
+% MARGIN NOTES
+%--------------------------------
+\usepackage{marginnote}
+\newcommand{\note}[1]{\marginnote{\scriptsize #1}}
+\renewcommand*{\raggedleftmarginnote}{}
+\setlength{\marginparsep}{7pt}
+\reversemarginpar
+
+% HEADINGS
+%--------------------------------
+\usepackage{sectsty} 
+\usepackage[normalem]{ulem} 
+\sectionfont{\rmfamily\mdseries\normalsize\scshape\sectionrule{3ex}{1pt}{-1ex}{1pt}} 
+\subsectionfont{\rmfamily\mdseries\scshape\normalsize}
+%\subsectionfont{\rmfamily\mdseries\normalsize} 
+%\subsubsectionfont{\rmfamily\bfseries\upshape\normalsize} 
+
+% PDF SETUP
+%--------------------------------
+\usepackage{hyperref}
+\hypersetup {
+  colorlinks, breaklinks, xetex, bookmarks,
+  urlcolor=[rgb]{0.1,0.1,0.858},
+  citecolor=[rgb]{0.1,0.1,0.858},
+  linkcolor=[rgb]{0.1,0.1,0.858}
+}
+
+% \hypersetup
+% {
+%   pdfauthor={$name$},
+%   pdfsubject={$name$'s CV},
+%   pdftitle={$name$'s CV},
+%   colorlinks, breaklinks, xetex, bookmarks,
+%   filecolor=black,
+%   urlcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   citecolor=[rgb]{0.117,0.682,0.858}
+% }
+
+
+\newcommand\doi[1]{
+  \href{http://dx.doi.org/#1}
+  {doi:#1}
+}
+
+\newcommand\journal[1]{\emph{#1}} 
+
+
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{6pt}
+
+%variable definitions for references
+\input{refvars.tex}
+
+% DOCUMENT
+%--------------------------------
+\begin{document}
+\begin{multicols}{2}
+  \textbf{$name$}\\
+  $for(address-work)$
+  $address-work$ $$\cdot$$
+  $endfor$\\
+  $phone$ $$\cdot$$
+  \href{mailto:$email$}{$email$}
+  \columnbreak
+
+  \begin{flushright}
+    \textit{\today}
+  \end{flushright}
+\end{multicols}
+
+
+$if(education)$
+\section*{Education and Training}
+\noindent
+\begin{tabular}{lll}
+$for(education)$
+$education.year$&$education.degree$&
+$if(education.city)$$education.subject$,$endif$
+$education.school$$if(education.city)$, $education.city$$endif$\\
+$endfor$
+\end{tabular}
+$endif$
+
+\section*{Professional Experience}
+\noindent
+\begin{longtable}[l]{lll}
+$for(experience)$
+$experience.years$&
+$experience.title$&
+$experience.employer$\\
+$endfor$
+\end{longtable}
+
+
+\section*{Journal Articles (selected from \npeer\ peer reviewed publications)}
+
+\begin{footnotesize}$$^*$$ indicates JHSPH student or trainee;
+    $$^{**}$$ indicates an GIDTRP student or trainee;
+    $$^\dagger$$ indicates corresponding authorship;
+    $$^\ddagger$$ indicates joint first authorship
+  \end{footnotesize}
+
+
+
+\begin{enumerate}[noitemsep]
+  \input{refs.tex}
+\end{enumerate}
+
+
+\section*{Ongoing Research Grant Participation}
+
+\setlength{\extrarowheight}{.5em}
+\begin{longtable}[l]{lp{2.5in}p{4.5in}}
+  $for(activegrants)$
+  $activegrants.dates$&
+  \parbox[t]{2.25in} {
+  $activegrants.org$
+  $if(activegrants.type)$
+  ($activegrants.type$)
+  $endif$
+  $if(activegrants.number)$\\$activegrants.number$$endif$}&
+  \parbox[t]{3in}{$activegrants.title$.
+  $if(activegrants.amPI)$ \textit{Pricipal Investigator}$endif$}\\
+  $endfor$
+  
+\end{longtable}
+\setlength{\extrarowheight}{.0em}
+
+
+\end{document}
