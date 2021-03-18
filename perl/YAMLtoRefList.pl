@@ -61,7 +61,7 @@ if ((($num_args > 1) && ($ARGV[1] eq "reverse")) || (($num_args > 2) && ($ARGV[2
     if ($yaml->[0]{letters}) {
 	@letters = reverse @letters;
     }
-    if ($yaml->[0]{scimeeings}) {
+    if ($yaml->[0]{scimeetings}) {
 	@scipres = reverse @scipres;
     }
 } 
@@ -264,7 +264,7 @@ for my $scipres (@scipres) {
 }
 
 close $fh;
-}
+    }
 
 $filename = "temp/refvars.tex";
 open($fh, ">", $filename) or die "could not open";
@@ -274,5 +274,6 @@ print $fh "\\newcommand\\nnopeer{",$n_no_peer,"}\n";
 print $fh "\\newcommand\\nchapters{",$n_chapters,"}\n";
 print $fh "\\newcommand\\nletters{",$n_letters,"}\n";
 print $fh "\\newcommand\\npres{",$n_pres,"}\n";
-    
+print $fh "\\newcommand\\npreprint{",$n_preprint,"}\n";
+
 close $fh;

@@ -70,6 +70,9 @@
 
 \newcommand\journal[1]{\emph{#1}} 
 
+%variable definitions for references
+\input{refvars.tex}
+
 % DOCUMENT
 %--------------------------------
 \begin{document}
@@ -87,7 +90,7 @@
 \end{LARGE}
 %\end{center}
 
-\section*{Personal Data}
+\section*{Personal}
 
 $for(address-home)$
 $address-home$\\
@@ -97,7 +100,7 @@ Phone: $phone$\\
 
 
 $if(education)$
-\section*{Education and Training}
+\section*{Education}
 \noindent
 \begin{tabular}{lll}
 $for(education)$
@@ -137,12 +140,305 @@ $endfor$
 \end{tabular}
 
 
+\section*{Bibliography and Products of Scholarship}
 
-\section*{Professional Activities}
+\begin{footnotesize}$$^*$$ indicates JHSPH student or trainee;
+    $$^{**}$$ indicates an GIDTRP student or trainee;
+    $$^\dagger$$ indicates corresponding authorship;
+    $$^\ddagger$$ indicates equal contribution
+  \end{footnotesize}
+
+\subsection*{Peer-Reviewed Publications (\npeer\ total)} 
+
+\begin{enumerate}
+  \input{refs.tex}
+\end{enumerate}
+
+
+\subsection*{Patents ($patent/length$ total)}
+\begin{enumerate}
+  $for(patent)$
+  \item
+  $patent.name$
+  $if(patent.number)$ (No. $patent.number$)$endif$.
+  $for(patent.authors)$
+  $patent.authors$$sep$,
+  $endfor$.
+  \textit{$patent.status$}
+  $endfor$
+\end{enumerate}
+
+
+\subsection*{Published Articles and Editorials not Peer Reviewed (\nnopeer\ total)}
+
+\begin{enumerate}
+  \input{refs_norev.tex}
+\end{enumerate}
+
+
+\subsection*{Books \& Chapters (\nchapters\ total)}
+
+\begin{enumerate}
+  \input{chapters.tex}
+\end{enumerate}
+
+
+\subsection*{Preprints (\npreprint\ total)}
+
+\begin{enumerate}
+  \input{preprints.tex}
+\end{enumerate}
+
+
+\subsection*{Letters (\nletters\ total)}
+
+\begin{enumerate}
+  \input{letters.tex}
+\end{enumerate}
+
+
+\subsection*{Posters and Presentations at Scientific Meetings (\npres\ total)}
+
+\begin{enumerate}
+  \input{scipres.tex}
+\end{enumerate}
+
+
+\subsection*{Invited Seminars ($seminars/length$ total)}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{3.75in}l}
+  $for(seminars)$
+  $seminars.date$&
+  \parbox[t]{3.75in} { $seminars.title$\\
+    \scriptsize{%
+      $if(seminars.event)$\textit{$seminars.event$}. $endif$%
+      $if(seminars.org)$$seminars.org$.$endif$%
+    }} & $seminars.loc$\\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Software ($software/length$ total)}
+
+\begin{enumerate}
+  $for(software)$
+  \item
+  $for(software.authors)$
+  $software.authors$$sep$,
+  $endfor$
+  ($software.year$)
+  $if(software.url)$\href{$software.url$}{$endif$$software.title$$if(software.url)$}$endif$.
+  $software.publisher$
+  $endfor$
+\end{enumerate}
+
+
+\subsection*{Dissertation}
+\textbf{$dissertation.author$} ($dissertation.year$) $dissertation.title$.
+$dissertation.department$, $dissertation.institution$
+
+
+%% End scholarly outputs---------------------------------------------
+
+\section*{Teaching Record}
+
+\subsection*{Classroom Instruction (Past 3 Years)}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{4in}l}
+  $for(classes)$
+    $if(classes.inthreeyear)$
+      $classes.year$&
+      \parbox[t]{4in} { $classes.class$\\
+      \scriptsize{%
+        \textit{$classes.school$}\\
+        $if(classes.students)$$classes.students$ students$endif$%
+        $if(classes.lectures)$, $classes.lectures$ lectures$endif$%
+      }} & $classes.role$\\
+    $endif$
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+
+\subsection*{Advisees}
+
+
+$for(advisees)$
+$advisees.name$, $advisees.degree$ $if(advisees.type)$($advisees.type$)$endif$
+\hfill $advisees.dates$\\ 
+$if(advisees.thesis)$
+\textit{$advisees.thesis$}\\
+$endif$
+$advisees.school$\\
+
+$endfor$
 
 
 
-\subsection*{Organized Sessions and Round Tables}
+
+
+\subsection*{Postdoctoral Trainees}
+
+\setlength{\extrarowheight}{.25em}
+\begin{tabular}{ll}   
+$for(postdocs)$
+$postdocs.name$&
+$postdocs.dates$\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Oral Exam Participation}
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lll}
+  \emph{Final Defense}\\
+  \hline
+  $for(finaldefense)$
+  $finaldefense.name$&
+  $finaldefense.department$&
+  $finaldefense.date$\\
+  $endfor$
+  \\
+  \emph{School Wide}\\
+  \hline
+  $for(schoolwideOrals)$
+  $schoolwideOrals.name$&
+  $schoolwideOrals.department$&
+  $schoolwideOrals.date$\\
+  $endfor$
+  \\
+  \emph{Departmental}\\
+  \hline
+  $for(departmentalOrals)$
+  $departmentalOrals.name$&
+  $departmentalOrals.department$&
+  $departmentalOrals.date$\\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+%%=========================END TEACHING
+
+
+\section*{Contracts and Grants}
+
+\subsection*{Active}
+
+
+$for(activegrants)$
+\textbf{$activegrants.org$
+$if(activegrants.type)$
+ ($activegrants.type$)
+$endif$
+\hfill $activegrants.dates$\\
+$activegrants.PI$ (PI)
+\hfill
+$if(activegrants.amount)$
+\$$ $activegrants.amount$ (Total Costs)
+$endif$\\
+$activegrants.title$}\\
+$activegrants.description$\\
+\textbf{Role: $activegrants.role$}
+$if(activegrants.pcteffort)$ $activegrants.pcteffort$\% FTE$endif$\\
+$if(activegrants.number)$ $activegrants.number$\\$endif$
+
+
+$endfor$
+
+
+\subsection*{Completed}
+
+$for(completedgrants)$
+\textbf{$completedgrants.org$
+$if(completedgrants.type)$
+ ($completedgrants.type$)
+$endif$
+\hfill $completedgrants.dates$\\
+$completedgrants.PI$ (PI)
+\hfill
+$if(completedgrants.amount)$
+\$$ $completedgrants.amount$ (Total Costs)
+$endif$\\
+$completedgrants.title$}\\
+$completedgrants.description$\\
+\textbf{Role: $completedgrants.role$}
+$if(completedgrants.pcteffort)$ $completedgrants.pcteffort$\% FTE$endif$\\
+$if(completedgrants.number)$ $completedgrants.number$\\$endif$
+
+
+$endfor$
+
+
+
+
+\section*{Professional Service}
+
+\subsection*{Departmental}
+
+\subsubsection*{Committee Memberships}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{3.5in}l}
+  $for(committees)$
+  $committees.dates$& 
+  \parbox[t]{3.5in} { $committees.committee$\\
+    \scriptsize{%
+      $committees.org$
+    }} &  $committees.role$ \\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Other Departmental Service}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5.5in}}
+  $for(otherservice)$
+  $otherservice.dates$& 
+  \parbox[t]{5.5in} { 
+    $otherservice.description$
+  } \\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{School}
+
+\subsection*{University}
+
+\subsection*{National and International}
+
+\subsubsection*{Advisory Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+$for(panel)$
+$panel.date$&
+\parbox[t]{5.5in}{$panel.role$, $panel.panel$\\
+  \textit{$panel.org$}}\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Grant Review Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+$for(grantrev)$
+$grantrev.date$&
+\parbox[t]{5.5in}{
+  $if(grantrev.role)$$grantrev.role$, $endif$ 
+  $grantrev.panel$\\
+  \textit{$grantrev.org$}
+  $if(grantrev.type)$ -- \textit{$grantrev.type$}$endif$
+  $if(grantrev.id)$ -- \textit{$grantrev.id$}$endif$
+  }\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+
+\subsubsection*{Organized Sessions and Round Tables}
 \setlength{\extrarowheight}{.75em}
 \begin{tabular}{lp{5.5in}}   
 $for(symposium)$
@@ -157,9 +453,22 @@ $endfor$
 \setlength{\extrarowheight}{0em}
 
 
-\section*{Editorial Activities}
+\subsubsection*{Chaired Sessions}
 
-\subsection*{Editor}
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lll}
+  $for(chairedsessions)$
+  $chairedsessions.year$&
+  $chairedsessions.title$&
+  $chairedsessions.conference$\\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Editorial Activities}
+
+\underline{Editor}
+
 \begin{tabular}{lll}
 $for(editor)$
 $editor.term$&
@@ -169,7 +478,8 @@ $endfor$
 \end{tabular}
 
 
-\subsection*{Associate Editor}
+\underline{Associate Editor}
+
 \begin{tabular}{lll}
 $for(assocedit)$
 $assocedit.term$&
@@ -178,7 +488,8 @@ $assocedit.journal$
 $endfor$
 \end{tabular}
 
-\subsection*{Other Editorial Activities}
+\underline{Other Editorial Activities}
+
 \begin{tabular}{lll}
 $for(otheredit)$
 $otheredit.term$&
@@ -195,83 +506,13 @@ $peerrev$$sep$;
 $endfor$
 
 
-\section*{Bibliography and Products of Scholarship}
+%%End Service--------------------------------
 
-\begin{footnotesize}$$^*$$ indicates JHSPH student or trainee;
-    $$^{**}$$ indicates an GIDTRP student or trainee;
-    $$^\dagger$$ indicates corresponding authorship;
-    $$^\ddagger$$ indicates equal contribution
-  \end{footnotesize}
-
-\subsection*{Peer-Reviewed Publications}
-
-\begin{enumerate}
-  \input{refs.tex}
-\end{enumerate}
-
-
-\subsection*{Patents}
-\begin{enumerate}
-  $for(patent)$
-  \item
-  $patent.name$
-  $if(patent.number)$ (No. $patent.number$)$endif$.
-  $for(patent.authors)$
-  $patent.authors$$sep$,
-  $endfor$.
-  \textit{$patent.status$}
-  $endfor$
-\end{enumerate}
-
-
-\subsection*{Published Articles or Editorials not Peer Reviewed}
-
-\begin{enumerate}
-  \input{refs_norev.tex}
-\end{enumerate}
-
-
-\subsection*{Books \& Chapters}
-
-\begin{enumerate}
-  \input{chapters.tex}
-\end{enumerate}
-
-
-\subsection*{Preprints}
-
-\begin{enumerate}
-  \input{preprints.tex}
-\end{enumerate}
-
-
-\subsection*{Letters}
-
-\begin{enumerate}
-  \input{letters.tex}
-\end{enumerate}
-
-
-\subsection*{Software}
-
-\begin{enumerate}
-  $for(software)$
-  \item
-  $for(software.authors)$
-  $software.authors$$sep$,
-  $endfor$
-  ($software.year$)
-  $if(software.url)$\href{$software.url$}{$endif$$software.title$$if(software.url)$}$endif$.
-  $software.publisher$
-  $endfor$
-\end{enumerate}
-
-\section*{Practice Activities}
+\section*{Public Health Practive and Communication}
 
 (illustrative selection)
 
 \subsection*{Presentations to policy-makers and other stakeholders}
-
 
 \setlength{\extrarowheight}{.75em}
 \begin{longtable}[l]{lp{5in}}   
@@ -325,8 +566,6 @@ $endfor$
 \setlength{\extrarowheight}{0em}
 
 
-
-
 \subsection*{Other practice activities}
 
 \setlength{\extrarowheight}{.75em}
@@ -345,240 +584,6 @@ $endfor$
 \end{longtable}
 \setlength{\extrarowheight}{0em}
 
-
-  
-
-\clearpage
-  \begin{center}
-    \textbf{CURRICULUM VITAE}
-
-    \textbf{Justin Lessler}
-
-    Part II
-  \end{center}
-
-\section*{Teaching Activities}
-\subsection*{Advisees}
-
-\setlength{\extrarowheight}{.25em}
-\begin{tabular}{ll}   
-$for(advisees)$
-$advisees.name$, $advisees.degree$
-$if(advisees.type)$($advisees.type$)$endif$&
-$advisees.dates$\\
-$endfor$
-\end{tabular}
-\setlength{\extrarowheight}{0em}
-
-\subsection*{Postdoctoral Trainees}
-
-\setlength{\extrarowheight}{.25em}
-\begin{tabular}{ll}   
-$for(postdocs)$
-$postdocs.name$&
-$postdocs.dates$\\
-$endfor$
-\end{tabular}
-\setlength{\extrarowheight}{0em}
-
-\subsection*{Oral Exam Participation}
-\setlength{\extrarowheight}{.25em}
-\begin{longtable}[l]{lll}
-  \emph{Final Defense}\\
-  \hline
-  $for(finaldefense)$
-  $finaldefense.name$&
-  $finaldefense.department$&
-  $finaldefense.date$\\
-  $endfor$
-  \\
-  \emph{School Wide}\\
-  \hline
-  $for(schoolwideOrals)$
-  $schoolwideOrals.name$&
-  $schoolwideOrals.department$&
-  $schoolwideOrals.date$\\
-  $endfor$
-  \\
-  \emph{Departmental}\\
-  \hline
-  $for(departmentalOrals)$
-  $departmentalOrals.name$&
-  $departmentalOrals.department$&
-  $departmentalOrals.date$\\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-\subsection*{Classroom Instruction}
-
-\setlength{\extrarowheight}{.75em}
-\begin{longtable}[l]{lp{4in}l}
-  $for(classes)$
-  $classes.year$&
-  \parbox[t]{4in} { $classes.class$\\
-    \scriptsize{%
-      $if(classes.students)$$classes.students$ students$endif$%
-      $if(classes.lectures)$, $classes.lectures$ lectures$endif$%
-    }} & $classes.role$\\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-
-\section*{Contracts and Grants}
-
-\subsection*{Current}
-
-
-$for(activegrants)$
-\textbf{$activegrants.org$
-$if(activegrants.type)$
- ($activegrants.type$)
-$endif$
-\hfill $activegrants.dates$\\
-$activegrants.PI$ (PI)
-\hfill
-$if(activegrants.amount)$
-\$$$activegrants.amount$ (Total Costs)
-$endif$\\
-$activegrants.title$}\\
-$activegrants.description$\\
-\textbf{Role:} $activegrants.role$\\
-$if(activegrants.number)$$activegrants.number$\\$endif$
-
-
-$endfor$
-
-
-\subsection*{Past}
-
-$for(completedgrants)$
-\textbf{$completedgrants.org$
-$if(completedgrants.type)$
- ($completedgrants.type$)
-$endif$
-\hfill $completedgrants.dates$\\
-$completedgrants.PI$ (PI)
-\hfill
-$if(completedgrants.amount)$
-\$$$completedgrants.amount$ (Total Costs)
-$endif$\\
-$completedgrants.title$}\\
-$completedgrants.description$\\
-\textbf{Role:} $completedgrants.role$\\
-$if(completedgrants.number)$$completedgrants.number$\\$endif$
-
-
-$endfor$
-
-\section*{Service}
-
-\subsection{Departmental}
-
-\subsubsection*{Committee Memberships}
-
-\setlength{\extrarowheight}{.75em}
-\begin{longtable}[l]{lp{3.5in}l}
-  $for(committees)$
-  $committees.dates$& 
-  \parbox[t]{3.5in} { $committees.committee$\\
-    \scriptsize{%
-      $committees.org$
-    }} &  $committees.role$ \\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-\subsubsection*{Other Departmental Service}
-
-\setlength{\extrarowheight}{.75em}
-\begin{longtable}[l]{lp{5.5in}}
-  $for(otherservice)$
-  $otherservice.dates$& 
-  \parbox[t]{5.5in} { 
-    $otherservice.description$
-  } \\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-\subsection{School}
-
-\subsection{University}
-
-\subsection{National and International|}
-
-\subsubsection*{Advisory Panels}
-\setlength{\extrarowheight}{.75em}
-\begin{tabular}{lp{5.5in}}   
-$for(panel)$
-$panel.date$&
-\parbox[t]{5.5in}{$panel.role$, $panel.panel$\\
-  \textit{$panel.org$}}\\
-$endfor$
-\end{tabular}
-\setlength{\extrarowheight}{0em}
-
-\subsubsection*{Grant Review Panels}
-\setlength{\extrarowheight}{.75em}
-\begin{tabular}{lp{5.5in}}   
-$for(grantrev)$
-$grantrev.date$&
-\parbox[t]{5.5in}{
-  $if(grantrev.role)$$grantrev.role$, $endif$ 
-  $grantrev.panel$\\
-  \textit{$grantrev.org$}
-  $if(grantrev.type)$ -- \textit{$grantrev.type$}$endif$
-  $if(grantrev.id)$ -- \textit{$grantrev.id$}$endif$
-  }\\
-$endfor$
-\end{tabular}
-\setlength{\extrarowheight}{0em}
-
-
-\section*{Presentations}
-\subsection*{Scientific Meetings}
-
-\begin{enumerate}
-  \input{scipres.tex}
-\end{enumerate}
-
-\subsection*{Session Chair}
-
-\setlength{\extrarowheight}{.25em}
-\begin{longtable}[l]{lll}
-  $for(chairedsessions)$
-  $chairedsessions.year$&
-  $chairedsessions.title$&
-  $chairedsessions.conference$\\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-\subsection*{Invited Seminars}
-
-\setlength{\extrarowheight}{.75em}
-\begin{longtable}[l]{lp{3.75in}l}
-  $for(seminars)$
-  $seminars.date$&
-  \parbox[t]{3.75in} { $seminars.title$\\
-    \scriptsize{%
-      $if(seminars.event)$\textit{$seminars.event$}. $endif$%
-      $if(seminars.org)$$seminars.org$.$endif$%
-    }} & $seminars.loc$\\
-  $endfor$
-\end{longtable}
-\setlength{\extrarowheight}{0em}
-
-\section*{Additional Information}
-
-\subsection*{Research Objectives}
-
-$researchstatement$
-
-\subsection*{Keywords}
-
-$for(keywords)$$keywords$$sep$, $endfor$.
+%%%----------------END PRACTICE ACTIVITIES
 
 \end{document}
