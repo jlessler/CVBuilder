@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ##Usage: makeCV.sh <template> <output_filename> [-o <output directory> -d <data directory> ]
+
 outdir=output
 datadir=mydata
 
