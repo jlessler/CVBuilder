@@ -292,12 +292,17 @@ $endfor$
 
 \subsection*{Oral Exam Participation}
 \setlength{\extrarowheight}{.25em}
-\begin{longtable}[l]{lll}
+\begin{longtable}[l]{lp{3.75in}l}
   \emph{Final Defense}\\
   \hline
   $for(finaldefense)$
   $finaldefense.name$&
-  $finaldefense.department$&
+  \parbox[t]{3.75in} {
+    $finaldefense.department$
+    \scriptsize{%
+      $if(finaldefense.school)$\\$finaldefense.school$$endif$
+    }
+  }&
   $finaldefense.date$\\
   $endfor$
   \\
@@ -305,7 +310,12 @@ $endfor$
   \hline
   $for(schoolwideOrals)$
   $schoolwideOrals.name$&
-  $schoolwideOrals.department$&
+  \parbox[t]{3.75in} {
+    $schoolwideOrals.department$
+    \scriptsize{%
+      $if(schoolwideOrals.school)$\\$schoolwideOrals.school$$endif$
+    }
+  }&
   $schoolwideOrals.date$\\
   $endfor$
   \\
@@ -313,7 +323,12 @@ $endfor$
   \hline
   $for(departmentalOrals)$
   $departmentalOrals.name$&
-  $departmentalOrals.department$&
+  \parbox[t]{3.75in} {
+    $departmentalOrals.department$
+    \scriptsize{%
+      $if(departmentalOrals.school)$\\$departmentalOrals.school$$endif$
+    }
+  }&
   $departmentalOrals.date$\\
   $endfor$
 \end{longtable}
@@ -375,7 +390,7 @@ $endfor$
 
 \section*{Professional Service}
 
-\subsection*{Departmental}
+\subsection*{Departmental and School}
 
 \subsubsection*{Committee Memberships}
 
@@ -404,9 +419,9 @@ $endfor$
 \end{longtable}
 \setlength{\extrarowheight}{0em}
 
-\subsection*{School}
+%\subsection*{School}
 
-\subsection*{University}
+%\subsection*{University}
 
 \subsection*{National and International}
 
@@ -506,9 +521,20 @@ $peerrev$$sep$;
 $endfor$
 
 
+\subsection*{Consulting Activities}
+\noindent
+\begin{tabular}{lll}
+  $for(consulting)$
+  $consulting.years$&
+  $consulting.title$&
+  $consulting.employer$\\
+  $endfor$
+  \end{tabular}
+  
+
 %%End Service--------------------------------
 
-\section*{Public Health Practive and Communication}
+\section*{Public Health Practice and Communication}
 
 (illustrative selection)
 
