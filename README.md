@@ -12,3 +12,4 @@ Build a CV from YAML data files.
 
 `./scripts/<your_shell_script.sh> <template_dir>/<your_template.tex> <your_cv_name>`
 
+See optional arguments for output and data directory at the top of the .sh scripts.
