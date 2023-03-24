@@ -7,7 +7,9 @@ open(my $fh, ">", $filename) or die "could not open";
 
 my $yaml = YAML::Tiny->read($ARGV[0]);
 
+my $myname = $yaml->[0]{myname};
 
+    
 my @papers = @{$yaml->[0]{papers}};
 my @papersNoPeer;
 if ($yaml->[0]{papersNoPeer}) { 
@@ -47,6 +49,7 @@ my $n_preprint = 0;
 my $n_letters = 0;
 my $n_pres = 0;
 
+
 if ((($num_args > 1) && ($ARGV[1] eq "reverse")) || (($num_args > 2) && ($ARGV[2] eq "reverse"))) {
     @papers = reverse @papers;
     if ($yaml->[0]{papersNoPeer}) {
@@ -78,6 +81,7 @@ if ((($num_args > 1) && ($ARGV[1] eq "select_chol")) || (($num_args > 2) && ($AR
 
 
 
+#Makes the tex for an individual paper
 sub print_paper {
     my($paper, $fh) = @_;
     
@@ -85,7 +89,8 @@ sub print_paper {
     my $nauth = keys @{$paper->{authors}};
     my $authnum = 0;
     for my $author (@{$paper->{authors}}) {
-	if ($author eq "Lessler J") {	    
+	#if ($author eq "Lessler J") {
+	if ($author eq $myname) {
 	    print $fh "\\textbf{",$author,"}";
 
 	    if ($paper->{corr}) {
