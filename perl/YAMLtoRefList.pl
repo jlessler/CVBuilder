@@ -198,7 +198,7 @@ for my $chapter (@chapters) {
     my $nauth = keys @{$chapter->{authors}};
     
     for my $author (@{$chapter->{authors}}) {
-	if ($author eq "Lessler J") {	    
+	if ($author eq $myname) {	    
 	    print $fh "\\textbf{",$author,"}";	  
 	} else {
 	    print $fh $author;
@@ -249,7 +249,7 @@ for my $scipres (@scipres) {
     my $nauth = keys @{$scipres->{authors}};
     
     for my $author (@{$scipres->{authors}}) {
-	if ($author eq "Lessler J") {	    
+	if ($author eq $myname) {	    
 	    print $fh "\\textbf{",$author,"}";	  
 	} else {
 	    print $fh $author;
