@@ -389,7 +389,7 @@ $endfor$
 
 \section*{Professional Service}
 
-\subsection*{Departmental and School}
+\subsection*{Departmental, School and University}
 
 \subsubsection*{Committee Memberships}
 
@@ -405,14 +405,17 @@ $endfor$
 \end{longtable}
 \setlength{\extrarowheight}{0em}
 
-\subsubsection*{Other Departmental Service}
+\subsubsection*{Other  Service}
 
 \setlength{\extrarowheight}{.75em}
 \begin{longtable}[l]{lp{5.5in}}
   $for(otherservice)$
   $otherservice.dates$& 
   \parbox[t]{5.5in} { 
-    $otherservice.description$
+    $otherservice.description$\\
+    \scriptsize{%
+      $otherservice.department$
+    }
   } \\
   $endfor$
 \end{longtable}
@@ -544,8 +547,8 @@ $endfor$
 $for(policypres)$
 $policypres.date$&
 \parbox[t]{5in}{
-    \textit{$policypres.title$%
-    $if(policypres.org)$, $policypres.org$$endif$%
+  $policypres.title$%
+  \textit{$if(policypres.org)$, $policypres.org$$endif$%
     $if(policypres.location)$, $policypres.location$$endif$}%
     $if(policypres.description)$: %
     $policypres.description$%
