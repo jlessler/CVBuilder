@@ -1,0 +1,454 @@
+%!TEX TS-program = MikTex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass[martgin, line, 11pt]{article}
+
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{lmodern} 
+\usepackage{graphicx}
+\usepackage{caption}
+% or \usepackage{tgheros}
+\renewcommand{\rmdefault}{\sfdefault}
+
+% LAYOUT
+%--------------------------------
+% Margins
+\usepackage{geometry} 
+\geometry{a4paper, left=.75in, right=.75in, top=1in, bottom=1in}
+
+% Do not indent paragraphs
+\setlength\parindent{0in}
+
+% Enable multicolumns
+\usepackage{multicol}
+\setlength{\columnsep}{-3.5cm}
+
+% MARGIN NOTES
+%--------------------------------
+\usepackage{marginnote}
+\newcommand{\note}[1]{\marginnote{\scriptsize #1}}
+\renewcommand*{\raggedleftmarginnote}{}
+\setlength{\marginparsep}{7pt}
+\reversemarginpar
+
+% HEADINGS
+%--------------------------------
+\usepackage{sectsty} 
+\usepackage[normalem]{ulem} 
+\usepackage[dvipsnames]{xcolor}
+\sectionfont{\color{RedViolet}\sffamily\bfseries} 
+\subsectionfont{\sffamily\bfseries\normalsize} 
+%\subsubsectionfont{\rmfamily\bfseries\upshape\normalsize} 
+
+% PDF SETUP
+%--------------------------------
+\usepackage{hyperref}
+\hypersetup {
+  colorlinks, breaklinks, xetex, bookmarks,
+  urlcolor=[rgb]{0.1,0.1,0.858},
+  citecolor=[rgb]{0.1,0.1,0.858},
+  linkcolor=[rgb]{0.1,0.1,0.858}
+}
+
+% \hypersetup
+% {
+%   pdfauthor={$name$},
+%   pdfsubject={$name$'s CV},
+%   pdftitle={$name$'s CV},
+%   colorlinks, breaklinks, xetex, bookmarks,
+%   filecolor=black,
+%   urlcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   citecolor=[rgb]{0.117,0.682,0.858}
+% }
+
+
+\newcommand\doi[1]{
+  \href{http://dx.doi.org/#1}
+  {doi:#1}
+}
+
+\newcommand\journal[1]{\emph{#1}} 
+
+% DOCUMENT
+%--------------------------------
+\begin{document}
+
+\begin{flushright}
+  {\large Curriculum vitae}\\
+  {\large \textbf{General Information}}
+\end{flushright}
+
+\section*{Personal Data}
+{\large \textbf{$name$}}\\
+Date and place of birth: $dob$, $birthplace$\\
+Personal address: 
+$for(address-home)$
+  $address-home$
+$endfor$\\
+Email: \href{mailto:$email-home$}{$email-home$}\\
+Website: \url{$website$}\\
+ORCID: \url{$orcid$}\\
+Professional address: 
+$for(address-work)$
+  $address-work$
+$endfor$\\
+Academic age: $academicage$
+
+$if(education)$
+\section*{Education}
+\noindent
+\begin{tabular}{lll}
+$for(education)$
+$education.year$&$education.degree$&
+$if(education.subject)$$education.subject$,$endif$
+$education.school$$if(education.city)$, $education.city$$endif$\\
+$endfor$
+\end{tabular}
+$endif$
+
+\section*{Past and Present Positions}
+\noindent
+\begin{tabular}{ll}
+$for(experience)$
+$experience.years$&$experience.title$ $if(experience.rate)$($experience.rate$)$endif$\\
+&$experience.employer$$if(experience.department)$, $experience.department$$endif$\\
+&$experience.city$\\
+$endfor$
+\end{tabular}
+
+\section*{Academic titles}
+\noindent
+\begin{tabular}{ll}
+$for(academia)$
+ $academia.years$&$academia.title$\\
+ &$academia.employer$$if(academia.department)$, $academia.department$$endif$\\
+ &$academia.city$\\
+$endfor$
+\end{tabular}
+
+\section*{Language skills}
+\noindent
+$for(languages)$
+ $languages.language$: $languages.level$\\
+$endfor$
+
+\newpage
+
+\begin{flushright}
+  {\large Curriculum vitae}\\
+  {\large \textbf{Research}}
+\end{flushright}
+
+\section*{Self-Evaluation}
+\input{self_evaluation.tex}
+
+\section*{Research Outputs} 
+\begin{footnotesize}
+    $$^\dagger$$ indicates corresponding authorship;
+    $$^\ddagger$$ indicates equal contribution
+\end{footnotesize}
+\input{research_outputs.tex}
+
+\section*{Scientific Planning}
+\input{scientific_planning.tex}
+
+\section*{Research Funding and Grants}
+Funding amounts report total project costs in USD.
+\subsection*{Active Grants}
+
+$for(activegrants)$
+\textbf{$activegrants.org$
+$if(activegrants.type)$
+ ($activegrants.type$)
+$endif$
+\hfill $activegrants.dates$\\
+$activegrants.PI$ (PI)
+\hfill
+$if(activegrants.amount)$
+$activegrants.amount$
+$endif$\\
+$activegrants.title$}\\
+$activegrants.description$\\
+\textbf{Role:} $activegrants.role$
+\hfill
+$if(activegrants.number)$ Grant No: $activegrants.number$\\$endif$
+%\hfill\break
+$endfor$
+
+\subsection*{Completed Grants}
+
+$for(completedgrants)$
+\textbf{$completedgrants.org$
+$if(completedgrants.type)$
+ ($completedgrants.type$)
+$endif$
+\hfill $completedgrants.dates$\\
+$completedgrants.PI$ (PI)
+\hfill
+$if(completedgrants.amount)$
+$completedgrants.amount$
+$endif$\\
+$completedgrants.title$}\\
+$completedgrants.description$\\
+\textbf{Role:} $completedgrants.role$
+\hfill
+$if(completedgrants.number)$ Grant No: $completedgrants.number$\\$endif$
+%\hfill\break
+$endfor$
+
+\section*{Research supervision and mentoring}
+\input{research_mentoring.tex}
+
+\begin{center}
+\captionof*{table}{Academic Advisees} 
+\setlength{\extrarowheight}{.25em}
+\begin{tabular}{ll}   
+\hline
+$for(academicadvisees)$
+$academicadvisees.name$, $academicadvisees.degree$
+$if(academicadvisees.type)$($academicadvisees.type$)$endif$&
+$academicadvisees.dates$\\
+$endfor$
+\hline
+$for(capstoneadvisees)$
+$capstoneadvisees.name$, $capstoneadvisees.degree$
+$if(capstoneadvisees.type)$($capstoneadvisees.type$)$endif$&
+$capstoneadvisees.dates$\\
+$endfor$
+\hline
+$for(readeradvisees)$
+$readeradvisees.name$, $readeradvisees.degree$
+$if(readeradvisees.type)$($readeradvisees.type$)$endif$&
+$readeradvisees.dates$\\
+$endfor$
+\hline
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+\end{center}
+
+\section*{Other scientific activities}
+
+\subsection*{Presentations to policy-makers and other stakeholders}
+
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lp{5.5in}}   
+$for(policypres)$
+$policypres.date$&
+\parbox[t]{5.5in}{
+    \textit{$policypres.title$%
+    $if(policypres.org)$, $policypres.org$$endif$%
+    $if(policypres.location)$, $policypres.location$$endif$}%
+    $if(policypres.description)$: %
+    $policypres.description$%
+    $endif$.%
+  }\\
+$endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Consultations with policy-makers and other
+  stakeholders}
+
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lp{5.5in}}   
+$for(policycons)$
+$policycons.date$&
+\parbox[t]{5.5in}{
+    \textit{$policycons.title$%
+    $if(policycons.org)$, $policycons.org$$endif$%
+    $if(policycons.location)$, $policycons.location$$endif$}%
+    $if(policycons.description)$: %
+    $policycons.description$%
+    $endif$.%
+  }\\
+$endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+$if(media)$
+\subsection*{Research finding dissemination through media appearances
+  and other communication venues}
+
+\setlength{\extrarowheight}{.5em}
+\begin{longtable}[l]{lp{5in}}   
+$for(media)$
+$media.date$&
+\parbox[t]{5in}{
+    $if(media.topic)$$media.topic$: $endif$%
+    $for(media.outlets)$$media.outlets$$sep$; $endfor$.%    
+  }\\
+$endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+$endif$
+
+
+$if(policyother)$
+\subsection*{Other practice activities}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5in}}   
+$for(policyother)$
+$policyother.date$&
+\parbox[t]{5in}{
+    \textit{$policyother.title$%
+    $if(policyother.org)$, $policyother.org$$endif$%
+    $if(policyother.location)$, $policyother.location$$endif$}%
+    $if(policyother.description)$: %
+    $policyother.description$%
+    $endif$.%
+  }\\
+$endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+$endif$
+
+$if(panel)$
+\subsection*{Advisory Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+$for(panel)$
+$panel.date$&
+\parbox[t]{5.5in}{$panel.role$, $panel.panel$\\
+  \textit{$panel.org$}}\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+$endif$
+
+$if(grantrev)$
+\subsection*{Grant Review Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+$for(grantrev)$
+$grantrev.date$&
+\parbox[t]{5.5in}{
+  $if(grantrev.role)$$grantrev.role$, $endif$ 
+  $grantrev.panel$\\
+  \textit{$grantrev.org$}
+  $if(grantrev.type)$ -- \textit{$grantrev.type$}$endif$
+  $if(grantrev.id)$ -- \textit{$grantrev.id$}$endif$
+  }\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+$endif$
+
+$if(symposium)$
+\subsection*{Organized Sessions and Round Tables}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+$for(symposium)$
+$symposium.date$&
+\parbox[t]{5.5in}{
+    $symposium.title$\\
+  \textit{$symposium.meeting$}
+  $if(symposium.role)$ -- $symposium.role$$endif$ 
+  }\\
+$endfor$
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+$endif$
+
+\subsection*{Invited Seminars}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{3.75in}l}
+  $for(seminars)$
+  $seminars.date$&
+  \parbox[t]{3.75in} { $seminars.title$\\
+    \scriptsize{%
+      $if(seminars.event)$\textit{$seminars.event$}. $endif$%
+      $if(seminars.org)$$seminars.org$.$endif$%
+    }} & $seminars.loc$\\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+
+\subsection*{Presentations at Scientific Meetings}
+
+\begin{enumerate}
+  \input{scipres.tex}
+\end{enumerate}
+
+\subsection*{Session Chair at Scientific Meetings}
+
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lll}
+  $for(chairedsessions)$
+  $chairedsessions.year$&
+  $chairedsessions.title$&
+  $chairedsessions.conference$\\
+  $endfor$
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+$if(editor)$
+\subsection*{Editor}
+\begin{tabular}{lll}
+$for(editor)$
+$editor.term$&
+$editor.journal$
+\\
+$endfor$
+\end{tabular}
+$endif$
+
+$if(assocedit)$
+\subsection*{Associate Editor}
+\begin{tabular}{lll}
+$for(assocedit)$
+$assocedit.term$&
+$assocedit.journal$
+\\
+$endfor$
+\end{tabular}
+$endif$
+
+$if(otheredit)$
+\subsection*{Editorial Activities}
+\begin{tabular}{lll}
+$for(otheredit)$
+$otheredit.term$&
+$otheredit.journal$&
+$otheredit.role$
+\\
+$endfor$
+\end{tabular}
+$endif$
+
+\subsection*{Peer Review Activities}
+Reviewed for:
+$for(peerrev)$
+$peerrev$$sep$;
+$endfor$
+
+$if(membership)$
+\subsection*{Society Memberships}
+\begin{tabular}{l}
+$for(membership)$
+ $membership.org$, $membership.years$\\
+$endfor$
+\end{tabular}
+$endif$
+
+\section*{Contributions to Open Science} 
+\input{open_science.tex}
+
+\newpage
+\begin{flushright}
+  {\large Curriculum vitae}\\
+  {\large \textbf{Teaching}}
+\end{flushright}
+
+\section*{Teaching experience}
+\input{teaching_experience.tex}
+
+\section*{Teaching perspective}
+\input{teaching_perspective.tex}
+
+\end{document}
