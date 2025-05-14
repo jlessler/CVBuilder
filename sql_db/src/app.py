@@ -95,15 +95,38 @@ def fetch_doi():
         if not ref:
             return jsonify({"error": "DOI not found"}), 404
 
+        # Helper function to safely extract values
+        def safe_get(data, key, default=""):
+            if isinstance(data, dict):
+                value = data.get(key, default)
+                if isinstance(value, list):
+                    return value[0] if value else default
+                return value
+            return default
+
+        # Helper function to safely extract nested lists
+        def safe_get_nested_list(data, keys, default=None):
+            try:
+                for key in keys:
+                    data = data[key]
+                return data[0][0] if data and isinstance(data[0], list) else default
+            except (KeyError, IndexError, TypeError):
+                return default
+
         # Extract relevant fields
         data = {
-            "title": ref.get("title", [""])[0],
-            "year": ref.get("published-print", {}).get("date-parts", [[None]])[0][0] or ref.get("published-online", {}).get("date-parts", [[None]])[0][0],
-            "journal": ref.get("container-title", [""])[0],
-            "volume": ref.get("volume", ""),
-            "issue": ref.get("issue", ""),
-            "pages": ref.get("page", ""),
-            "authors": ", ".join([f"{author['family']} {author['given']}" for author in ref.get("author", [])]),
+            "title": safe_get(ref, "title", ""),
+            "year": (
+                safe_get_nested_list(ref, ["published-print", "date-parts"], None)
+                or safe_get_nested_list(ref, ["published-online", "date-parts"], None)
+            ),
+            "journal": safe_get(ref, "container-title", ""),
+            "volume": safe_get(ref, "volume", ""),
+            "issue": safe_get(ref, "issue", ""),
+            "pages": safe_get(ref, "page", ""),
+            "authors": ", ".join(
+                [f"{author.get('family', '')} {author.get('given', '')}" for author in ref.get("author", [])]
+            ),
         }
         return jsonify(data)
     except Exception as e:
