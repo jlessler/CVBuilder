@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>References</title>
+</head>
+<body>
+    <h1>References</h1>
+    <a href="{{ url_for('add_ref', ref_type='papers') }}">Add Paper</a>
+    <a href="{{ url_for('add_ref', ref_type='preprints') }}">Add Preprint</a>
+    <a href="{{ url_for('add_ref', ref_type='chapters') }}">Add Chapter</a>
+    <a href="{{ url_for('add_ref', ref_type='letters') }}">Add Letter</a>
+    <a href="{{ url_for('add_ref', ref_type='scimeetings') }}">Add Scientific Meeting</a>
+    <table border="1">
+        <tr>
+            <th>Ref ID</th>
+            <th>Type</th>
+            <th>Reference</th>
+            <th>Actions</th>
+        </tr>
+        {% for ref in refs %}
+        <tr>
+            <td>{{ ref.ref_id }}</td>
+            <td>{{ ref.type }}</td>
+            <td>
+                {{ ref.authors or '' }}.
+                <strong> {{ ref.title or '' }} </strong> , 
+                <italic>{{ ref.journal or '' }}</italic>  
+                {{ ref.year or 'N/A' }} <br>
+                <a href="https://doi.org/{{ ref.doi }}" target="_blank">{{ ref.doi or '' }}</a>
+            </td>
+            <td>
+                <a href="{{ url_for('view_ref', ref_id=ref.ref_id) }}">View</a>
+                <form action="{{ url_for('delete_ref', ref_id=ref.ref_id) }}" method="post" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

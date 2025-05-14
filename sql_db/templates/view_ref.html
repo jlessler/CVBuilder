@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reference Details</title>
+</head>
+<body>
+    <h1>Reference Details</h1>
+    <p><strong>Type:</strong> {{ ref.type }}</p>
+    <p><strong>Authors:</strong></p>
+    <ul>
+        {% for author in authors %}
+        <li>{{ author.author_name }}</li>
+        {% endfor %}
+    </ul>
+    <p><strong>Details:</strong></p>
+    <ul>
+        {% for data in ref_data %}
+        <li>{{ data.key }}: {{ data.value }}</li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>

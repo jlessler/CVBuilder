@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add {{ ref_type | capitalize }}</title>
+    <script>
+        async function fetchDOIDetails() {
+            const doi = document.querySelector("input[name='doi']").value;
+            if (!doi) {
+                alert("Please enter a DOI.");
+                return;
+            }
+
+            try {
+                const response = await fetch("/fetch_doi", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ doi }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(error.error || "Failed to fetch DOI details.");
+                    return;
+                }
+
+                const data = await response.json();
+                document.querySelector("input[name='title']").value = data.title || "";
+                document.querySelector("input[name='year']").value = data.year || "";
+                document.querySelector("input[name='journal']").value = data.journal || "";
+                document.querySelector("input[name='volume']").value = data.volume || "";
+                document.querySelector("input[name='issue']").value = data.issue || "";
+                document.querySelector("input[name='pages']").value = data.pages || "";
+                document.querySelector("input[name='authors']").value = data.authors || "";
+            } catch (error) {
+                alert("An error occurred while fetching DOI details.");
+                console.error(error);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Add New {{ ref_type | capitalize }}</h1>
+    <form method="post">
+        <label>Authors (comma-separated):</label>
+        <input type="text" name="authors" placeholder="Author 1, Author 2"><br>
+
+        {% if ref_type in ["papers", "preprints"] %}
+            <label>DOI:</label>
+            <input type="text" name="doi"><br>
+            <button type="button" onclick="fetchDOIDetails()">Fetch DOI Details</button><br>
+            <label>Title:</label>
+            <input type="text" name="title" required><br>
+            <label>Year:</label>
+            <input type="text" name="year" required><br>
+            <label>Journal:</label>
+            <input type="text" name="journal"><br>
+            <label>Volume:</label>
+            <input type="text" name="volume"><br>
+            <label>Issue:</label>
+            <input type="text" name="issue"><br>
+            <label>Pages:</label>
+            <input type="text" name="pages"><br>
+        {% elif ref_type == "chapters" %}
+            <label>Title:</label>
+            <input type="text" name="title" required><br>
+            <label>Authors:</label>
+            <input type="text" name="authors"><br>
+            <label>Publisher:</label>
+            <input type="text" name="publisher"><br>
+        {% elif ref_type == "letters" %}
+            <label>Title:</label>
+            <input type="text" name="title" required><br>
+            <label>Authors:</label>
+            <input type="text" name="authors"><br>
+            <label>DOI:</label>
+            <input type="text" name="doi"><br>
+        {% elif ref_type == "scimeetings" %}
+            <label>Title:</label>
+            <input type="text" name="title" required><br>
+            <label>Type:</label>
+            <input type="text" name="type"><br>
+            <label>Conference:</label>
+            <input type="text" name="conference"><br>
+        {% endif %}
+
+        <button type="submit">Add {{ ref_type | capitalize }}</button>
+    </form>
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>
