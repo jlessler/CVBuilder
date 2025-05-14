@@ -13,3 +13,21 @@ Build a CV from YAML data files.
 `./scripts/<your_shell_script.sh> <template_dir>/<your_template.tex> <your_cv_name>`
 
 See optional arguments for output and data directory at the top of the .sh scripts.
+
+
+
+## ALPHA Functionality
+
+Very preliminary and untested functionality has been
+added to import and export refs.yml files to an 
+SQLite database and for a front end to view and add
+references (including from a DOI). 
+
+To create an SQLite database from your yaml run:
+`./sql_db/src/refs_yaml_to_sql.py`
+
+To export these to `refs_exported.yml` run:
+`./sql_db/src/refs_sql_to_yaml.py`
+
+And for a simple web interface to edit the SQLite version run:
+`./sql_db/src/app.py`
