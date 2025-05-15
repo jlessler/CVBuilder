@@ -26,13 +26,13 @@
                 }
 
                 const data = await response.json();
-                document.querySelector("input[name='title']").value = data.title || "";
+                document.querySelector("textarea[name='title']").value = data.title || "";
                 document.querySelector("input[name='year']").value = data.year || "";
-                document.querySelector("input[name='journal']").value = data.journal || "";
+                document.querySelector("textarea[name='journal']").value = data.journal || "";
                 document.querySelector("input[name='volume']").value = data.volume || "";
                 document.querySelector("input[name='issue']").value = data.issue || "";
                 document.querySelector("input[name='pages']").value = data.pages || "";
-                document.querySelector("input[name='authors']").value = data.authors || "";
+                document.querySelector("textarea[name='authors']").value = data.authors || "";
             } catch (error) {
                 alert("An error occurred while fetching DOI details.");
                 console.error(error);
@@ -43,25 +43,25 @@
 <body>
     <h1>Add New {{ ref_type | capitalize }}</h1>
     <form method="post">
-        <label>Authors (comma-separated):</label>
-        <input type="text" name="authors" placeholder="Author 1, Author 2"><br>
+        <label>Authors (comma-separated):</label><br>
+        <textarea name="authors" rows="8" cols="80" placeholder="Author 1, Author 2"></textarea><br>
 
         {% if ref_type in ["papers", "preprints"] %}
             <label>DOI:</label>
-            <input type="text" name="doi"><br>
+            <input type="text" name="doi" size="80">
             <button type="button" onclick="fetchDOIDetails()">Fetch DOI Details</button><br>
-            <label>Title:</label>
-            <input type="text" name="title" required><br>
+            <label>Title:</label><br>
+            <textarea name="title" rows="4" cols="80" placeholder="Enter the title"></textarea><br>
             <label>Year:</label>
-            <input type="text" name="year" required><br>
-            <label>Journal:</label>
-            <input type="text" name="journal"><br>
+            <input type="text" name="year" required size="80"><br>
+            <label>Journal:</label><br>
+            <textarea name="journal" rows="3" cols="80" placeholder="Enter the journal name"></textarea><br>
             <label>Volume:</label>
-            <input type="text" name="volume"><br>
+            <input type="text" name="volume" size="80"><br>
             <label>Issue:</label>
-            <input type="text" name="issue"><br>
+            <input type="text" name="issue" size="80"><br>
             <label>Pages:</label>
-            <input type="text" name="pages"><br>
+            <input type="text" name="pages" size="80"><br>
             <label>Corresponding Author:</label>
             <input type="checkbox" name="corr" value="yes"><br>
             <label>Number of Co-first Authors:</label>
@@ -69,26 +69,26 @@
             <label>Number of Co-senior Authors:</label>
             <input type="number" name="coseniors" min="0" placeholder="0"><br>
         {% elif ref_type == "chapters" %}
-            <label>Title:</label>
-            <input type="text" name="title" required><br>
-            <label>Authors:</label>
-            <input type="text" name="authors"><br>
+            <label>Title:</label><br>
+            <textarea name="title" rows="4" cols="80" placeholder="Enter the title"></textarea><br>
+            <label>Authors:</label><br>
+            <textarea name="authors" rows="8" cols="80" placeholder="Author 1, Author 2"></textarea><br>
             <label>Publisher:</label>
-            <input type="text" name="publisher"><br>
+            <input type="text" name="publisher" size="80"><br>
         {% elif ref_type == "letters" %}
-            <label>Title:</label>
-            <input type="text" name="title" required><br>
-            <label>Authors:</label>
-            <input type="text" name="authors"><br>
+            <label>Title:</label><br>
+            <textarea name="title" rows="4" cols="80" placeholder="Enter the title"></textarea><br>
+            <label>Authors:</label><br>
+            <textarea name="authors" rows="8" cols="80" placeholder="Author 1, Author 2"></textarea><br>
             <label>DOI:</label>
-            <input type="text" name="doi"><br>
+            <input type="text" name="doi" size="80"><br>
         {% elif ref_type == "scimeetings" %}
-            <label>Title:</label>
-            <input type="text" name="title" required><br>
+            <label>Title:</label><br>
+            <textarea name="title" rows="4" cols="80" placeholder="Enter the title"></textarea><br>
             <label>Type:</label>
-            <input type="text" name="type"><br>
+            <input type="text" name="type" size="80"><br>
             <label>Conference:</label>
-            <input type="text" name="conference"><br>
+            <input type="text" name="conference" size="80"><br>
         {% endif %}
 
         <button type="submit">Add {{ ref_type | capitalize }}</button>

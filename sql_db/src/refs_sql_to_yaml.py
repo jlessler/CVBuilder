@@ -73,7 +73,14 @@ def fetch_data(cursor):
             # Fetch other details
             cursor.execute("SELECT key, value FROM ref_dat WHERE ref_id = ?", (ref_id,))
             for key, value in cursor.fetchall():
-                ref[key] = value
+                # Handle the 'corr' key
+                if key == "corr":
+                    if value.lower() in ["1", "yes", "true"]:  # Keep only if value is 1, yes, or true
+                        ref[key] = True
+                    else:
+                        continue  # Skip adding the 'corr' key
+                else:
+                    ref[key] = value
 
     return metadata, refs
 
