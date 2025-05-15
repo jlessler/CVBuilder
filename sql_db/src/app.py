@@ -45,8 +45,11 @@ def view_ref(ref_id):
 @app.route("/add/<ref_type>", methods=["GET", "POST"])
 def add_ref(ref_type):
     if request.method == "POST":
-        authors = request.form.getlist("authors")
-        ref_data = {key: value for key, value in request.form.items() if key not in ["authors", "submit"]}
+        authors = request.form.get("authors", "").split(",")
+        corr = request.form.get("corr", "no")  # Default to "no" if not checked
+        cofirsts = request.form.get("cofirsts", "0")  # Default to 0 if not provided
+        coseniors = request.form.get("coseniors", "0")  # Default to 0 if not provided
+        ref_data = {key: value for key, value in request.form.items() if key not in ["authors", "cofirsts", "coseniors", "corr", "submit"]}
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -60,7 +63,14 @@ def add_ref(ref_type):
             if author.strip():
                 cursor.execute("INSERT INTO authors (ref_id, author_name) VALUES (?, ?)", (ref_id, author.strip()))
 
-        # Insert ref details
+        # Insert cofirsts and coseniors as numeric values
+        cursor.execute("INSERT INTO ref_dat (ref_id, key, value) VALUES (?, ?, ?)", (ref_id, "cofirsts", cofirsts))
+        cursor.execute("INSERT INTO ref_dat (ref_id, key, value) VALUES (?, ?, ?)", (ref_id, "coseniors", coseniors))
+
+        # Insert corresponding author flag
+        cursor.execute("INSERT INTO ref_dat (ref_id, key, value) VALUES (?, ?, ?)", (ref_id, "corr", corr))
+
+        # Insert other reference details
         for key, value in ref_data.items():
             if value.strip():
                 cursor.execute("INSERT INTO ref_dat (ref_id, key, value) VALUES (?, ?, ?)", (ref_id, key.strip(), value.strip()))

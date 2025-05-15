@@ -62,6 +62,12 @@
             <input type="text" name="issue"><br>
             <label>Pages:</label>
             <input type="text" name="pages"><br>
+            <label>Corresponding Author:</label>
+            <input type="checkbox" name="corr" value="yes"><br>
+            <label>Number of Co-first Authors:</label>
+            <input type="number" name="cofirsts" min="0" placeholder="0"><br>
+            <label>Number of Co-senior Authors:</label>
+            <input type="number" name="coseniors" min="0" placeholder="0"><br>
         {% elif ref_type == "chapters" %}
             <label>Title:</label>
             <input type="text" name="title" required><br>

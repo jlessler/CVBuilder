@@ -7,25 +7,56 @@ datadir=mydata
 
 
 ## Set the flags
-while getopts o:d: flag
-do
-    case "${flag}" in
-        o) outdir=${OPTARG};;
-        d) data=${OPTARG};;
+# while getopts o:d: flag
+# do
+#     case "${flag}" in
+#         o) outdir=${OPTARG};;
+#         d) datadir=${OPTARG};;
+#     esac
+# done
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o)
+            outdir="$2"
+            shift 2
+            ;;
+        -d)
+            datadir="$2"
+            shift 2
+            ;;
+        *)
+            # Capture positional arguments
+            if [[ -z "$template" ]]; then
+                template="$1"
+            elif [[ -z "$output_filename" ]]; then
+                output_filename="$1"
+            else
+                echo "Unknown argument: $1"
+                exit 1
+            fi
+            shift
+            ;;
     esac
 done
 
-
 mkdir temp
+echo $1
+echo $2
+echo $template
+echo $output_filename
+
 mkdir $outdir
+
+echo $datadir
 
 perl ./perl/YAMLtoRefList.pl $datadir/refs.yml "reverse" 
 
 cd temp
 
 
-pandoc ../$datadir/CV.yml --template ../$1 -o ../$outdir/$2.pdf
-pandoc ../$datadir/CV.yml --template ../$1 -o temp.tex 
+pandoc ../$datadir/CV.yml --template ../$template -o ../$outdir/$output_filename.pdf
+pandoc ../$datadir/CV.yml --template ../$template -o temp.tex 
 tth temp.tex 
 cp temp.html ../$outdir/$2.html
 
