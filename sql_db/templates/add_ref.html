@@ -88,7 +88,9 @@
             <label>Type:</label>
             <input type="text" name="type" size="80"><br>
             <label>Conference:</label>
-            <input type="text" name="conference" size="80"><br>
+            <input type="text" name="conference" size="80" placeholder="Enter the conference name"><br>
+            <label>Year:</label>
+            <input type="text" name="year" size="80" placeholder="Enter the year"><br>
         {% endif %}
 
         <button type="submit">Add {{ ref_type | capitalize }}</button>
