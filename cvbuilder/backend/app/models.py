@@ -251,6 +251,7 @@ class PubAuthor(Base):
     pub_id: Mapped[int] = mapped_column(ForeignKey("publications.id"))
     author_name: Mapped[str] = mapped_column(String(300))
     author_order: Mapped[int] = mapped_column(Integer, default=0)
+    student: Mapped[bool] = mapped_column(Boolean, default=False)
     publication: Mapped["Publication"] = relationship(back_populates="authors")
 
 

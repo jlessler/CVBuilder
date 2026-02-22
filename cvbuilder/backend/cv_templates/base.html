@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% if cv.profile %}{{ cv.profile.name or 'CV' }}{% else %}CV{% endif %}</title>
-  <link rel="stylesheet" href="{{ theme_url }}">
+  <style>{{ theme_css_content }}</style>
 </head>
 <body>
 <div class="cv-page">

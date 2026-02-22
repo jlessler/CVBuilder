@@ -409,10 +409,14 @@ def import_refs_yaml(refs_path: str, session) -> None:
             session.add(pub)
             session.flush()
             for j, author in enumerate(authors_raw):
+                raw = str(author)
+                # Detect student-author marker from original LaTeX format ($^*$)
+                student = bool(re.search(r'\$\^[\*\{]', raw))
                 session.add(PubAuthor(
                     pub_id=pub.id,
-                    author_name=_clean(str(author)),
+                    author_name=_clean(raw),
                     author_order=j,
+                    student=student,
                 ))
 
     session.commit()

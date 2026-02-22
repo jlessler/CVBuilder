@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Publication, DOILookupResponse } from '../lib/api'
+import type { Publication, DOILookupResponse, Profile } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, ExternalLink } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical } from 'lucide-react'
+
+type AuthorRow = { author_name: string; student: boolean }
 
 const PUB_TYPES = [
   { value: 'papers', label: 'Papers' },
@@ -18,11 +20,11 @@ const TYPE_COLOR: Record<string, string> = {
   letters: 'orange', scimeetings: 'green',
 }
 
-function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorsText: string } {
+function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorRows: AuthorRow[] } {
   return {
     type: 'papers', title: '', year: '', journal: '', volume: '', issue: '',
     pages: '', doi: '', corr: false, cofirsts: 0, coseniors: 0, select_flag: false,
-    conference: '', pres_type: '', publisher: '', authorsText: '',
+    conference: '', pres_type: '', publisher: '', authorRows: [{ author_name: '', student: false }],
   }
 }
 
@@ -36,6 +38,57 @@ export function Publications() {
   const [doiInput, setDoiInput] = useState('')
   const [doiLoading, setDoiLoading] = useState(false)
 
+  const { data: profile } = useQuery<Profile>({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/profile').then(r => r.data),
+  })
+
+  function matchesSelf(authorName: string): boolean {
+    const profileName = profile?.name
+    if (!profileName || !authorName) return false
+    const parts = profileName.trim().split(/\s+/)
+    if (!parts.length) return false
+
+    const last = parts[parts.length - 1]
+    const firstInit = parts[0][0].toUpperCase()
+    const midInit = parts.length >= 3 ? parts[1][0].toUpperCase() : ''
+
+    // Last name must be a whole word (case-insensitive).
+    if (!new RegExp(`\\b${last}\\b`, 'i').test(authorName)) return false
+
+    // Strip punctuation, split, find last name index.
+    const cleanWords = authorName.replace(/[,.]/g, ' ').split(/\s+/).filter(Boolean)
+    const lastIdx = cleanWords.findIndex(w => w.toLowerCase() === last.toLowerCase())
+    if (lastIdx === -1) return false
+
+    const otherWords = cleanWords.filter((_, i) => i !== lastIdx)
+    if (!otherWords.length) return false
+
+    const toInitials = (w: string) => /^[A-Z]{1,3}$/.test(w) ? w : w[0].toUpperCase()
+    const initials = otherWords.map(toInitials).join('').toUpperCase()
+
+    if (!initials || initials[0] !== firstInit) return false
+    if (midInit && initials.length >= 2 && initials[1] !== midInit) return false
+
+    return true
+  }
+
+  function renderAuthors(authors: Publication['authors'], max = 5) {
+    const visible = authors.slice(0, max)
+    return (
+      <>
+        {visible.map((a, i) => (
+          <span key={a.id}>
+            {i > 0 && ', '}
+            {matchesSelf(a.author_name) ? <strong>{a.author_name}</strong> : a.author_name}
+            {a.student && <sup>†</sup>}
+          </span>
+        ))}
+        {authors.length > max && ` +${authors.length - max} more`}
+      </>
+    )
+  }
+
   const { data = [], isLoading } = useQuery<Publication[]>({
     queryKey: ['publications', typeFilter, keyword],
     queryFn: () => api.get('/publications', {
@@ -43,20 +96,22 @@ export function Publications() {
     }).then(r => r.data),
   })
 
+  function toApiAuthors(rows: AuthorRow[]) {
+    return rows
+      .filter(r => r.author_name.trim())
+      .map((r, i) => ({ author_name: r.author_name.trim(), author_order: i, student: r.student }))
+  }
+
   const createMut = useMutation({
     mutationFn: (d: typeof form) => api.post('/publications', {
-      ...d,
-      authors: d.authorsText.split('\n').filter(Boolean).map((n, i) => ({ author_name: n.trim(), author_order: i })),
-      authorsText: undefined,
+      ...d, authors: toApiAuthors(d.authorRows), authorRows: undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['publications'] }); setCreating(false); setForm(blankPub()) },
   })
 
   const updateMut = useMutation({
     mutationFn: (d: typeof form) => api.put(`/publications/${editing!.id}`, {
-      ...d,
-      authors: d.authorsText.split('\n').filter(Boolean).map((n, i) => ({ author_name: n.trim(), author_order: i })),
-      authorsText: undefined,
+      ...d, authors: toApiAuthors(d.authorRows), authorRows: undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['publications'] }); setEditing(null) },
   })
@@ -71,7 +126,9 @@ export function Publications() {
     setEditing(pub)
     setForm({
       ...pub,
-      authorsText: pub.authors.map(a => a.author_name).join('\n'),
+      authorRows: pub.authors.length
+        ? pub.authors.map(a => ({ author_name: a.author_name, student: a.student }))
+        : [{ author_name: '', student: false }],
     } as typeof form)
   }
 
@@ -90,7 +147,9 @@ export function Publications() {
         issue: d.issue || f.issue,
         pages: d.pages || f.pages,
         doi: d.doi || f.doi,
-        authorsText: d.authors.join('\n') || f.authorsText,
+        authorRows: d.authors.length
+          ? d.authors.map(n => ({ author_name: n, student: false }))
+          : f.authorRows,
       }))
     } catch {
       alert('DOI not found or lookup failed.')
@@ -131,13 +190,61 @@ export function Publications() {
         rows={2}
       />
 
-      <Textarea
-        label="Authors (one per line)"
-        value={form.authorsText || ''}
-        onChange={e => setForm(f => ({ ...f, authorsText: e.target.value }))}
-        rows={4}
-        placeholder="Smith J&#10;Jones A&#10;Doe B"
-      />
+      {/* Authors */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">Authors</label>
+          <span className="text-xs text-gray-400">Check &dagger; to mark student/trainee authors</span>
+        </div>
+        <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+          {form.authorRows.map((row, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <GripVertical size={14} className="text-gray-300 flex-shrink-0" />
+              <input
+                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="Smith J"
+                value={row.author_name}
+                onChange={e => setForm(f => {
+                  const rows = [...f.authorRows]
+                  rows[i] = { ...rows[i], author_name: e.target.value }
+                  return { ...f, authorRows: rows }
+                })}
+              />
+              <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap flex-shrink-0 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={row.student}
+                  onChange={e => setForm(f => {
+                    const rows = [...f.authorRows]
+                    rows[i] = { ...rows[i], student: e.target.checked }
+                    return { ...f, authorRows: rows }
+                  })}
+                  className="rounded"
+                />
+                <sup>&dagger;</sup>
+              </label>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({
+                  ...f,
+                  authorRows: f.authorRows.filter((_, j) => j !== i),
+                }))}
+                className="text-gray-300 hover:text-red-400 flex-shrink-0"
+                disabled={form.authorRows.length === 1}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false }] }))}
+          className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
+        >
+          <Plus size={12} /> Add author
+        </button>
+      </div>
 
       <Input label="Journal / Conference" value={form.journal || ''} onChange={e => setForm(f => ({ ...f, journal: e.target.value }))} />
 
@@ -219,8 +326,7 @@ export function Publications() {
                   </div>
                   <p className="font-medium text-gray-900 text-sm truncate">{pub.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {pub.authors.slice(0, 5).map(a => a.author_name).join(', ')}
-                    {pub.authors.length > 5 ? ` +${pub.authors.length - 5} more` : ''}
+                    {renderAuthors(pub.authors)}
                   </p>
                   {pub.journal && (
                     <p className="text-xs text-gray-400 mt-0.5 italic">{pub.journal}

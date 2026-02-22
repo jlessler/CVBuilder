@@ -92,10 +92,12 @@ body {
 }
 
 /* Publications */
+.pub-count { font-weight: normal; font-size: 0.85em; color: var(--muted); text-transform: none; letter-spacing: normal; }
+.pub-number { display: inline-block; min-width: 2em; text-align: right; margin-right: 0.4em; }
 .pub-entry {
   margin-bottom: 0.45em;
-  padding-left: 1.5em;
-  text-indent: -1.5em;
+  padding-left: 2.5em;
+  text-indent: -2.5em;
   line-height: 1.4;
 }
 

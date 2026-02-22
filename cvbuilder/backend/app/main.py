@@ -33,12 +33,28 @@ app.include_router(export.router)
 @app.on_event("startup")
 def startup():
     create_tables()
+    _run_migrations()
     from app.database import SessionLocal
     db = SessionLocal()
     try:
         _seed_templates(db)
     finally:
         db.close()
+
+
+def _run_migrations():
+    """Apply additive schema changes that create_all() won't handle."""
+    from app.database import engine
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for stmt in [
+            "ALTER TABLE pub_authors ADD COLUMN student INTEGER DEFAULT 0",
+        ]:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
 
 
 # ---------------------------------------------------------------------------

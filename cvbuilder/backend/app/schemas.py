@@ -367,6 +367,7 @@ class MiscSectionOut(MiscSectionBase):
 class PubAuthorBase(BaseModel):
     author_name: str
     author_order: int = 0
+    student: bool = False
 
 class PubAuthorCreate(PubAuthorBase):
     pass

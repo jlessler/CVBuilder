@@ -155,6 +155,7 @@ export interface PubAuthor {
   id: number
   author_name: string
   author_order: number
+  student: boolean
 }
 
 export interface Publication {
