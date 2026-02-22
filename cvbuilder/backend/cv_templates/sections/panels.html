@@ -1,0 +1,17 @@
+{% set panel_type = config.get('panel_type', 'advisory') %}
+{% set items = cv.panels | selectattr('type', 'equalto', panel_type) | list %}
+{% if items %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Panels') }}</div>
+  {% for p in items %}
+  <div class="cv-entry">
+    <div class="cv-entry-date">{{ p.date or '' }}</div>
+    <div class="cv-entry-body">
+      <span class="cv-entry-title">{{ p.panel or '' }}</span>
+      {% if p.org %}<br><span class="cv-entry-org">{{ p.org }}</span>{% endif %}
+      {% if p.role %}<br><span class="cv-entry-detail">{{ p.role }}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

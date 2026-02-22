@@ -1,0 +1,22 @@
+{% set trainee_type = config.get('trainee_type', 'advisee') %}
+{% set items = cv.trainees | selectattr('trainee_type', 'equalto', trainee_type) | list %}
+{% if items %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Trainees') }}</div>
+  {% for t in items %}
+  <div class="cv-entry">
+    <div class="cv-entry-date">
+      {{ t.years_start or '' }}{% if t.years_end %}–{{ t.years_end }}{% endif %}
+    </div>
+    <div class="cv-entry-body">
+      <span class="cv-entry-title">{{ t.name or '' }}</span>
+      {% if t.degree %} ({{ t.degree }}){% endif %}
+      {% if t.type %}, <em>{{ t.type }}</em>{% endif %}
+      {% if t.school %}<br><span class="cv-entry-org">{{ t.school }}</span>{% endif %}
+      {% if t.thesis %}<br><span class="cv-entry-detail">Thesis: {{ t.thesis }}</span>{% endif %}
+      {% if t.current_position %}<br><span class="cv-entry-detail">Now: {{ t.current_position }}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

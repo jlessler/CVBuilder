@@ -1,0 +1,116 @@
+/* Minimal CV Theme */
+:root {
+  --primary: #333333;
+  --accent: #555555;
+  --text: #333333;
+  --muted: #888888;
+  --border: #dddddd;
+  --bg: #ffffff;
+  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-heading: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 10.5pt;
+  color: var(--text);
+  background: var(--bg);
+  margin: 0;
+  padding: 0;
+}
+
+.cv-page {
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.75in;
+}
+
+.cv-header {
+  margin-bottom: 1.5em;
+}
+
+.cv-header h1 {
+  font-size: 22pt;
+  font-weight: 300;
+  color: var(--primary);
+  margin: 0 0 0.3em 0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cv-header .contact-line {
+  font-size: 9.5pt;
+  color: var(--muted);
+}
+
+.cv-section {
+  margin-bottom: 1.5em;
+}
+
+.cv-section-heading {
+  font-size: 9pt;
+  font-weight: bold;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+  margin-bottom: 0.6em;
+}
+
+.cv-entry {
+  display: flex;
+  margin-bottom: 0.45em;
+  line-height: 1.5;
+}
+
+.cv-entry-date {
+  flex: 0 0 1.2in;
+  color: var(--muted);
+  font-size: 9.5pt;
+}
+
+.cv-entry-body { flex: 1; }
+.cv-entry-title { font-weight: 600; }
+.cv-entry-org { color: var(--muted); }
+
+.pub-entry {
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  line-height: 1.5;
+}
+
+.pub-title { font-style: italic; }
+.pub-corr { font-weight: bold; }
+
+ul.cv-list {
+  margin: 0 0 0.3em 1em;
+  padding: 0;
+  list-style-type: disc;
+}
+
+ul.cv-list li { margin-bottom: 0.15em; }
+
+@media print {
+  body { font-size: 10pt; }
+}
+
+/* Grants */
+.cv-subsection-heading {
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: var(--accent);
+  margin: 0.6em 0 0.3em 0;
+  border-bottom: 1px dotted var(--border);
+  padding-bottom: 1px;
+}
+.cv-grant-entry { margin-bottom: 1em; padding-left: 0.1in; }
+.cv-grant-header { display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; }
+.cv-grant-dates { font-weight: normal; font-size: 10pt; color: var(--muted); white-space: nowrap; margin-left: 1em; }
+.cv-grant-pi { display: flex; justify-content: space-between; font-size: 10pt; }
+.cv-grant-amount { color: var(--muted); }
+.cv-grant-title { font-style: italic; margin: 0.15em 0; }
+.cv-grant-description { font-size: 10pt; color: var(--muted); margin: 0.15em 0; line-height: 1.4; }
+.cv-grant-role { font-size: 10pt; margin-top: 0.1em; }
+

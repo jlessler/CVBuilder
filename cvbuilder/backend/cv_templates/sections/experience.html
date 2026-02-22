@@ -1,0 +1,16 @@
+{% if cv.experience %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Experience') }}</div>
+  {% for e in cv.experience %}
+  <div class="cv-entry">
+    <div class="cv-entry-date">
+      {{ e.years_start or '' }}{% if e.years_end %}–{{ e.years_end }}{% endif %}
+    </div>
+    <div class="cv-entry-body">
+      <span class="cv-entry-title">{{ e.title or '' }}</span>
+      {% if e.employer %}<br><span class="cv-entry-org">{{ e.employer }}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

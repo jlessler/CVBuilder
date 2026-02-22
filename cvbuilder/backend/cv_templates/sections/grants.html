@@ -1,0 +1,64 @@
+{% set active_grants = cv.grants | selectattr('status', 'equalto', 'active') | list %}
+{% set completed_grants = cv.grants | selectattr('status', 'equalto', 'completed') | list %}
+{% if cv.grants %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Contracts and Grants') }}</div>
+
+  {% if active_grants %}
+  <div class="cv-subsection-heading">Active</div>
+  {% for g in active_grants %}
+  <div class="cv-grant-entry">
+    <div class="cv-grant-header">
+      <span class="cv-entry-title">{{ g.agency or '' }}</span>
+      {% if g.grant_type %} ({{ g.grant_type }}){% endif %}
+      <span class="cv-grant-dates">{{ g.years_start or '' }}{% if g.years_end %}–{{ g.years_end }}{% endif %}</span>
+    </div>
+    {% if g.pi %}
+    <div class="cv-grant-pi">
+      {{ g.pi }} (PI)
+      {% if g.amount %}<span class="cv-grant-amount">${{ g.amount }} (Total Costs)</span>{% endif %}
+    </div>
+    {% elif g.amount %}
+    <div class="cv-grant-pi"><span class="cv-grant-amount">${{ g.amount }} (Total Costs)</span></div>
+    {% endif %}
+    {% if g.title %}<div class="cv-grant-title">{{ g.title }}</div>{% endif %}
+    {% if g.description %}<div class="cv-grant-description">{{ g.description }}</div>{% endif %}
+    <div class="cv-grant-role">
+      <strong>Role: {{ g.role or '' }}</strong>
+      {% if g.pcteffort %} &nbsp; {{ g.pcteffort }}% FTE{% endif %}
+    </div>
+    {% if g.id_number %}<div class="cv-entry-detail">{{ g.id_number }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if completed_grants %}
+  <div class="cv-subsection-heading">Completed</div>
+  {% for g in completed_grants %}
+  <div class="cv-grant-entry">
+    <div class="cv-grant-header">
+      <span class="cv-entry-title">{{ g.agency or '' }}</span>
+      {% if g.grant_type %} ({{ g.grant_type }}){% endif %}
+      <span class="cv-grant-dates">{{ g.years_start or '' }}{% if g.years_end %}–{{ g.years_end }}{% endif %}</span>
+    </div>
+    {% if g.pi %}
+    <div class="cv-grant-pi">
+      {{ g.pi }} (PI)
+      {% if g.amount %}<span class="cv-grant-amount">${{ g.amount }} (Total Costs)</span>{% endif %}
+    </div>
+    {% elif g.amount %}
+    <div class="cv-grant-pi"><span class="cv-grant-amount">${{ g.amount }} (Total Costs)</span></div>
+    {% endif %}
+    {% if g.title %}<div class="cv-grant-title">{{ g.title }}</div>{% endif %}
+    {% if g.description %}<div class="cv-grant-description">{{ g.description }}</div>{% endif %}
+    <div class="cv-grant-role">
+      <strong>Role: {{ g.role or '' }}</strong>
+      {% if g.pcteffort %} &nbsp; {{ g.pcteffort }}% FTE{% endif %}
+    </div>
+    {% if g.id_number %}<div class="cv-entry-detail">{{ g.id_number }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</div>
+{% endif %}

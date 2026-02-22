@@ -1,0 +1,36 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Switch to PostgreSQL by setting DATABASE_URL:
+      # DATABASE_URL: postgresql://user:pass@db:5432/cvbuilder
+      DATABASE_URL: sqlite:///./data/cvbuilder.db
+    volumes:
+      - ./data:/app/data
+      # Mount your existing YAML files for the import command
+      - ../mydata:/app/mydata:ro
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Uncomment to use PostgreSQL instead of SQLite
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_DB: cvbuilder
+  #     POSTGRES_USER: cvbuilder
+  #     POSTGRES_PASSWORD: cvbuilder
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   pg_data:

@@ -1,0 +1,19 @@
+{% set pub_type = config.get('pub_type', 'papers') %}
+{% set pubs = cv.publications | selectattr('type', 'equalto', pub_type) | list %}
+{% if pubs %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', pub_type | title) }}</div>
+  {% for p in pubs | sort(attribute='year', reverse=True) %}
+  <div class="pub-entry">
+    {% set authors = p.authors | map(attribute='author_name') | list %}
+    {{ authors | join(', ') }}{% if p.corr %}<sup>*</sup>{% endif %}.
+    {% if p.title %}&ldquo;<span class="pub-title">{{ p.title }}</span>.&rdquo;{% endif %}
+    {% if p.journal %}<em>{{ p.journal }}</em>{% endif %}
+    {% if p.volume %}{{ p.volume }}{% endif %}{% if p.issue %}({{ p.issue }}){% endif %}{% if p.pages %}: {{ p.pages }}{% endif %}.
+    {% if p.year %}({{ p.year }}){% endif %}
+    {% if p.doi %}<a href="https://doi.org/{{ p.doi }}">doi:{{ p.doi }}</a>{% endif %}
+    {% if p.select_flag %} <span class="pub-select-flag">&#9733;</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

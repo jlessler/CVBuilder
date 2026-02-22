@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if cv.profile %}{{ cv.profile.name or 'CV' }}{% else %}CV{% endif %}</title>
+  <link rel="stylesheet" href="{{ theme_url }}">
+</head>
+<body>
+<div class="cv-page">
+
+  <!-- Header / Contact -->
+  <div class="cv-header">
+    {% if cv.profile %}
+    <h1>{{ cv.profile.name or '' }}</h1>
+    <div class="contact-line">
+      {% set parts = [] %}
+      {% if cv.profile.email %}{% set _ = parts.append(cv.profile.email) %}{% endif %}
+      {% if cv.profile.phone %}{% set _ = parts.append(cv.profile.phone) %}{% endif %}
+      {% if cv.profile.website %}{% set _ = parts.append(cv.profile.website) %}{% endif %}
+      {% if cv.profile.orcid %}{% set _ = parts.append('ORCID: ' + cv.profile.orcid) %}{% endif %}
+      {{ parts | join(' &nbsp;|&nbsp; ') }}
+    </div>
+    {% set work_addr = cv.profile.addresses | selectattr('type', 'equalto', 'work') | list %}
+    {% if work_addr %}
+    <div class="contact-line">{{ work_addr | map(attribute='text') | join(', ') }}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <!-- Dynamic sections -->
+  <div class="cv-body">
+  {% for section in sections %}
+    {% set key = section.key %}
+    {% set config = section.config %}
+
+    {# Education #}
+    {% if key == 'education' %}
+      {% include 'sections/education.html' %}
+
+    {# Experience #}
+    {% elif key == 'experience' %}
+      {% include 'sections/experience.html' %}
+
+    {# Consulting #}
+    {% elif key == 'consulting' and cv.consulting %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Consulting') }}</div>
+      {% for e in cv.consulting %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ e.years or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ e.title or '' }}</span>
+          {% if e.employer %}<br><span class="cv-entry-org">{{ e.employer }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Memberships #}
+    {% elif key == 'memberships' and cv.memberships %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Professional Memberships') }}</div>
+      <ul class="cv-list">
+        {% for m in cv.memberships %}
+        <li>{{ m.org }}{% if m.years %} ({{ m.years }}){% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# Panels - Advisory #}
+    {% elif key == 'panels_advisory' %}
+      {% set config = config | combine({'panel_type': 'advisory', 'heading': config.get('heading', 'Advisory Panels')}) %}
+      {% include 'sections/panels.html' %}
+
+    {# Panels - Grant Review #}
+    {% elif key == 'panels_grantreview' %}
+      {% set config = config | combine({'panel_type': 'grant_review', 'heading': config.get('heading', 'Grant Review Panels')}) %}
+      {% include 'sections/panels.html' %}
+
+    {# Patents #}
+    {% elif key == 'patents' and cv.patents %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Patents') }}</div>
+      {% for p in cv.patents %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ p.status or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ p.name or '' }}</span>
+          {% if p.number %} (No. {{ p.number }}){% endif %}
+          {% if p.authors %}
+          <br><span class="cv-entry-detail">{{ p.authors | map(attribute='author_name') | join(', ') }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Symposia #}
+    {% elif key == 'symposia' and cv.symposia %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Symposia Organized') }}</div>
+      {% for s in cv.symposia %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.date or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.title or '' }}</span>
+          {% if s.meeting %}<br><span class="cv-entry-org">{{ s.meeting }}</span>{% endif %}
+          {% if s.role %}, {{ s.role }}{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Teaching / Classes #}
+    {% elif key == 'classes' and cv.classes %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Teaching') }}</div>
+      {% for c in cv.classes %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ c.year or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ c.class_name or '' }}</span>
+          {% if c.role %}, <em>{{ c.role }}</em>{% endif %}
+          {% if c.school %}<br><span class="cv-entry-org">{{ c.school }}</span>{% endif %}
+          {% if c.students %}<span class="cv-entry-detail"> ({{ c.students }} students)</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Grants #}
+    {% elif key == 'grants' %}
+      {% include 'sections/grants.html' %}
+
+    {# Awards #}
+    {% elif key == 'awards' %}
+      {% include 'sections/awards.html' %}
+
+    {# Press #}
+    {% elif key == 'press' and cv.press %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Press Coverage') }}</div>
+      {% for p in cv.press %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ p.date or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ p.outlet or '' }}</span>
+          {% if p.topic %}<br>{{ p.topic }}{% endif %}
+          {% if p.title %}<br><em>{{ p.title }}</em>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Trainees - advisees #}
+    {% elif key == 'trainees_advisees' %}
+      {% set config = config | combine({'trainee_type': 'advisee', 'heading': config.get('heading', 'Graduate Advisees')}) %}
+      {% include 'sections/trainees.html' %}
+
+    {# Trainees - postdocs #}
+    {% elif key == 'trainees_postdocs' %}
+      {% set config = config | combine({'trainee_type': 'postdoc', 'heading': config.get('heading', 'Postdoctoral Fellows')}) %}
+      {% include 'sections/trainees.html' %}
+
+    {# Seminars (invited talks) #}
+    {% elif key == 'seminars' and cv.seminars %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Invited Seminars') }}</div>
+      {% for s in cv.seminars %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.date or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.title or '' }}</span>
+          {% if s.org %}<br><span class="cv-entry-org">{{ s.org }}</span>{% endif %}
+          {% if s.event %}, <em>{{ s.event }}</em>{% endif %}
+          {% if s.location %}<span class="cv-entry-detail"> &mdash; {{ s.location }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Committees #}
+    {% elif key == 'committees' and cv.committees %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Committee Memberships') }}</div>
+      {% for c in cv.committees %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ c.dates or '' }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ c.committee or '' }}</span>
+          {% if c.role %}, <em>{{ c.role }}</em>{% endif %}
+          {% if c.org %}<br><span class="cv-entry-org">{{ c.org }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Publications #}
+    {% elif key == 'publications_papers' %}
+      {% set config = config | combine({'pub_type': 'papers', 'heading': config.get('heading', 'Peer-Reviewed Publications')}) %}
+      {% include 'sections/publications.html' %}
+
+    {% elif key == 'publications_preprints' %}
+      {% set config = config | combine({'pub_type': 'preprints', 'heading': config.get('heading', 'Preprints')}) %}
+      {% include 'sections/publications.html' %}
+
+    {% elif key == 'publications_chapters' %}
+      {% set config = config | combine({'pub_type': 'chapters', 'heading': config.get('heading', 'Book Chapters')}) %}
+      {% include 'sections/publications.html' %}
+
+    {% elif key == 'publications_letters' %}
+      {% set config = config | combine({'pub_type': 'letters', 'heading': config.get('heading', 'Letters & Commentaries')}) %}
+      {% include 'sections/publications.html' %}
+
+    {% elif key == 'publications_scimeetings' %}
+      {% set config = config | combine({'pub_type': 'scimeetings', 'heading': config.get('heading', 'Scientific Meeting Presentations')}) %}
+      {% include 'sections/publications.html' %}
+
+    {% endif %}
+  {% endfor %}
+  </div>
+
+</div>
+</body>
+</html>

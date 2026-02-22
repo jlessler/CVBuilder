@@ -1,0 +1,14 @@
+{% if cv.education %}
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Education') }}</div>
+  {% for e in cv.education %}
+  <div class="cv-entry">
+    <div class="cv-entry-date">{{ e.year or '' }}</div>
+    <div class="cv-entry-body">
+      <span class="cv-entry-title">{{ e.degree or '' }}</span>{% if e.subject %}, {{ e.subject }}{% endif %}
+      {% if e.school %}<br><span class="cv-entry-org">{{ e.school }}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

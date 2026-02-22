@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
+
+# Environment
+.env
+*.env
