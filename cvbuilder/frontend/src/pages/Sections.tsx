@@ -21,10 +21,13 @@ interface TabDef {
   key: SectionKey
   label: string
   group: string
-  endpoint: string           // API path (without leading slash)
+  endpoint: string           // API path (without leading slash) used for GET
   queryParams?: string       // appended as ?key=val
   defaultValues?: Record<string, string | number>
   readOnly?: boolean         // misc sections shown read-only
+  dataFields?: string[]      // when set, form flattens item.data into top-level keys
+  sectionValue?: string      // the `section` string sent in MiscSection POST/PUT body
+  subtypeField?: string      // form field whose value is used as the MiscSection.section
 }
 
 const TABS: TabDef[] = [
@@ -44,13 +47,13 @@ const TABS: TabDef[] = [
   { key: 'symposia',            label: 'Symposia',         group: 'Service',    endpoint: 'symposia' },
   { key: 'committees',          label: 'Committees',       group: 'Service',    endpoint: 'committees' },
   { key: 'memberships',         label: 'Memberships',      group: 'Service',    endpoint: 'memberships' },
+  { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    endpoint: 'misc/editorial', dataFields: ['journal', 'term', 'role'], subtypeField: 'subtype' },
+  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    endpoint: 'misc/peerrev', dataFields: ['value'],            sectionValue: 'peerrev' },
   // --- Publications / scholarshipadjacent ---
   { key: 'patents',             label: 'Patents',          group: 'Other',      endpoint: 'patents' },
   { key: 'seminars',            label: 'Seminars',         group: 'Other',      endpoint: 'seminars' },
   { key: 'awards',              label: 'Awards',           group: 'Other',      endpoint: 'awards' },
   // --- Misc (read-only lists) ---
-  { key: 'misc_editor',         label: 'Editorial',        group: 'Misc',       endpoint: 'misc/editor',       readOnly: true },
-  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Misc',       endpoint: 'misc/peerrev',      readOnly: true },
   { key: 'misc_policypres',     label: 'Policy Pres.',     group: 'Misc',       endpoint: 'misc/policypres',   readOnly: true },
   { key: 'misc_policycons',     label: 'Policy Consult.',  group: 'Misc',       endpoint: 'misc/policycons',   readOnly: true },
   { key: 'misc_software',       label: 'Software',         group: 'Misc',       endpoint: 'misc/software',     readOnly: true },
@@ -64,7 +67,9 @@ const GROUPS = ['Background', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
 // Field definitions per section
 // ---------------------------------------------------------------------------
 
-const FIELDS: Partial<Record<SectionKey, { key: string; label: string; type?: string; textarea?: boolean }[]>> = {
+type FieldDef = { key: string; label: string; type?: string; textarea?: boolean; options?: { value: string; label: string }[] }
+
+const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
   education: [
     { key: 'degree', label: 'Degree' },
     { key: 'year', label: 'Year', type: 'number' },
@@ -190,11 +195,29 @@ const FIELDS: Partial<Record<SectionKey, { key: string; label: string; type?: st
     { key: 'dates', label: 'Dates' },
     { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
+  misc_editor: [
+    { key: 'subtype', label: 'Role Type', options: [
+      { value: 'editor',     label: 'Editor' },
+      { value: 'assocedit',  label: 'Associate Editor' },
+      { value: 'otheredit',  label: 'Guest Editor / Other' },
+    ]},
+    { key: 'journal', label: 'Journal' },
+    { key: 'role', label: 'Specific Role (e.g., Guest Editor, Statistical Advisor)' },
+    { key: 'term', label: 'Term / Years' },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
+  misc_peerrev: [
+    { key: 'value', label: 'Journal / Publication' },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
 }
 
 function blankForm(tab: TabDef): Record<string, string | number> {
   const fields = FIELDS[tab.key] ?? []
-  const base = Object.fromEntries(fields.map(f => [f.key, f.type === 'number' ? 0 : '']))
+  const base = Object.fromEntries(fields.map(f => [
+    f.key,
+    f.options ? f.options[0].value : f.type === 'number' ? 0 : '',
+  ]))
   return { ...base, ...(tab.defaultValues ?? {}) }
 }
 
@@ -218,10 +241,15 @@ function ItemRow({
     ''
   ) as string
 
+  const SECTION_LABELS: Record<string, string> = {
+    editor: 'Editor', assocedit: 'Associate Editor', otheredit: 'Guest Editor / Other',
+  }
   const sub = (
     item.employer || item.agency || item.school || item.meeting ||
     item.org || item.outlet || item.topic ||
     (item.data && (item.data as Record<string, unknown>).org) ||
+    (item.data && (item.data as Record<string, unknown>).role) ||
+    (item.section && SECTION_LABELS[item.section as string]) ||
     ''
   ) as string
 
@@ -268,20 +296,36 @@ export function Sections() {
     queryFn: () => api.get(url).then(r => r.data),
   })
 
+  function buildMiscPayload(d: Record<string, string | number>) {
+    const section = currentTab.subtypeField
+      ? String(d[currentTab.subtypeField] || currentTab.sectionValue || '')
+      : (currentTab.sectionValue ?? '')
+    const dataKeys = (currentTab.dataFields ?? []).filter(k => k !== currentTab.subtypeField)
+    const dataObj = Object.fromEntries(dataKeys.map(k => [k, d[k] ?? '']))
+    return { section, data: dataObj, sort_order: d.sort_order ?? 0 }
+  }
+
   const createMut = useMutation({
     mutationFn: (d: Record<string, string | number>) =>
-      api.post(`/${currentTab.endpoint}`, { ...d, ...(currentTab.defaultValues ?? {}) }),
+      currentTab.dataFields
+        ? api.post('/misc', buildMiscPayload(d))
+        : api.post(`/${currentTab.endpoint}`, { ...d, ...(currentTab.defaultValues ?? {}) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: [tab] }); closeModal() },
   })
 
   const updateMut = useMutation({
     mutationFn: (d: Record<string, string | number>) =>
-      api.put(`/${currentTab.endpoint}/${d.id}`, d),
+      currentTab.dataFields
+        ? api.put(`/misc/${d.id}`, buildMiscPayload(d))
+        : api.put(`/${currentTab.endpoint}/${d.id}`, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: [tab] }); closeModal() },
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => api.delete(`/${currentTab.endpoint}/${id}`),
+    mutationFn: (id: number) =>
+      currentTab.dataFields
+        ? api.delete(`/misc/${id}`)
+        : api.delete(`/${currentTab.endpoint}/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: [tab] }),
   })
 
@@ -291,7 +335,13 @@ export function Sections() {
   }
 
   function openEdit(item: Record<string, unknown>) {
-    setForm(item as Record<string, string | number>)
+    if (currentTab.dataFields && item.data) {
+      const nested = item.data as Record<string, unknown>
+      const extra = currentTab.subtypeField ? { [currentTab.subtypeField]: item.section } : {}
+      setForm({ id: item.id as number, sort_order: item.sort_order as number, ...nested, ...extra } as Record<string, string | number>)
+    } else {
+      setForm(item as Record<string, string | number>)
+    }
     setModal({ open: true, item })
   }
 
@@ -388,7 +438,17 @@ export function Sections() {
           {fields.map(field => (
             <div key={field.key}>
               <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-              {field.textarea ? (
+              {field.options ? (
+                <select
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={String(form[field.key] ?? field.options[0].value)}
+                  onChange={e => setField(field.key, e.target.value)}
+                >
+                  {field.options.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) : field.textarea ? (
                 <textarea
                   rows={3}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"

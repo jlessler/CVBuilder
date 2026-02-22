@@ -28,6 +28,12 @@ def _build_cv_data(db: Session) -> dict:
         "trainees": db.query(models.Trainee).order_by(models.Trainee.sort_order).all(),
         "seminars": db.query(models.Seminar).order_by(models.Seminar.sort_order).all(),
         "committees": db.query(models.Committee).order_by(models.Committee.sort_order).all(),
+        "editorial": db.query(models.MiscSection).filter(
+            models.MiscSection.section.in_(["editor", "assocedit", "otheredit"])
+        ).order_by(models.MiscSection.sort_order).all(),
+        "peerrev": db.query(models.MiscSection).filter(
+            models.MiscSection.section == "peerrev"
+        ).order_by(models.MiscSection.sort_order).all(),
         "publications": db.query(models.Publication).order_by(
             models.Publication.year.desc(), models.Publication.id.desc()
         ).all(),

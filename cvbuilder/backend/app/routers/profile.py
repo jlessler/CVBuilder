@@ -404,6 +404,13 @@ def delete_committee(item_id: int, db: Session = Depends(get_db)):
 # Misc sections
 # ---------------------------------------------------------------------------
 
+@router.get("/misc/editorial", response_model=list[schemas.MiscSectionOut])
+def list_editorial(db: Session = Depends(get_db)):
+    """Return all editorial entries (editor + assocedit + otheredit) combined."""
+    return db.query(models.MiscSection).filter(
+        models.MiscSection.section.in_(["editor", "assocedit", "otheredit"])
+    ).order_by(models.MiscSection.sort_order).all()
+
 @router.get("/misc/{section}", response_model=list[schemas.MiscSectionOut])
 def list_misc(section: str, db: Session = Depends(get_db)):
     return db.query(models.MiscSection).filter(

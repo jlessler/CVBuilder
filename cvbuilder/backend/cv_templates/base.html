@@ -196,6 +196,57 @@
       {% endfor %}
     </div>
 
+    {# Editorial Activities #}
+    {% elif key == 'editorial' and cv.editorial %}
+    {% set editors     = cv.editorial | selectattr('section', 'equalto', 'editor')    | list %}
+    {% set assocedits  = cv.editorial | selectattr('section', 'equalto', 'assocedit') | list %}
+    {% set otheredits  = cv.editorial | selectattr('section', 'equalto', 'otheredit') | list %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Editorial Activities') }}</div>
+
+      {% if editors %}
+      <div class="cv-subsection-heading">Editor</div>
+      {% for e in editors %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ e.data.get('term', '') }}</div>
+        <div class="cv-entry-body"><span class="cv-entry-title">{{ e.data.get('journal', '') }}</span>{% if e.data.get('role') %}<br><em>{{ e.data.get('role') }}</em>{% endif %}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if assocedits %}
+      <div class="cv-subsection-heading">Associate Editor</div>
+      {% for e in assocedits %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ e.data.get('term', '') }}</div>
+        <div class="cv-entry-body"><span class="cv-entry-title">{{ e.data.get('journal', '') }}</span>{% if e.data.get('role') %}<br><em>{{ e.data.get('role') }}</em>{% endif %}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if otheredits %}
+      <div class="cv-subsection-heading">Other Editorial Roles</div>
+      {% for e in otheredits %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ e.data.get('term', '') }}</div>
+        <div class="cv-entry-body"><span class="cv-entry-title">{{ e.data.get('journal', '') }}</span>{% if e.data.get('role') %}<br><em>{{ e.data.get('role') }}</em>{% endif %}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+    </div>
+
+    {# Peer Review #}
+    {% elif key == 'peerrev' and cv.peerrev %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Peer Review') }}</div>
+      <ul class="cv-list">
+        {% for p in cv.peerrev %}
+        <li>{{ p.data.get('value', '') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
     {# Publications #}
     {% elif key == 'publications_papers' %}
       {% set config = config | combine({'pub_type': 'papers', 'heading': config.get('heading', 'Peer-Reviewed Publications')}) %}

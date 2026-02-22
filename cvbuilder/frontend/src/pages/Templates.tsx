@@ -15,6 +15,9 @@ import { CSS } from '@dnd-kit/utilities'
 
 const THEMES = [
   { value: 'academic', label: 'Academic (Times, formal)' },
+  { value: 'unc', label: 'UNC (sans-serif, Carolina Blue)' },
+  { value: 'hopkins', label: 'Hopkins (serif, Heritage Blue)' },
+  { value: 'unige', label: 'UNIGE (sans-serif, RedViolet)' },
   { value: 'minimal', label: 'Minimal (Helvetica, clean)' },
   { value: 'modern', label: 'Modern (colored header)' },
 ]
@@ -28,12 +31,16 @@ const ALL_SECTIONS = [
   { key: 'panels_grantreview', label: 'Grant Review Panels' },
   { key: 'patents', label: 'Patents' },
   { key: 'symposia', label: 'Symposia Organized' },
+  { key: 'committees', label: 'Committee Memberships' },
+  { key: 'editorial', label: 'Editorial Activities' },
+  { key: 'peerrev', label: 'Peer Review' },
   { key: 'classes', label: 'Teaching' },
   { key: 'grants', label: 'Grants & Funding' },
   { key: 'awards', label: 'Honors & Awards' },
   { key: 'press', label: 'Press Coverage' },
   { key: 'trainees_advisees', label: 'Graduate Advisees' },
   { key: 'trainees_postdocs', label: 'Postdoctoral Fellows' },
+  { key: 'seminars', label: 'Invited Seminars & Lectures' },
   { key: 'publications_papers', label: 'Papers' },
   { key: 'publications_preprints', label: 'Preprints' },
   { key: 'publications_chapters', label: 'Book Chapters' },

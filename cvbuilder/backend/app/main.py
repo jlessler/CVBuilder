@@ -80,6 +80,10 @@ _HEADINGS = {
     "publications_chapters":      "Books and Chapters",
     "publications_letters":       "Letters",
     "publications_scimeetings":   "Presentations at Scientific Meetings",
+    "editorial":                  "Editorial Activities",
+    "peerrev":                    "Peer Review",
+    "seminars":                   "Invited Seminars and Lectures",
+    "committees":                 "Committee Memberships",
 }
 
 # ---------------------------------------------------------------------------
@@ -92,8 +96,10 @@ _TEMPLATES = {
         [
             "education", "experience", "consulting", "memberships",
             "panels_advisory", "panels_grantreview", "patents", "symposia",
+            "committees", "editorial", "peerrev",
             "classes", "grants", "awards", "press",
             "trainees_advisees", "trainees_postdocs",
+            "seminars",
             "publications_papers", "publications_preprints",
             "publications_chapters", "publications_letters",
             "publications_scimeetings",
@@ -146,23 +152,35 @@ _TEMPLATES = {
 
 
 def _seed_templates(db):
-    """Insert any templates that don't already exist (matched by name)."""
-    existing = {t.name for t in db.query(models.CVTemplate).all()}
+    """Insert new templates and add any missing sections to existing templates."""
+    existing_tmpls = {t.name: t for t in db.query(models.CVTemplate).all()}
     for name, (description, theme_css, sections) in _TEMPLATES.items():
-        if name in existing:
-            continue
-        tmpl = models.CVTemplate(name=name, description=description, theme_css=theme_css)
-        db.add(tmpl)
-        db.flush()
-        for i, key in enumerate(sections):
-            heading = _HEADINGS.get(key, key.replace("_", " ").title())
-            db.add(models.TemplateSection(
-                template_id=tmpl.id,
-                section_key=key,
-                enabled=True,
-                section_order=i,
-                config={"heading": heading},
-            ))
+        if name not in existing_tmpls:
+            tmpl = models.CVTemplate(name=name, description=description, theme_css=theme_css)
+            db.add(tmpl)
+            db.flush()
+        else:
+            tmpl = existing_tmpls[name]
+
+        existing_keys = {
+            s.section_key for s in
+            db.query(models.TemplateSection).filter_by(template_id=tmpl.id).all()
+        }
+        # Append any new section keys at the end of the current order
+        next_order = db.query(models.TemplateSection).filter_by(
+            template_id=tmpl.id
+        ).count()
+        for key in sections:
+            if key not in existing_keys:
+                heading = _HEADINGS.get(key, key.replace("_", " ").title())
+                db.add(models.TemplateSection(
+                    template_id=tmpl.id,
+                    section_key=key,
+                    enabled=True,
+                    section_order=next_order,
+                    config={"heading": heading},
+                ))
+                next_order += 1
     db.commit()
 
 
