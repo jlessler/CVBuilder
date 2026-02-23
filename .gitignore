@@ -1,4 +1,6 @@
 mydata/*
+cvbuilder/data/
 temp/*
 output/*
 mytemplates/*
+.Rproj.user
