@@ -432,6 +432,7 @@ class PublicationCandidate(BaseModel):
     source: str
     pmid: Optional[str] = None
     pub_type: str = "papers"
+    match_warning: Optional[str] = None
 
 class SyncCheckResponse(BaseModel):
     candidates: list[PublicationCandidate]

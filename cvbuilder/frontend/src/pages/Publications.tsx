@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Publication, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle } from 'lucide-react'
 
 type AuthorRow = { author_name: string; student: boolean }
 
@@ -197,8 +197,12 @@ export function Publications() {
     try {
       const res = await api.get<SyncCheckResponse>('/publications/sync-check')
       setSyncResult(res.data)
-      // Pre-select all candidates
-      setSelectedIndices(new Set(res.data.candidates.map((_, i) => i)))
+      // Pre-select only candidates without a fuzzy-match warning
+      setSelectedIndices(new Set(
+        res.data.candidates
+          .map((c, i) => c.match_warning ? null : i)
+          .filter((i): i is number => i !== null)
+      ))
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setSyncError(msg || 'Failed to fetch publications. Check your profile name/ORCID.')
@@ -544,9 +548,16 @@ export function Publications() {
                             {c.source.split('+').map(s => (
                               <Badge key={s} color={SOURCE_COLOR[s] || 'gray'}>{s}</Badge>
                             ))}
+                            {c.match_warning && <Badge color="yellow">Possible duplicate</Badge>}
                             {c.year && <span className="text-xs text-gray-400">{c.year}</span>}
                           </div>
                           <p className="font-medium text-gray-900 text-sm">{c.title}</p>
+                          {c.match_warning && (
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1 flex items-start gap-1.5">
+                              <AlertTriangle size={11} className="flex-shrink-0 mt-0.5" />
+                              <span>{c.match_warning}</span>
+                            </p>
+                          )}
                           {c.authors.length > 0 && (
                             <p className="text-xs text-gray-500 mt-0.5">
                               {renderCandidateAuthors(c.authors)}

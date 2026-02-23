@@ -48,6 +48,7 @@ class RawCandidate:
     source: str = ""
     pmid: str | None = None
     pub_type: str = "papers"
+    match_warning: str | None = None
 
     def _field_count(self) -> int:
         """Count non-empty fields (used to prefer richer records during dedup)."""
@@ -78,6 +79,18 @@ def _normalize_title(title: str) -> str:
     t = re.sub(r"[^\w\s]", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     return t
+
+
+def _title_similarity(t1: str, t2: str) -> float:
+    """Max of Jaccard and overlap coefficient on normalized word sets."""
+    w1 = set(_normalize_title(t1).split())
+    w2 = set(_normalize_title(t2).split())
+    if not w1 or not w2:
+        return 0.0
+    inter = len(w1 & w2)
+    jaccard = inter / len(w1 | w2)
+    overlap = inter / min(len(w1), len(w2))
+    return max(jaccard, overlap)
 
 
 def _key(c: RawCandidate):
@@ -129,11 +142,13 @@ def _dedup_candidates(candidates: list[RawCandidate]) -> list[RawCandidate]:
 
 
 def deduplicate(candidates: list[RawCandidate], db_pubs) -> list[RawCandidate]:
-    """Remove candidates already present in the DB."""
+    """Remove exact DB matches; flag fuzzy matches with match_warning."""
     db_dois: set[str] = set()
     db_titles: set[tuple] = set()
+    # Keep full pub objects for fuzzy comparison
+    db_pub_list = list(db_pubs)
 
-    for pub in db_pubs:
+    for pub in db_pub_list:
         nd = _normalize_doi(pub.doi)
         if nd:
             db_dois.add(nd)
@@ -146,10 +161,35 @@ def deduplicate(candidates: list[RawCandidate], db_pubs) -> list[RawCandidate]:
     result = []
     for c in candidates:
         doi_key, title_key = _key(c)
+        # Exact match → drop entirely
         if doi_key and doi_key in db_dois:
             continue
         if title_key and title_key[0] and title_key in db_titles:
             continue
+
+        # Fuzzy title match → keep but warn
+        c_words = set(_normalize_title(c.title).split()) if c.title else set()
+        if len(c_words) >= 4:  # skip fuzzy check for very short titles
+            c_year = (c.year or "").strip()
+            for pub in db_pub_list:
+                if not pub.title:
+                    continue
+                sim = _title_similarity(c.title, pub.title)
+                if sim < 0.75:
+                    continue
+                # If both years are known, allow up to 2-year gap (preprint→published)
+                pub_year = (pub.year or "").strip()
+                if c_year and pub_year:
+                    try:
+                        if abs(int(c_year) - int(pub_year)) > 2:
+                            continue
+                    except ValueError:
+                        pass
+                snippet = pub.title if len(pub.title) <= 80 else pub.title[:77] + "…"
+                year_str = f" ({pub.year})" if pub.year else ""
+                c.match_warning = f'Similar to existing: "{snippet}"{year_str}'
+                break
+
         result.append(c)
     return result
 
@@ -482,6 +522,7 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
                 "source": c.source,
                 "pmid": c.pmid,
                 "pub_type": c.pub_type,
+                "match_warning": c.match_warning,
             }
             for c in new_pubs
         ],

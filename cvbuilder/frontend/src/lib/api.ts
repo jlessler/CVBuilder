@@ -232,6 +232,7 @@ export interface PublicationCandidate {
   source: string
   pmid: string | null
   pub_type: string
+  match_warning: string | null
 }
 
 export interface SyncCheckResponse {
