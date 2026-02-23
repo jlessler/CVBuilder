@@ -420,6 +420,28 @@ class DOILookupResponse(BaseModel):
     doi: Optional[str] = None
 
 
+class PublicationCandidate(BaseModel):
+    title: str
+    year: Optional[str] = None
+    journal: Optional[str] = None
+    volume: Optional[str] = None
+    issue: Optional[str] = None
+    pages: Optional[str] = None
+    doi: Optional[str] = None
+    authors: list[str] = []
+    source: str
+    pmid: Optional[str] = None
+    pub_type: str = "papers"
+
+class SyncCheckResponse(BaseModel):
+    candidates: list[PublicationCandidate]
+    searched: list[str]
+    errors: dict[str, str] = {}
+
+class SyncAddRequest(BaseModel):
+    publications: list[PublicationCandidate]
+
+
 # ---------------------------------------------------------------------------
 # Templates
 # ---------------------------------------------------------------------------

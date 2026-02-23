@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.services.doi import lookup_doi
+from app.services.fetch_pubs import fetch_new_publications
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
@@ -34,6 +35,52 @@ def list_publications(
             models.Publication.journal.ilike(kw)
         )
     return q.order_by(models.Publication.year.desc(), models.Publication.id.desc()).offset(skip).limit(limit).all()
+
+
+# Fixed-path routes must come before /{pub_id} to avoid being swallowed by it
+
+@router.post("/doi-lookup", response_model=schemas.DOILookupResponse)
+def doi_lookup(request: schemas.DOILookupRequest):
+    try:
+        result = lookup_doi(request.doi)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sync-check", response_model=schemas.SyncCheckResponse)
+async def sync_check(db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found — add your name/ORCID first")
+    return await fetch_new_publications(db, profile.name, profile.orcid)
+
+
+@router.post("/sync-add", response_model=list[schemas.PublicationOut])
+def sync_add(request: schemas.SyncAddRequest, db: Session = Depends(get_db)):
+    created = []
+    for candidate in request.publications:
+        pub = models.Publication(
+            type=candidate.pub_type,
+            title=candidate.title,
+            year=candidate.year,
+            journal=candidate.journal,
+            volume=candidate.volume,
+            issue=candidate.issue,
+            pages=candidate.pages,
+            doi=candidate.doi,
+        )
+        db.add(pub)
+        db.flush()
+        for i, name in enumerate(candidate.authors):
+            db.add(models.PubAuthor(pub_id=pub.id, author_name=name, author_order=i, student=False))
+        created.append(pub)
+    db.commit()
+    for pub in created:
+        db.refresh(pub)
+    return created
 
 
 @router.get("/{pub_id}", response_model=schemas.PublicationOut)
@@ -83,14 +130,3 @@ def delete_publication(pub_id: int, db: Session = Depends(get_db)):
     db.delete(pub)
     db.commit()
     return {"ok": True}
-
-
-@router.post("/doi-lookup", response_model=schemas.DOILookupResponse)
-def doi_lookup(request: schemas.DOILookupRequest):
-    try:
-        result = lookup_doi(request.doi)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

@@ -219,3 +219,23 @@ export interface DOILookupResponse {
   authors: string[]
   doi: string | null
 }
+
+export interface PublicationCandidate {
+  title: string
+  year: string | null
+  journal: string | null
+  volume: string | null
+  issue: string | null
+  pages: string | null
+  doi: string | null
+  authors: string[]
+  source: string
+  pmid: string | null
+  pub_type: string
+}
+
+export interface SyncCheckResponse {
+  candidates: PublicationCandidate[]
+  searched: string[]
+  errors: Record<string, string>
+}

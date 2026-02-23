@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Publication, DOILookupResponse, Profile } from '../lib/api'
+import type { Publication, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil } from 'lucide-react'
 
 type AuthorRow = { author_name: string; student: boolean }
 
@@ -18,6 +18,10 @@ const PUB_TYPES = [
 const TYPE_COLOR: Record<string, string> = {
   papers: 'blue', preprints: 'cyan', chapters: 'purple',
   letters: 'orange', scimeetings: 'green',
+}
+
+const SOURCE_COLOR: Record<string, string> = {
+  pubmed: 'green', crossref: 'blue', orcid: 'orange', semanticscholar: 'purple',
 }
 
 function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorRows: AuthorRow[] } {
@@ -38,6 +42,16 @@ export function Publications() {
   const [doiInput, setDoiInput] = useState('')
   const [doiLoading, setDoiLoading] = useState(false)
 
+  // Find New state
+  const [syncOpen, setSyncOpen] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncCheckResponse | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [addingSelected, setAddingSelected] = useState(false)
+  const [editingCandidate, setEditingCandidate] = useState<number | null>(null)
+  const [candidateForm, setCandidateForm] = useState<PublicationCandidate | null>(null)
+
   const { data: profile } = useQuery<Profile>({
     queryKey: ['profile'],
     queryFn: () => api.get('/profile').then(r => r.data),
@@ -53,10 +67,8 @@ export function Publications() {
     const firstInit = parts[0][0].toUpperCase()
     const midInit = parts.length >= 3 ? parts[1][0].toUpperCase() : ''
 
-    // Last name must be a whole word (case-insensitive).
     if (!new RegExp(`\\b${last}\\b`, 'i').test(authorName)) return false
 
-    // Strip punctuation, split, find last name index.
     const cleanWords = authorName.replace(/[,.]/g, ' ').split(/\s+/).filter(Boolean)
     const lastIdx = cleanWords.findIndex(w => w.toLowerCase() === last.toLowerCase())
     if (lastIdx === -1) return false
@@ -82,6 +94,21 @@ export function Publications() {
             {i > 0 && ', '}
             {matchesSelf(a.author_name) ? <strong>{a.author_name}</strong> : a.author_name}
             {a.student && <sup>†</sup>}
+          </span>
+        ))}
+        {authors.length > max && ` +${authors.length - max} more`}
+      </>
+    )
+  }
+
+  function renderCandidateAuthors(authors: string[], max = 5) {
+    const visible = authors.slice(0, max)
+    return (
+      <>
+        {visible.map((name, i) => (
+          <span key={i}>
+            {i > 0 && ', '}
+            {matchesSelf(name) ? <strong>{name}</strong> : name}
           </span>
         ))}
         {authors.length > max && ` +${authors.length - max} more`}
@@ -156,6 +183,69 @@ export function Publications() {
     } finally {
       setDoiLoading(false)
     }
+  }
+
+  async function handleFindNew() {
+    setSyncOpen(true)
+    setSyncLoading(true)
+    setSyncResult(null)
+    setSyncError(null)
+    setSelectedIndices(new Set())
+    setEditingCandidate(null)
+    setCandidateForm(null)
+    try {
+      const res = await api.get<SyncCheckResponse>('/publications/sync-check')
+      setSyncResult(res.data)
+      // Pre-select all candidates
+      setSelectedIndices(new Set(res.data.candidates.map((_, i) => i)))
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setSyncError(msg || 'Failed to fetch publications. Check your profile name/ORCID.')
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
+  async function handleAddSelected() {
+    if (!syncResult || selectedIndices.size === 0) return
+    setAddingSelected(true)
+    try {
+      const pubs = Array.from(selectedIndices).map(i => syncResult.candidates[i])
+      await api.post('/publications/sync-add', { publications: pubs })
+      qc.invalidateQueries({ queryKey: ['publications'] })
+      setSyncOpen(false)
+    } catch {
+      alert('Failed to add publications.')
+    } finally {
+      setAddingSelected(false)
+    }
+  }
+
+  function toggleCandidate(idx: number) {
+    setSelectedIndices(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
+  function openCandidateEdit(idx: number) {
+    if (!syncResult) return
+    setEditingCandidate(idx)
+    setCandidateForm({ ...syncResult.candidates[idx] })
+  }
+
+  function saveCandidateEdit() {
+    if (!syncResult || editingCandidate === null || !candidateForm) return
+    setSyncResult(prev => {
+      if (!prev || editingCandidate === null) return prev
+      const updated = [...prev.candidates]
+      updated[editingCandidate] = { ...candidateForm }
+      return { ...prev, candidates: updated }
+    })
+    setEditingCandidate(null)
+    setCandidateForm(null)
   }
 
   const PubForm = (
@@ -283,7 +373,12 @@ export function Publications() {
       <PageHeader
         title="Publications"
         subtitle={`${data.length} total`}
-        actions={<Button onClick={openCreate}><Plus size={16} /> Add Publication</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={handleFindNew}><RefreshCw size={15} /> Find New</Button>
+            <Button onClick={openCreate}><Plus size={16} /> Add Publication</Button>
+          </div>
+        }
       />
 
       {/* Filters */}
@@ -370,6 +465,205 @@ export function Publications() {
       </Modal>
       <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Publication">
         {PubForm}
+      </Modal>
+
+      {/* Find New Publications Modal */}
+      <Modal
+        open={syncOpen}
+        onClose={() => { if (!syncLoading && !addingSelected) setSyncOpen(false) }}
+        title="Find New Publications"
+      >
+        {syncLoading && (
+          <div className="py-12 flex flex-col items-center gap-4 text-gray-500">
+            <Spinner />
+            <p className="text-sm">Searching ORCID, PubMed, Crossref...</p>
+          </div>
+        )}
+
+        {!syncLoading && syncError && (
+          <div className="py-6 text-center">
+            <p className="text-sm text-red-600">{syncError}</p>
+            <Button variant="secondary" className="mt-4" onClick={() => setSyncOpen(false)}>Close</Button>
+          </div>
+        )}
+
+        {!syncLoading && syncResult && (
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="text-sm text-gray-600">
+              Found <strong>{syncResult.candidates.length}</strong> new publication{syncResult.candidates.length !== 1 ? 's' : ''}{' '}
+              {syncResult.searched.length > 0 && <>across <em>{syncResult.searched.join(', ')}</em></>}
+            </div>
+
+            {/* Source errors */}
+            {Object.keys(syncResult.errors).length > 0 && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 space-y-0.5">
+                {Object.entries(syncResult.errors).map(([src, msg]) => (
+                  <div key={src}><strong>{src}:</strong> {msg}</div>
+                ))}
+              </div>
+            )}
+
+            {syncResult.candidates.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-sm">
+                No new publications found — your list is up to date!
+              </div>
+            ) : (
+              <>
+                {/* Select all / clear all */}
+                <div className="flex gap-3 text-xs">
+                  <button
+                    className="text-primary-600 hover:underline"
+                    onClick={() => setSelectedIndices(new Set(syncResult.candidates.map((_, i) => i)))}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    className="text-gray-500 hover:underline"
+                    onClick={() => setSelectedIndices(new Set())}
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                {/* Candidate list */}
+                <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                  {syncResult.candidates.map((c, idx) => (
+                    <div key={idx}>
+                      <div className={`px-4 py-3 flex items-start gap-3 ${selectedIndices.has(idx) ? 'bg-white' : 'bg-gray-50 opacity-60'}`}>
+                        <input
+                          type="checkbox"
+                          className="mt-1 rounded flex-shrink-0"
+                          checked={selectedIndices.has(idx)}
+                          onChange={() => toggleCandidate(idx)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge color={TYPE_COLOR[c.pub_type] || 'gray'}>{c.pub_type}</Badge>
+                            {c.source.split('+').map(s => (
+                              <Badge key={s} color={SOURCE_COLOR[s] || 'gray'}>{s}</Badge>
+                            ))}
+                            {c.year && <span className="text-xs text-gray-400">{c.year}</span>}
+                          </div>
+                          <p className="font-medium text-gray-900 text-sm">{c.title}</p>
+                          {c.authors.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {renderCandidateAuthors(c.authors)}
+                            </p>
+                          )}
+                          {c.journal && (
+                            <p className="text-xs text-gray-400 mt-0.5 italic">
+                              {c.journal}
+                              {c.volume ? ` ${c.volume}` : ''}
+                              {c.issue ? `(${c.issue})` : ''}
+                              {c.pages ? `: ${c.pages}` : ''}
+                            </p>
+                          )}
+                          {c.doi && (
+                            <a
+                              href={`https://doi.org/${c.doi}`} target="_blank" rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-0.5"
+                            >
+                              <ExternalLink size={10} /> doi:{c.doi}
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          className="flex-shrink-0 text-gray-400 hover:text-gray-700 p-1"
+                          title="Edit before importing"
+                          onClick={() => editingCandidate === idx ? (setEditingCandidate(null), setCandidateForm(null)) : openCandidateEdit(idx)}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      </div>
+
+                      {/* Inline edit panel */}
+                      {editingCandidate === idx && candidateForm && (
+                        <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <Select
+                              label="Type"
+                              options={PUB_TYPES}
+                              value={candidateForm.pub_type}
+                              onChange={e => setCandidateForm(f => f ? { ...f, pub_type: e.target.value } : f)}
+                            />
+                            <Input
+                              label="Year"
+                              value={candidateForm.year || ''}
+                              onChange={e => setCandidateForm(f => f ? { ...f, year: e.target.value } : f)}
+                            />
+                          </div>
+                          <Textarea
+                            label="Title"
+                            value={candidateForm.title}
+                            onChange={e => setCandidateForm(f => f ? { ...f, title: e.target.value } : f)}
+                            rows={2}
+                          />
+                          <Input
+                            label="Journal"
+                            value={candidateForm.journal || ''}
+                            onChange={e => setCandidateForm(f => f ? { ...f, journal: e.target.value } : f)}
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              label="Volume"
+                              value={candidateForm.volume || ''}
+                              onChange={e => setCandidateForm(f => f ? { ...f, volume: e.target.value } : f)}
+                            />
+                            <Input
+                              label="Issue"
+                              value={candidateForm.issue || ''}
+                              onChange={e => setCandidateForm(f => f ? { ...f, issue: e.target.value } : f)}
+                            />
+                            <Input
+                              label="Pages"
+                              value={candidateForm.pages || ''}
+                              onChange={e => setCandidateForm(f => f ? { ...f, pages: e.target.value } : f)}
+                            />
+                          </div>
+                          <Input
+                            label="DOI"
+                            value={candidateForm.doi || ''}
+                            onChange={e => setCandidateForm(f => f ? { ...f, doi: e.target.value } : f)}
+                          />
+                          <Textarea
+                            label="Authors (one per line)"
+                            value={candidateForm.authors.join('\n')}
+                            onChange={e => setCandidateForm(f => f ? { ...f, authors: e.target.value.split('\n') } : f)}
+                            rows={3}
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <Button variant="secondary" size="sm" onClick={() => { setEditingCandidate(null); setCandidateForm(null) }}>Cancel</Button>
+                            <Button size="sm" onClick={saveCandidateEdit}>Save</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <span className="text-xs text-gray-500">
+                {selectedIndices.size} of {syncResult.candidates.length} selected
+              </span>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setSyncOpen(false)} disabled={addingSelected}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddSelected}
+                  loading={addingSelected}
+                  disabled={selectedIndices.size === 0}
+                >
+                  Add Selected ({selectedIndices.size})
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
