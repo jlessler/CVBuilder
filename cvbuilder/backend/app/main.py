@@ -49,6 +49,7 @@ def _run_migrations():
     with engine.connect() as conn:
         for stmt in [
             "ALTER TABLE pub_authors ADD COLUMN student INTEGER DEFAULT 0",
+            "ALTER TABLE cv_templates ADD COLUMN sort_direction TEXT DEFAULT 'desc'",
         ]:
             try:
                 conn.execute(text(stmt))
@@ -84,6 +85,10 @@ _HEADINGS = {
     "peerrev":                    "Peer Review",
     "seminars":                   "Invited Seminars and Lectures",
     "committees":                 "Committee Memberships",
+    "software":                   "Software",
+    "policypres":                 "Policy Presentations",
+    "policycons":                 "Policy Consulting",
+    "otherservice":               "Other Service",
 }
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,11 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+const SORT_DIRECTIONS = [
+  { value: 'desc', label: 'Newest first' },
+  { value: 'asc',  label: 'Oldest first' },
+]
+
 const THEMES = [
   { value: 'academic', label: 'Academic (Times, formal)' },
   { value: 'unc', label: 'UNC (sans-serif, Carolina Blue)' },
@@ -46,6 +51,10 @@ const ALL_SECTIONS = [
   { key: 'publications_chapters', label: 'Book Chapters' },
   { key: 'publications_letters', label: 'Letters & Commentaries' },
   { key: 'publications_scimeetings', label: 'Scientific Meeting Presentations' },
+  { key: 'software', label: 'Software' },
+  { key: 'policypres', label: 'Policy Presentations' },
+  { key: 'policycons', label: 'Policy Consulting' },
+  { key: 'otherservice', label: 'Other Service' },
 ]
 
 function SortableRow({
@@ -85,6 +94,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
   const qc = useQueryClient()
   const [name, setName] = useState(template.name)
   const [theme, setTheme] = useState(template.theme_css)
+  const [sortDirection, setSortDirection] = useState(template.sort_direction ?? 'desc')
 
   // Build sections list with labels
   const initialSections = (() => {
@@ -125,6 +135,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
   const saveMut = useMutation({
     mutationFn: () => api.put(`/templates/${template.id}`, {
       name, description: template.description, theme_css: theme,
+      sort_direction: sortDirection,
       sections: sections.map((s, i) => ({
         section_key: s.section_key,
         enabled: s.enabled,
@@ -139,9 +150,10 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
     <div className="flex gap-6">
       {/* Composer panel */}
       <div className="flex-1 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Input label="Template Name" value={name} onChange={e => setName(e.target.value)} />
           <Select label="Theme" options={THEMES} value={theme} onChange={e => setTheme(e.target.value)} />
+          <Select label="Item Sort Order" options={SORT_DIRECTIONS} value={sortDirection} onChange={e => setSortDirection(e.target.value)} />
         </div>
 
         <div>
@@ -206,7 +218,7 @@ export function Templates() {
 
   const createMut = useMutation({
     mutationFn: () => api.post('/templates', {
-      name: newName, theme_css: 'academic',
+      name: newName, theme_css: 'academic', sort_direction: 'desc',
       sections: ALL_SECTIONS.map((s, i) => ({
         section_key: s.key, enabled: true, section_order: i,
         config: { heading: s.label },

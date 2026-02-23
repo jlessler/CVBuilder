@@ -75,25 +75,21 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'year', label: 'Year', type: 'number' },
     { key: 'subject', label: 'Subject / Field' },
     { key: 'school', label: 'Institution' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   experience: [
     { key: 'title', label: 'Title / Position' },
     { key: 'years_start', label: 'Start Year' },
     { key: 'years_end', label: 'End Year' },
     { key: 'employer', label: 'Employer / Institution' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   consulting: [
     { key: 'title', label: 'Role / Title' },
     { key: 'years', label: 'Years' },
     { key: 'employer', label: 'Client / Employer' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   memberships: [
     { key: 'org', label: 'Organization' },
     { key: 'years', label: 'Years' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   grants: [
     { key: 'title', label: 'Title' },
@@ -108,14 +104,12 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'pcteffort', label: '% Effort', type: 'number' },
     { key: 'status', label: 'Status (active / completed)' },
     { key: 'description', label: 'Description', textarea: true },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   awards: [
     { key: 'name', label: 'Award / Honor' },
     { key: 'org', label: 'Awarding Organization' },
     { key: 'date', label: 'Date' },
     { key: 'year', label: 'Year' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   classes: [
     { key: 'class_name', label: 'Course Name' },
@@ -124,14 +118,12 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'school', label: 'Institution' },
     { key: 'students', label: 'Students' },
     { key: 'lectures', label: 'Lectures' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   symposia: [
     { key: 'title', label: 'Title' },
     { key: 'meeting', label: 'Meeting / Conference' },
     { key: 'date', label: 'Date' },
     { key: 'role', label: 'Role' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   panels_advisory: [
     { key: 'panel', label: 'Panel Name' },
@@ -139,7 +131,6 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'role', label: 'Role' },
     { key: 'date', label: 'Date' },
     { key: 'panel_id', label: 'Panel ID' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   panels_grantreview: [
     { key: 'panel', label: 'Panel / Study Section' },
@@ -147,13 +138,11 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'role', label: 'Role' },
     { key: 'date', label: 'Date' },
     { key: 'panel_id', label: 'Review ID' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   patents: [
     { key: 'name', label: 'Patent Name' },
     { key: 'number', label: 'Patent Number' },
     { key: 'status', label: 'Status' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   trainees_advisees: [
     { key: 'name', label: 'Name' },
@@ -164,21 +153,18 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'years_end', label: 'End' },
     { key: 'thesis', label: 'Thesis Title' },
     { key: 'current_position', label: 'Current Position' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   trainees_postdocs: [
     { key: 'name', label: 'Name' },
     { key: 'years_start', label: 'Start' },
     { key: 'years_end', label: 'End' },
     { key: 'current_position', label: 'Current Position' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   press: [
     { key: 'topic', label: 'Topic' },
     { key: 'outlet', label: 'Outlet / Publication' },
     { key: 'date', label: 'Date' },
     { key: 'url', label: 'URL' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   seminars: [
     { key: 'title', label: 'Title' },
@@ -186,14 +172,12 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'date', label: 'Date' },
     { key: 'location', label: 'Location' },
     { key: 'event', label: 'Event / Seminar Series' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   committees: [
     { key: 'committee', label: 'Committee Name' },
     { key: 'org', label: 'Organization / University' },
     { key: 'role', label: 'Role' },
     { key: 'dates', label: 'Dates' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_editor: [
     { key: 'subtype', label: 'Role Type', options: [
@@ -204,25 +188,21 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'journal', label: 'Journal' },
     { key: 'role', label: 'Specific Role (e.g., Guest Editor, Statistical Advisor)' },
     { key: 'term', label: 'Term / Years' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_peerrev: [
     { key: 'value', label: 'Journal / Publication' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_policypres: [
     { key: 'title', label: 'Title' },
     { key: 'org', label: 'Organization / Audience' },
     { key: 'date', label: 'Date' },
     { key: 'description', label: 'Description', textarea: true },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_policycons: [
     { key: 'title', label: 'Title / Project' },
     { key: 'org', label: 'Organization' },
     { key: 'date', label: 'Date / Period' },
     { key: 'description', label: 'Description', textarea: true },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_software: [
     { key: 'title', label: 'Software Name' },
@@ -230,13 +210,11 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'publisher', label: 'Publisher / Host' },
     { key: 'url', label: 'URL' },
     { key: 'authors', label: 'Authors (comma-separated)', textarea: true },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
   misc_otherservice: [
     { key: 'description', label: 'Description' },
     { key: 'department', label: 'Department / Context' },
     { key: 'dates', label: 'Dates' },
-    { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
 }
 
@@ -337,7 +315,7 @@ export function Sections() {
       : (currentTab.sectionValue ?? '')
     const dataKeys = (currentTab.dataFields ?? []).filter(k => k !== currentTab.subtypeField)
     const dataObj = Object.fromEntries(dataKeys.map(k => [k, d[k] ?? '']))
-    return { section, data: dataObj, sort_order: d.sort_order ?? 0 }
+    return { section, data: dataObj }
   }
 
   const createMut = useMutation({
@@ -373,7 +351,7 @@ export function Sections() {
     if (currentTab.dataFields && item.data) {
       const nested = item.data as Record<string, unknown>
       const extra = currentTab.subtypeField ? { [currentTab.subtypeField]: item.section } : {}
-      setForm({ id: item.id as number, sort_order: item.sort_order as number, ...nested, ...extra } as Record<string, string | number>)
+      setForm({ id: item.id as number, ...nested, ...extra } as Record<string, string | number>)
     } else {
       setForm(item as Record<string, string | number>)
     }

@@ -442,6 +442,7 @@ class CVTemplateBase(BaseModel):
     name: str
     description: Optional[str] = None
     theme_css: str = "academic"
+    sort_direction: str = "desc"
 
 class CVTemplateCreate(CVTemplateBase):
     sections: list[TemplateSectionCreate] = []

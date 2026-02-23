@@ -265,6 +265,7 @@ class CVTemplate(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(Text)
     theme_css: Mapped[str] = mapped_column(String(100), default="academic")
+    sort_direction: Mapped[str] = mapped_column(String(20), default="desc")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     sections: Mapped[list["TemplateSection"]] = relationship(

@@ -191,6 +191,7 @@ export interface CVTemplate {
   name: string
   description: string | null
   theme_css: string
+  sort_direction: string
   created_at: string
   updated_at: string
   sections: TemplateSection[]

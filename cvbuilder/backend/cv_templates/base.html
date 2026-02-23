@@ -81,7 +81,7 @@
     {# Patents #}
     {% elif key == 'patents' and cv.patents %}
     <div class="cv-section">
-      <div class="cv-section-heading">{{ config.get('heading', 'Patents') }}</div>
+      <div class="cv-section-heading">{{ config.get('heading', 'Patents') }} <span class="pub-count">({{ cv.patents | length }} total)</span></div>
       {% for p in cv.patents %}
       <div class="cv-entry">
         <div class="cv-entry-date">{{ p.status or '' }}</div>
@@ -245,6 +245,70 @@
         <li>{{ p.data.get('value', '') }}</li>
         {% endfor %}
       </ul>
+    </div>
+
+    {# Software #}
+    {% elif key == 'software' and cv.software %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Software') }}</div>
+      {% for s in cv.software %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('year', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('title', '') }}</span>
+          {% if s.data.get('authors') %}<br><span class="cv-entry-detail">{{ s.data.get('authors') }}</span>{% endif %}
+          {% if s.data.get('publisher') %}<br><span class="cv-entry-org">{{ s.data.get('publisher') }}</span>{% endif %}
+          {% if s.data.get('url') %}<br><a href="{{ s.data.get('url') }}">{{ s.data.get('url') }}</a>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Policy Presentations #}
+    {% elif key == 'policypres' and cv.policypres %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Policy Presentations') }}</div>
+      {% for p in cv.policypres %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ p.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ p.data.get('title', '') }}</span>
+          {% if p.data.get('org') %}<br><span class="cv-entry-org">{{ p.data.get('org') }}</span>{% endif %}
+          {% if p.data.get('description') %}<br><span class="cv-entry-detail">{{ p.data.get('description') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Policy Consulting #}
+    {% elif key == 'policycons' and cv.policycons %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Policy Consulting') }}</div>
+      {% for p in cv.policycons %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ p.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ p.data.get('title', '') }}</span>
+          {% if p.data.get('org') %}<br><span class="cv-entry-org">{{ p.data.get('org') }}</span>{% endif %}
+          {% if p.data.get('description') %}<br><span class="cv-entry-detail">{{ p.data.get('description') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Other Service #}
+    {% elif key == 'otherservice' and cv.otherservice %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Other Service') }}</div>
+      {% for s in cv.otherservice %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('dates', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('description', '') }}</span>
+          {% if s.data.get('department') %}<br><span class="cv-entry-org">{{ s.data.get('department') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
 
     {# Publications #}

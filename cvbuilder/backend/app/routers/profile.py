@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.services.sort import sort_items
 
 router = APIRouter(prefix="/api", tags=["profile"])
 
@@ -47,7 +48,8 @@ def upsert_profile(data: schemas.ProfileUpdate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 def _list(model_class, db: Session):
-    return db.query(model_class).order_by(model_class.sort_order).all()
+    items = db.query(model_class).all()
+    return sort_items(items, model_class, reverse=True)
 
 
 def _create(model_class, data, db: Session):
@@ -168,10 +170,10 @@ def delete_membership(item_id: int, db: Session = Depends(get_db)):
 
 @router.get("/panels", response_model=list[schemas.PanelOut])
 def list_panels(panel_type: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(models.Panel).order_by(models.Panel.sort_order)
+    q = db.query(models.Panel)
     if panel_type:
         q = q.filter(models.Panel.type == panel_type)
-    return q.all()
+    return sort_items(q.all(), models.Panel, reverse=True)
 
 @router.post("/panels", response_model=schemas.PanelOut)
 def create_panel(data: schemas.PanelCreate, db: Session = Depends(get_db)):
@@ -340,10 +342,10 @@ def delete_press(item_id: int, db: Session = Depends(get_db)):
 
 @router.get("/trainees", response_model=list[schemas.TraineeOut])
 def list_trainees(trainee_type: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(models.Trainee).order_by(models.Trainee.sort_order)
+    q = db.query(models.Trainee)
     if trainee_type:
         q = q.filter(models.Trainee.trainee_type == trainee_type)
-    return q.all()
+    return sort_items(q.all(), models.Trainee, reverse=True)
 
 @router.post("/trainees", response_model=schemas.TraineeOut)
 def create_trainee(data: schemas.TraineeCreate, db: Session = Depends(get_db)):
@@ -407,15 +409,17 @@ def delete_committee(item_id: int, db: Session = Depends(get_db)):
 @router.get("/misc/editorial", response_model=list[schemas.MiscSectionOut])
 def list_editorial(db: Session = Depends(get_db)):
     """Return all editorial entries (editor + assocedit + otheredit) combined."""
-    return db.query(models.MiscSection).filter(
+    items = db.query(models.MiscSection).filter(
         models.MiscSection.section.in_(["editor", "assocedit", "otheredit"])
-    ).order_by(models.MiscSection.sort_order).all()
+    ).all()
+    return sort_items(items, models.MiscSection, reverse=True)
 
 @router.get("/misc/{section}", response_model=list[schemas.MiscSectionOut])
 def list_misc(section: str, db: Session = Depends(get_db)):
-    return db.query(models.MiscSection).filter(
+    items = db.query(models.MiscSection).filter(
         models.MiscSection.section == section
-    ).order_by(models.MiscSection.sort_order).all()
+    ).all()
+    return sort_items(items, models.MiscSection, reverse=True)
 
 @router.post("/misc", response_model=schemas.MiscSectionOut)
 def create_misc(data: schemas.MiscSectionCreate, db: Session = Depends(get_db)):

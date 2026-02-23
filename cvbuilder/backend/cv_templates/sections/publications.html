@@ -1,16 +1,15 @@
 {% set pub_type = config.get('pub_type', 'papers') %}
 {% set pubs = cv.publications | selectattr('type', 'equalto', pub_type) | list %}
 {% if pubs %}
-{% set sorted_pubs = pubs | sort(attribute='year', reverse=True) %}
 {% set profile_name = (cv.profile.name or '') if cv.profile else '' %}
 {% set ns = namespace(has_students=false, has_corr=false) %}
-{% for p in sorted_pubs %}
+{% for p in pubs %}
   {% if p.corr %}{% set ns.has_corr = true %}{% endif %}
   {% for a in p.authors %}{% if a.student %}{% set ns.has_students = true %}{% endif %}{% endfor %}
 {% endfor %}
 <div class="cv-section">
   <div class="cv-section-heading">{{ config.get('heading', pub_type | title) }} <span class="pub-count">({{ pubs | length }} total)</span></div>
-  {% for p in sorted_pubs %}
+  {% for p in pubs %}
   <div class="pub-entry">
     <span class="pub-number">{{ loop.index }}.</span>
     {% for a in p.authors %}{% if not loop.first %}, {% endif %}{{ a.author_name | bold_self(profile_name) | safe }}{% if a.student %}<sup>&dagger;</sup>{% endif %}{% endfor %}{% if p.corr %}<sup>*</sup>{% endif %}.
