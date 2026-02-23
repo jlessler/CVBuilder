@@ -1,64 +1,59 @@
-"""DOI lookup service using the Crossref API."""
+"""DOI lookup service using the Crossref REST API."""
 from __future__ import annotations
 
-from typing import Optional
+import httpx
 
 
-def _safe_get(data: dict, key: str, default=""):
-    """Safely extract a scalar value; if list, return first element."""
-    if not isinstance(data, dict):
-        return default
-    value = data.get(key, default)
+def _scalar(value, default=""):
+    """Return first element if list, otherwise the value itself."""
     if isinstance(value, list):
         return value[0] if value else default
     return value if value is not None else default
 
 
-def _safe_nested_list(data: dict, keys: list[str], default=None):
-    """Walk nested keys and return the first element of the deepest list."""
-    try:
-        for key in keys:
-            data = data[key]
-        return data[0][0] if data and isinstance(data[0], list) else default
-    except (KeyError, IndexError, TypeError):
-        return default
+def _year_from_date_parts(ref: dict) -> str | None:
+    """Extract the year from published-print or published-online date-parts."""
+    for key in ("published-print", "published-online", "issued"):
+        parts = ref.get(key, {}).get("date-parts", [])
+        if parts and parts[0]:
+            return str(parts[0][0])
+    return None
 
 
 def lookup_doi(doi: str) -> dict:
     """
-    Fetch metadata for a DOI via Crossref.
+    Fetch metadata for a DOI via the Crossref REST API.
 
     Returns a dict with keys:
         title, year, journal, volume, issue, pages, authors (list of str), doi
-    Raises ValueError on not-found / API errors.
+    Raises ValueError on not-found, RuntimeError on other errors.
     """
+    url = f"https://api.crossref.org/works/{doi.strip()}"
     try:
-        from crossref.restful import Works  # type: ignore
-    except ImportError:
-        raise RuntimeError("crossref-commons is not installed. Run: pip install crossref-commons")
+        response = httpx.get(url, timeout=15, headers={"User-Agent": "CVBuilder/1.0"})
+    except httpx.RequestError as e:
+        raise RuntimeError(f"Network error contacting Crossref: {e}")
 
-    works = Works()
-    ref = works.doi(doi)
-    if not ref:
+    if response.status_code == 404:
         raise ValueError(f"DOI not found: {doi}")
+    if response.status_code != 200:
+        raise RuntimeError(f"Crossref returned status {response.status_code}")
 
-    year = (
-        _safe_nested_list(ref, ["published-print", "date-parts"], None)
-        or _safe_nested_list(ref, ["published-online", "date-parts"], None)
-    )
+    ref = response.json().get("message", {})
 
     authors = [
         f"{a.get('family', '')} {a.get('given', '')}".strip()
         for a in ref.get("author", [])
+        if a.get("family")
     ]
 
     return {
-        "title": _safe_get(ref, "title"),
-        "year": str(year) if year else None,
-        "journal": _safe_get(ref, "container-title"),
-        "volume": _safe_get(ref, "volume"),
-        "issue": _safe_get(ref, "issue"),
-        "pages": _safe_get(ref, "page"),
+        "title": _scalar(ref.get("title")),
+        "year": _year_from_date_parts(ref),
+        "journal": _scalar(ref.get("container-title")),
+        "volume": _scalar(ref.get("volume")),
+        "issue": _scalar(ref.get("issue")),
+        "pages": _scalar(ref.get("page")),
         "authors": authors,
-        "doi": doi,
+        "doi": doi.strip(),
     }
