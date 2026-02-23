@@ -47,18 +47,18 @@ const TABS: TabDef[] = [
   { key: 'symposia',            label: 'Symposia',         group: 'Service',    endpoint: 'symposia' },
   { key: 'committees',          label: 'Committees',       group: 'Service',    endpoint: 'committees' },
   { key: 'memberships',         label: 'Memberships',      group: 'Service',    endpoint: 'memberships' },
-  { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    endpoint: 'misc/editorial', dataFields: ['journal', 'term', 'role'], subtypeField: 'subtype' },
-  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    endpoint: 'misc/peerrev', dataFields: ['value'],            sectionValue: 'peerrev' },
+  { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    endpoint: 'misc/editorial',    dataFields: ['journal', 'term', 'role'], subtypeField: 'subtype' },
+  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    endpoint: 'misc/peerrev',      dataFields: ['value'],            sectionValue: 'peerrev' },
+  { key: 'misc_otherservice',   label: 'Other Service',    group: 'Service',    endpoint: 'misc/otherservice', dataFields: ['description', 'department', 'dates'], sectionValue: 'otherservice' },
   // --- Publications / scholarshipadjacent ---
   { key: 'patents',             label: 'Patents',          group: 'Other',      endpoint: 'patents' },
   { key: 'seminars',            label: 'Seminars',         group: 'Other',      endpoint: 'seminars' },
   { key: 'awards',              label: 'Awards',           group: 'Other',      endpoint: 'awards' },
-  // --- Misc (read-only lists) ---
-  { key: 'misc_policypres',     label: 'Policy Pres.',     group: 'Misc',       endpoint: 'misc/policypres',   readOnly: true },
-  { key: 'misc_policycons',     label: 'Policy Consult.',  group: 'Misc',       endpoint: 'misc/policycons',   readOnly: true },
-  { key: 'misc_software',       label: 'Software',         group: 'Misc',       endpoint: 'misc/software',     readOnly: true },
-  { key: 'misc_otherservice',   label: 'Other Service',    group: 'Misc',       endpoint: 'misc/otherservice', readOnly: true },
-  { key: 'press',               label: 'Press / Media',    group: 'Misc',       endpoint: 'press' },
+  // --- Misc (editable) ---
+  { key: 'misc_policypres',   label: 'Policy Pres.',    group: 'Misc', endpoint: 'misc/policypres',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policypres' },
+  { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', endpoint: 'misc/policycons',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policycons' },
+  { key: 'misc_software',     label: 'Software',         group: 'Misc', endpoint: 'misc/software',     dataFields: ['title', 'year', 'publisher', 'url', 'authors'], sectionValue: 'software' },
+  { key: 'press',             label: 'Press / Media',    group: 'Misc', endpoint: 'press' },
 ]
 
 const GROUPS = ['Background', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
@@ -210,6 +210,34 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'value', label: 'Journal / Publication' },
     { key: 'sort_order', label: 'Sort Order', type: 'number' },
   ],
+  misc_policypres: [
+    { key: 'title', label: 'Title' },
+    { key: 'org', label: 'Organization / Audience' },
+    { key: 'date', label: 'Date' },
+    { key: 'description', label: 'Description', textarea: true },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
+  misc_policycons: [
+    { key: 'title', label: 'Title / Project' },
+    { key: 'org', label: 'Organization' },
+    { key: 'date', label: 'Date / Period' },
+    { key: 'description', label: 'Description', textarea: true },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
+  misc_software: [
+    { key: 'title', label: 'Software Name' },
+    { key: 'year', label: 'Year', type: 'number' },
+    { key: 'publisher', label: 'Publisher / Host' },
+    { key: 'url', label: 'URL' },
+    { key: 'authors', label: 'Authors (comma-separated)', textarea: true },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
+  misc_otherservice: [
+    { key: 'description', label: 'Description' },
+    { key: 'department', label: 'Department / Context' },
+    { key: 'dates', label: 'Dates' },
+    { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  ],
 }
 
 function blankForm(tab: TabDef): Record<string, string | number> {
@@ -235,9 +263,11 @@ function ItemRow({
 }) {
   const title = (
     item.name || item.title || item.class_name || item.degree ||
-    item.panel || item.committee || item.committee || item.org ||
+    item.panel || item.committee || item.org ||
     (item.data && (item.data as Record<string, unknown>).journal) ||
+    (item.data && (item.data as Record<string, unknown>).title) ||
     (item.data && (item.data as Record<string, unknown>).value) ||
+    (item.data && (item.data as Record<string, unknown>).description) ||
     ''
   ) as string
 
@@ -248,6 +278,8 @@ function ItemRow({
     item.employer || item.agency || item.school || item.meeting ||
     item.org || item.outlet || item.topic ||
     (item.data && (item.data as Record<string, unknown>).org) ||
+    (item.data && (item.data as Record<string, unknown>).department) ||
+    (item.data && (item.data as Record<string, unknown>).publisher) ||
     (item.data && (item.data as Record<string, unknown>).role) ||
     (item.section && SECTION_LABELS[item.section as string]) ||
     ''
@@ -255,6 +287,9 @@ function ItemRow({
 
   const date = (
     item.dates || item.years || item.year || item.date ||
+    (item.data && (item.data as Record<string, unknown>).date) ||
+    (item.data && (item.data as Record<string, unknown>).dates) ||
+    (item.data && (item.data as Record<string, unknown>).year) ||
     `${item.years_start || ''}${item.years_end ? `–${item.years_end}` : ''}`
   ) as string
 
