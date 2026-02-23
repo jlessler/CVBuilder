@@ -16,6 +16,7 @@ type SectionKey =
   | 'press' | 'seminars' | 'committees'
   | 'misc_editor' | 'misc_peerrev' | 'misc_policypres' | 'misc_policycons'
   | 'misc_software' | 'misc_otherservice'
+  | 'misc_dissertation' | 'misc_chairedsessions' | 'misc_otherpractice'
 
 interface TabDef {
   key: SectionKey
@@ -59,6 +60,9 @@ const TABS: TabDef[] = [
   { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', endpoint: 'misc/policycons',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policycons' },
   { key: 'misc_software',     label: 'Software',         group: 'Misc', endpoint: 'misc/software',     dataFields: ['title', 'year', 'publisher', 'url', 'authors'], sectionValue: 'software' },
   { key: 'press',             label: 'Press / Media',    group: 'Misc', endpoint: 'press' },
+  { key: 'misc_dissertation',    label: 'Dissertation',        group: 'Other', endpoint: 'misc/dissertation',    dataFields: ['year', 'title', 'institution'],               sectionValue: 'dissertation' },
+  { key: 'misc_chairedsessions', label: 'Chaired Sessions',    group: 'Service', endpoint: 'misc/chairedsessions', dataFields: ['date', 'title', 'meeting'],                 sectionValue: 'chairedsessions' },
+  { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', endpoint: 'misc/otherpractice',   dataFields: ['years', 'title', 'description'],              sectionValue: 'otherpractice' },
 ]
 
 const GROUPS = ['Background', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
@@ -215,6 +219,21 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'description', label: 'Description' },
     { key: 'department', label: 'Department / Context' },
     { key: 'dates', label: 'Dates' },
+  ],
+  misc_dissertation: [
+    { key: 'year', label: 'Year', type: 'number' },
+    { key: 'title', label: 'Title', textarea: true },
+    { key: 'institution', label: 'Institution / Department' },
+  ],
+  misc_chairedsessions: [
+    { key: 'date', label: 'Year / Date' },
+    { key: 'title', label: 'Session Title' },
+    { key: 'meeting', label: 'Meeting / Conference' },
+  ],
+  misc_otherpractice: [
+    { key: 'years', label: 'Years / Period' },
+    { key: 'title', label: 'Activity' },
+    { key: 'description', label: 'Description', textarea: true },
   ],
 }
 

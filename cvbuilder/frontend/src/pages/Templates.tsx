@@ -51,10 +51,14 @@ const ALL_SECTIONS = [
   { key: 'publications_chapters', label: 'Book Chapters' },
   { key: 'publications_letters', label: 'Letters & Commentaries' },
   { key: 'publications_scimeetings', label: 'Scientific Meeting Presentations' },
+  { key: 'publications_editorials', label: 'Non-Peer-Reviewed Articles & Editorials' },
   { key: 'software', label: 'Software' },
   { key: 'policypres', label: 'Policy Presentations' },
   { key: 'policycons', label: 'Policy Consulting' },
   { key: 'otherservice', label: 'Other Service' },
+  { key: 'dissertation', label: 'Dissertation' },
+  { key: 'chairedsessions', label: 'Chaired Sessions' },
+  { key: 'otherpractice', label: 'Other Practice Activities' },
 ]
 
 function SortableRow({

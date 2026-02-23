@@ -66,6 +66,15 @@ def _build_cv_data(db: Session, sort_direction: str = "desc") -> dict:
             ).all(),
             models.MiscSection, reverse=rev,
         ),
+        "dissertation": db.query(models.MiscSection).filter(
+            models.MiscSection.section == "dissertation"
+        ).order_by(models.MiscSection.id.desc()).all(),
+        "chairedsessions": db.query(models.MiscSection).filter(
+            models.MiscSection.section == "chairedsessions"
+        ).order_by(models.MiscSection.id.desc()).all(),
+        "otherpractice": db.query(models.MiscSection).filter(
+            models.MiscSection.section == "otherpractice"
+        ).order_by(models.MiscSection.id.desc()).all(),
         "publications": sort_items(db.query(models.Publication).all(), models.Publication, reverse=rev),
     }
 

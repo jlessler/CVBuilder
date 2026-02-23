@@ -1,8 +1,11 @@
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cvbuilder.db")
+load_dotenv()  # loads .env from the current working directory (backend/)
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/cvbuilder.db")
 
 # SQLite needs check_same_thread=False
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}

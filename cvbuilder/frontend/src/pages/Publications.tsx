@@ -13,11 +13,12 @@ const PUB_TYPES = [
   { value: 'chapters', label: 'Chapters' },
   { value: 'letters', label: 'Letters' },
   { value: 'scimeetings', label: 'Scientific Meetings' },
+  { value: 'editorials', label: 'Non-Peer-Reviewed / Editorials' },
 ]
 
 const TYPE_COLOR: Record<string, string> = {
   papers: 'blue', preprints: 'cyan', chapters: 'purple',
-  letters: 'orange', scimeetings: 'green',
+  letters: 'orange', scimeetings: 'green', editorials: 'gray',
 }
 
 const SOURCE_COLOR: Record<string, string> = {

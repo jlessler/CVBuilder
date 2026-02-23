@@ -14,8 +14,15 @@
     <span class="pub-number">{{ loop.index }}.</span>
     {% for a in p.authors %}{% if not loop.first %}, {% endif %}{{ a.author_name | bold_self(profile_name) | safe }}{% if a.student %}<sup>&dagger;</sup>{% endif %}{% endfor %}{% if p.corr %}<sup>*</sup>{% endif %}.
     {% if p.title %}&ldquo;<span class="pub-title">{{ p.title }}</span>.&rdquo;{% endif %}
-    {% if p.journal %}<em>{{ p.journal }}</em>{% endif %}
-    {% if p.volume %}{{ p.volume }}{% endif %}{% if p.issue %}({{ p.issue }}){% endif %}{% if p.pages %}: {{ p.pages }}{% endif %}.
+    {% if pub_type == 'scimeetings' %}
+      {% if p.conference %}<em>{{ p.conference }}</em>{% endif %}
+      {% if p.pres_type %} ({{ p.pres_type }}){% endif %}
+    {% elif pub_type == 'chapters' %}
+      {% if p.journal %}<em>{{ p.journal }}</em>{% if p.publisher %}, {% endif %}{% endif %}{% if p.publisher %}<em>{{ p.publisher }}</em>{% endif %}
+    {% else %}
+      {% if p.journal %}<em>{{ p.journal }}</em>{% endif %}
+      {% if p.volume %}{{ p.volume }}{% endif %}{% if p.issue %}({{ p.issue }}){% endif %}{% if p.pages %}: {{ p.pages }}{% endif %}.
+    {% endif %}
     {% if p.year %}({{ p.year }}){% endif %}
     {% if p.doi %}<a href="https://doi.org/{{ p.doi }}">doi:{{ p.doi }}</a>{% endif %}
     {% if p.select_flag %} <span class="pub-select-flag">&#9733;</span>{% endif %}

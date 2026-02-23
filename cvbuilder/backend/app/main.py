@@ -89,6 +89,10 @@ _HEADINGS = {
     "policypres":                 "Policy Presentations",
     "policycons":                 "Policy Consulting",
     "otherservice":               "Other Service",
+    "publications_editorials":    "Published Articles and Editorials not Peer Reviewed",
+    "dissertation":               "Dissertation",
+    "chairedsessions":            "Chaired Sessions",
+    "otherpractice":              "Other Practice Activities",
 }
 
 # ---------------------------------------------------------------------------
@@ -116,13 +120,17 @@ _TEMPLATES = {
         "unc",
         [
             "education", "experience", "awards", "memberships",
+            "dissertation",
             "publications_papers", "patents",
+            "publications_editorials",
             "publications_chapters", "publications_preprints",
             "publications_letters", "publications_scimeetings",
             "classes", "trainees_advisees", "trainees_postdocs",
             "grants",
             "panels_advisory", "panels_grantreview", "symposia",
+            "chairedsessions",
             "consulting", "press",
+            "otherpractice",
         ],
     ),
     "Hopkins CV": (

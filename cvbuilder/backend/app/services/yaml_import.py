@@ -346,8 +346,8 @@ def import_cv_yaml(cv_path: str, session) -> None:
     session.query(MiscSection).delete()
     misc_keys = [
         "editor", "assocedit", "otheredit", "peerrev",
-        "software", "policypres", "policycons", "policyother",
-        "chairedsessions", "otherservice",
+        "software", "policypres", "policycons",
+        "otherservice",
         "schoolwideOrals", "departmentalOrals", "finaldefense",
     ]
     for key in misc_keys:
@@ -356,6 +356,30 @@ def import_cv_yaml(cv_path: str, session) -> None:
             for i, item in enumerate(items):
                 payload = item if isinstance(item, dict) else {"value": item}
                 session.add(MiscSection(section=key, data=payload, sort_order=i))
+
+    # chairedsessions: remap YAML keys year/conference → date/meeting
+    for i, item in enumerate(data.get("chairedsessions", [])):
+        session.add(MiscSection(section="chairedsessions", sort_order=i, data={
+            "title": _clean(item.get("title", "")),
+            "date": str(item.get("year", "")),
+            "meeting": _clean(item.get("conference", "")),
+        }))
+
+    # policyother → stored as "otherpractice"
+    for i, item in enumerate(data.get("policyother", [])):
+        payload = item if isinstance(item, dict) else {"value": item}
+        session.add(MiscSection(section="otherpractice", data=payload, sort_order=i))
+
+    # dissertation: single dict, not a list
+    diss = data.get("dissertation")
+    if isinstance(diss, dict):
+        session.add(MiscSection(section="dissertation", sort_order=0, data={
+            "year": str(diss.get("year", "")),
+            "title": _clean(diss.get("title", "")),
+            "institution": _clean(
+                (diss.get("department", "") + ", " + diss.get("institution", "")).strip(", ")
+            ),
+        }))
 
     session.commit()
     print(f"[yaml_import] CV.yml imported successfully.")
@@ -371,9 +395,14 @@ def import_refs_yaml(refs_path: str, session) -> None:
     session.query(PubAuthor).delete()
     session.query(Publication).delete()
 
-    pub_types = ["papers", "preprints", "papersNoPeer", "chapters", "letters", "scimeetings"]
-    for pub_type in pub_types:
-        for item in data.get(pub_type, []):
+    # Map YAML keys to DB type names (papersNoPeer → editorials)
+    pub_type_map = {
+        "papers": "papers", "preprints": "preprints", "chapters": "chapters",
+        "letters": "letters", "scimeetings": "scimeetings",
+        "papersNoPeer": "editorials",
+    }
+    for yaml_key, pub_type in pub_type_map.items():
+        for item in data.get(yaml_key, []):
             authors_raw = item.get("authors", [])
             corr_val = item.get("corr", False)
             if isinstance(corr_val, str):
@@ -427,7 +456,7 @@ def main():
     parser = argparse.ArgumentParser(description="Import CV YAML data into the database.")
     parser.add_argument("--cv", default="mydata/CV.yml")
     parser.add_argument("--refs", default="mydata/refs.yml")
-    parser.add_argument("--db", default="sqlite:///./cvbuilder.db")
+    parser.add_argument("--db", default="sqlite:///./data/cvbuilder.db")
     args = parser.parse_args()
 
     import os

@@ -256,7 +256,7 @@
         <div class="cv-entry-date">{{ s.data.get('year', '') }}</div>
         <div class="cv-entry-body">
           <span class="cv-entry-title">{{ s.data.get('title', '') }}</span>
-          {% if s.data.get('authors') %}<br><span class="cv-entry-detail">{{ s.data.get('authors') }}</span>{% endif %}
+          {% if s.data.get('authors') %}<br><span class="cv-entry-detail">{% set auths = s.data.get('authors') %}{% if auths is string %}{{ auths }}{% else %}{{ auths | join(', ') }}{% endif %}</span>{% endif %}
           {% if s.data.get('publisher') %}<br><span class="cv-entry-org">{{ s.data.get('publisher') }}</span>{% endif %}
           {% if s.data.get('url') %}<br><a href="{{ s.data.get('url') }}">{{ s.data.get('url') }}</a>{% endif %}
         </div>
@@ -331,6 +331,56 @@
     {% elif key == 'publications_scimeetings' %}
       {% set config = config | combine({'pub_type': 'scimeetings', 'heading': config.get('heading', 'Scientific Meeting Presentations')}) %}
       {% include 'sections/publications.html' %}
+
+    {% elif key == 'publications_editorials' %}
+      {% set config = config | combine({'pub_type': 'editorials', 'heading': config.get('heading', 'Published Articles and Editorials not Peer Reviewed')}) %}
+      {% include 'sections/publications.html' %}
+
+    {# Dissertation #}
+    {% elif key == 'dissertation' and cv.dissertation %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Dissertation') }}</div>
+      {% for d in cv.dissertation %}
+      <div class="cv-entry">
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ d.data.get('title', '') }}</span>
+          {% if d.data.get('institution') %}<br><span class="cv-entry-org">{{ d.data.get('institution') }}</span>{% endif %}
+          {% if d.data.get('year') %}<span class="cv-entry-detail"> ({{ d.data.get('year') }})</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Chaired Sessions #}
+    {% elif key == 'chairedsessions' and cv.chairedsessions %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Chaired Sessions') }}</div>
+      {% for s in cv.chairedsessions %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('title', '') }}</span>
+          {% if s.data.get('meeting') %}<br><span class="cv-entry-org">{{ s.data.get('meeting') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Other Practice Activities #}
+    {% elif key == 'otherpractice' and cv.otherpractice %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Other Practice Activities') }}</div>
+      {% for p in cv.otherpractice %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ p.data.get('date', p.data.get('years', '')) }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ p.data.get('title', '') }}</span>
+          {% if p.data.get('org') %}<br><span class="cv-entry-org">{{ p.data.get('org') }}</span>{% endif %}
+          {% if p.data.get('description') %}<br><span class="cv-entry-detail">{{ p.data.get('description') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
 
     {% endif %}
   {% endfor %}
