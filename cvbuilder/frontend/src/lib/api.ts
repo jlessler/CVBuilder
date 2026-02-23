@@ -204,9 +204,13 @@ export interface DashboardStats {
   chapters: number
   letters: number
   scimeetings: number
+  editorials: number
   trainees: number
   grants: number
   profile_complete: boolean
+  active_grants: number
+  trainee_breakdown: { type: string; count: number }[]
+  active_grant_breakdown: { role: string; count: number }[]
 }
 
 export interface DOILookupResponse {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Publication, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
@@ -35,7 +36,12 @@ function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorRows: AuthorR
 
 export function Publications() {
   const qc = useQueryClient()
-  const [typeFilter, setTypeFilter] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const typeFilter = searchParams.get('type') || ''
+  function setTypeFilter(type: string) {
+    if (type) setSearchParams({ type }, { replace: true })
+    else setSearchParams({}, { replace: true })
+  }
   const [keyword, setKeyword] = useState('')
   const [editing, setEditing] = useState<Publication | null>(null)
   const [creating, setCreating] = useState(false)

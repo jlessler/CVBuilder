@@ -2,6 +2,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import create_tables, get_db
@@ -210,6 +211,24 @@ def dashboard(db: Session = Depends(get_db)):
     def count_type(t):
         return db.query(models.Publication).filter(models.Publication.type == t).count()
 
+    trainee_rows = (
+        db.query(models.Trainee.trainee_type, func.count(models.Trainee.id))
+        .group_by(models.Trainee.trainee_type)
+        .all()
+    )
+    active_grant_rows = (
+        db.query(models.Grant.role, func.count(models.Grant.id))
+        .filter(
+            models.Grant.status == "active",
+            models.Grant.role.isnot(None),
+            models.Grant.role != "",
+        )
+        .group_by(models.Grant.role)
+        .order_by(func.count(models.Grant.id).desc())
+        .all()
+    )
+    active_grants = db.query(models.Grant).filter(models.Grant.status == "active").count()
+
     return schemas.DashboardStats(
         total_publications=total,
         papers=count_type("papers"),
@@ -217,7 +236,11 @@ def dashboard(db: Session = Depends(get_db)):
         chapters=count_type("chapters"),
         letters=count_type("letters"),
         scimeetings=count_type("scimeetings"),
+        editorials=count_type("editorials"),
         trainees=db.query(models.Trainee).count(),
         grants=db.query(models.Grant).count(),
+        active_grants=active_grants,
         profile_complete=bool(profile and profile.name),
+        trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_rows],
+        active_grant_breakdown=[{"role": r, "count": c} for r, c in active_grant_rows],
     )

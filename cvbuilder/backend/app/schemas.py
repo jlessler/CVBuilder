@@ -492,6 +492,10 @@ class DashboardStats(BaseModel):
     chapters: int
     letters: int
     scimeetings: int
+    editorials: int = 0
     trainees: int
     grants: int
     profile_complete: bool
+    active_grants: int = 0
+    trainee_breakdown: list[dict] = []
+    active_grant_breakdown: list[dict] = []
