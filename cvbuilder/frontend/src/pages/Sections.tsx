@@ -314,7 +314,7 @@ function ItemRow({
 export function Sections() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<SectionKey>('education')
-  const [activeGroup, setActiveGroup] = useState('Background')
+  const [activeGroup, setActiveGroup] = useState('Education and Experience')
   const [modal, setModal] = useState<{ open: boolean; item: Record<string, unknown> | null }>({ open: false, item: null })
   const [form, setForm] = useState<Record<string, string | number>>({})
 
