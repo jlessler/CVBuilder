@@ -1,0 +1,7 @@
+# Don't copy the local dev symlink — Docker mounts the real data/ dir as a volume
+data
+.env
+__pycache__
+**/__pycache__
+*.pyc
+.venv
