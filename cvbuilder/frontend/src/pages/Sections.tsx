@@ -52,20 +52,20 @@ const TABS: TabDef[] = [
   { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    endpoint: 'misc/editorial',    dataFields: ['journal', 'term', 'role'], subtypeField: 'subtype' },
   { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    endpoint: 'misc/peerrev',      dataFields: ['value'],            sectionValue: 'peerrev' },
   { key: 'misc_otherservice',   label: 'Other Service',    group: 'Service',    endpoint: 'misc/otherservice', dataFields: ['description', 'department', 'dates'], sectionValue: 'otherservice' },
-  // --- Publications / scholarshipadjacent ---
-  { key: 'patents',             label: 'Patents',          group: 'Other',      endpoint: 'patents' },
-  { key: 'seminars',            label: 'Seminars',         group: 'Other',      endpoint: 'seminars' },
+  // --- Scholarly Output ---
+  { key: 'misc_dissertation',    label: 'Dissertation',        group: 'Scholarly Output', endpoint: 'misc/dissertation',    dataFields: ['year', 'title', 'institution'],               sectionValue: 'dissertation' },
+  { key: 'patents',             label: 'Patents',              group: 'Scholarly Output', endpoint: 'patents' },
+  { key: 'seminars',            label: 'Seminars',             group: 'Scholarly Output', endpoint: 'seminars' },
+  { key: 'misc_software',     label: 'Software',               group: 'Scholarly Output', endpoint: 'misc/software',     dataFields: ['title', 'year', 'publisher', 'url', 'authors'], sectionValue: 'software' },
   // --- Misc (editable) ---
   { key: 'misc_policypres',   label: 'Policy Pres.',    group: 'Misc', endpoint: 'misc/policypres',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policypres' },
   { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', endpoint: 'misc/policycons',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policycons' },
-  { key: 'misc_software',     label: 'Software',         group: 'Misc', endpoint: 'misc/software',     dataFields: ['title', 'year', 'publisher', 'url', 'authors'], sectionValue: 'software' },
   { key: 'press',             label: 'Press / Media',    group: 'Misc', endpoint: 'press' },
-  { key: 'misc_dissertation',    label: 'Dissertation',        group: 'Other', endpoint: 'misc/dissertation',    dataFields: ['year', 'title', 'institution'],               sectionValue: 'dissertation' },
   { key: 'misc_chairedsessions', label: 'Chaired Sessions',    group: 'Service', endpoint: 'misc/chairedsessions', dataFields: ['date', 'title', 'meeting'],                 sectionValue: 'chairedsessions' },
   { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', endpoint: 'misc/otherpractice',   dataFields: ['years', 'title', 'description'],              sectionValue: 'otherpractice' },
 ]
 
-const GROUPS = ['Education and Experience', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
+const GROUPS = ['Education and Experience', 'Teaching', 'Scholarly Output', 'Grants', 'Service', 'Misc']
 
 // ---------------------------------------------------------------------------
 // Field definitions per section
