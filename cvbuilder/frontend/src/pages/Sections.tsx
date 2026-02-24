@@ -33,9 +33,10 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   // --- Experience & positions ---
-  { key: 'education',           label: 'Education',        group: 'Background', endpoint: 'education' },
-  { key: 'experience',          label: 'Experience',       group: 'Background', endpoint: 'experience' },
-  { key: 'consulting',          label: 'Consulting',       group: 'Background', endpoint: 'consulting' },
+  { key: 'education',           label: 'Education',        group: 'Education and Experience', endpoint: 'education' },
+  { key: 'experience',          label: 'Experience',       group: 'Education and Experience', endpoint: 'experience' },
+  { key: 'consulting',          label: 'Consulting',       group: 'Education and Experience', endpoint: 'consulting' },
+  { key: 'awards',              label: 'Awards',           group: 'Education and Experience', endpoint: 'awards' },
   // --- Teaching & trainees ---
   { key: 'classes',             label: 'Classes',          group: 'Teaching',   endpoint: 'classes' },
   { key: 'trainees_advisees',   label: 'Advisees',         group: 'Teaching',   endpoint: 'trainees', queryParams: 'trainee_type=advisee', defaultValues: { trainee_type: 'advisee' } },
@@ -54,7 +55,6 @@ const TABS: TabDef[] = [
   // --- Publications / scholarshipadjacent ---
   { key: 'patents',             label: 'Patents',          group: 'Other',      endpoint: 'patents' },
   { key: 'seminars',            label: 'Seminars',         group: 'Other',      endpoint: 'seminars' },
-  { key: 'awards',              label: 'Awards',           group: 'Other',      endpoint: 'awards' },
   // --- Misc (editable) ---
   { key: 'misc_policypres',   label: 'Policy Pres.',    group: 'Misc', endpoint: 'misc/policypres',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policypres' },
   { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', endpoint: 'misc/policycons',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policycons' },
@@ -65,7 +65,7 @@ const TABS: TabDef[] = [
   { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', endpoint: 'misc/otherpractice',   dataFields: ['years', 'title', 'description'],              sectionValue: 'otherpractice' },
 ]
 
-const GROUPS = ['Background', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
+const GROUPS = ['Education and Experience', 'Teaching', 'Grants', 'Service', 'Other', 'Misc']
 
 // ---------------------------------------------------------------------------
 // Field definitions per section
