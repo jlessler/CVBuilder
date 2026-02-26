@@ -120,16 +120,22 @@ def _dedup_candidates(candidates: list[RawCandidate]) -> list[RawCandidate]:
             existing = result[idx]
             # merge sources
             sources = set(existing.source.split("+")) | {c.source}
-            existing.source = "+".join(sorted(sources))
-            # keep richer record
+            merged_source = "+".join(sorted(sources))
+            # keep richer record, but preserve authors from either side
             if c._field_count() > existing._field_count():
-                c.source = existing.source
+                if not c.authors and existing.authors:
+                    c.authors = existing.authors
+                c.source = merged_source
                 result[idx] = c
                 # re-register keys
                 if doi_key:
                     seen_doi[doi_key] = idx
                 if title_key and title_key[0]:
                     seen_title[title_key] = idx
+            else:
+                existing.source = merged_source
+                if not existing.authors and c.authors:
+                    existing.authors = c.authors
         else:
             idx = len(result)
             result.append(c)
@@ -465,6 +471,39 @@ async def _fetch_crossref(name: str, client: httpx.AsyncClient) -> tuple[list[Ra
 # Orchestrator
 # ---------------------------------------------------------------------------
 
+async def _enrich_authors_via_crossref(
+    candidates: list[RawCandidate], client: httpx.AsyncClient
+) -> None:
+    """For candidates with a DOI but no authors, fetch authors from Crossref."""
+    to_enrich = [c for c in candidates if c.doi and not c.authors]
+    if not to_enrich:
+        return
+
+    async def _lookup(c: RawCandidate) -> None:
+        try:
+            r = await client.get(
+                f"https://api.crossref.org/works/{c.doi}",
+                headers=_HEADERS,
+                timeout=_TIMEOUT,
+            )
+            if r.status_code != 200:
+                return
+            item = r.json().get("message", {})
+            authors = []
+            for a in item.get("author", []):
+                family = a.get("family", "")
+                given = a.get("given", "")
+                full = f"{family} {given}".strip()
+                if full:
+                    authors.append(full)
+            if authors:
+                c.authors = authors
+        except Exception:
+            pass  # best-effort enrichment
+
+    await asyncio.gather(*[_lookup(c) for c in to_enrich])
+
+
 async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dict:
     """
     Fan out to all 4 sources, dedup against DB, return structured result.
@@ -503,6 +542,10 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
     # Dedup within results, then against DB
     merged = _dedup_candidates(all_candidates)
     new_pubs = deduplicate(merged, db_pubs)
+
+    # Enrich ORCID-only results that still lack authors
+    async with httpx.AsyncClient() as enrich_client:
+        await _enrich_authors_via_crossref(new_pubs, enrich_client)
 
     # Sort by year desc, then title
     new_pubs.sort(key=lambda c: (-(int(c.year) if c.year and c.year.isdigit() else 0), c.title or ""))
