@@ -66,24 +66,42 @@ def _build_cv_data(db: Session, sort_direction: str = "desc") -> dict:
             ).all(),
             models.MiscSection, reverse=rev,
         ),
-        "dissertation": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "dissertation"
-        ).order_by(models.MiscSection.id.desc()).all(),
-        "chairedsessions": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "chairedsessions"
-        ).order_by(models.MiscSection.id.desc()).all(),
-        "otherpractice": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "otherpractice"
-        ).order_by(models.MiscSection.id.desc()).all(),
-        "departmentalOrals": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "departmentalOrals"
-        ).order_by(models.MiscSection.id.desc()).all(),
-        "finaldefense": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "finaldefense"
-        ).order_by(models.MiscSection.id.desc()).all(),
-        "schoolwideOrals": db.query(models.MiscSection).filter(
-            models.MiscSection.section == "schoolwideOrals"
-        ).order_by(models.MiscSection.id.desc()).all(),
+        "dissertation": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "dissertation"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
+        "chairedsessions": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "chairedsessions"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
+        "otherpractice": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "otherpractice"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
+        "departmentalOrals": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "departmentalOrals"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
+        "finaldefense": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "finaldefense"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
+        "schoolwideOrals": sort_items(
+            db.query(models.MiscSection).filter(
+                models.MiscSection.section == "schoolwideOrals"
+            ).all(),
+            models.MiscSection, reverse=rev,
+        ),
         "publications": sort_items(db.query(models.Publication).all(), models.Publication, reverse=rev),
     }
 
