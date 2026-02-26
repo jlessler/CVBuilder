@@ -1,0 +1,179 @@
+---
+# ==========================================================================
+# Sample publications — Albert Einstein
+#
+# A selection of Einstein's most famous papers, simplified for testing.
+# Historically accurate titles, journals, and years.
+# ==========================================================================
+
+myname: Albert Einstein
+
+papers:
+  - authors:
+      - Einstein A
+      - Podolsky B
+      - Rosen N
+    title: Can Quantum-Mechanical Description of Physical Reality Be Considered Complete?
+    year: "1935"
+    journal: Physical Review
+    volume: "47"
+    issue: "10"
+    pages: 777-780
+    doi: 10.1103/PhysRev.47.777
+    corr: true
+    select: "1"
+
+  - authors:
+      - Einstein A
+    title: Die Grundlage der allgemeinen Relativitatstheorie
+    year: "1916"
+    journal: Annalen der Physik
+    volume: "354"
+    issue: "7"
+    pages: 769-822
+    doi: 10.1002/andp.19163540702
+    corr: true
+    select: "1"
+
+  - authors:
+      - Einstein A
+    title: Zur Elektrodynamik bewegter Korper
+    year: "1905"
+    journal: Annalen der Physik
+    volume: "322"
+    issue: "10"
+    pages: 891-921
+    doi: 10.1002/andp.19053221004
+    corr: true
+    select: "1"
+
+  - authors:
+      - Einstein A
+    title: Uber die von der molekularkinetischen Theorie der Warme geforderte Bewegung von in ruhenden Flussigkeiten suspendierten Teilchen
+    year: "1905"
+    journal: Annalen der Physik
+    volume: "322"
+    issue: "8"
+    pages: 549-560
+    doi: 10.1002/andp.19053220806
+
+  - authors:
+      - Einstein A
+    title: Uber einen die Erzeugung und Verwandlung des Lichtes betreffenden heuristischen Gesichtspunkt
+    year: "1905"
+    journal: Annalen der Physik
+    volume: "322"
+    issue: "6"
+    pages: 132-148
+    doi: 10.1002/andp.19053220607
+    corr: true
+    select: "1"
+
+  - authors:
+      - Einstein A
+    title: Ist die Tragheit eines Korpers von seinem Energieinhalt abhangig?
+    year: "1905"
+    journal: Annalen der Physik
+    volume: "323"
+    issue: "13"
+    pages: 639-641
+    doi: 10.1002/andp.19053231314
+    select: "1"
+
+  - authors:
+      - Einstein A
+      - Infeld L
+      - Hoffmann B
+    title: The Gravitational Equations and the Problem of Motion
+    year: "1938"
+    journal: Annals of Mathematics
+    volume: "39"
+    issue: "1"
+    pages: 65-100
+
+  - authors:
+      - Einstein A
+      - de Haas WJ
+    title: Experimental Proof of the Existence of Ampere's Molecular Currents
+    year: "1915"
+    journal: Proceedings of the KNAW
+    volume: "18"
+    pages: 696-711
+
+  - authors:
+      - Einstein A
+      - Rosen N
+    title: The Particle Problem in the General Theory of Relativity
+    year: "1935"
+    journal: Physical Review
+    volume: "48"
+    pages: 73-77
+    doi: 10.1103/PhysRev.48.73
+
+  - authors:
+      - Einstein A
+      - Bose SN
+    title: Quantentheorie des einatomigen idealen Gases
+    year: "1924"
+    journal: Sitzungsberichte der Preussischen Akademie der Wissenschaften
+    volume: "1"
+    pages: 261-267
+
+chapters:
+  - authors:
+      - Einstein A
+    title: The Meaning of Relativity
+    year: "1922"
+    journal: Princeton University Press
+    publisher: Princeton University Press
+    select: "1"
+
+  - authors:
+      - Einstein A
+      - Infeld L
+    title: The Evolution of Physics
+    year: "1938"
+    journal: Cambridge University Press
+    publisher: Cambridge University Press
+
+letters:
+  - authors:
+      - Einstein A
+    title: Letter to the Editor on Unified Field Theory
+    year: "1950"
+    journal: Physical Review
+
+  - authors:
+      - Einstein A
+    title: Reply to Criticisms (in Albert Einstein Philosopher-Scientist)
+    year: "1949"
+    journal: Library of Living Philosophers
+
+preprints: []
+
+scimeetings:
+  - authors:
+      - Einstein A
+    title: On the Present Status of the Problem of Gravitation
+    year: "1913"
+    journal: Proceedings of the 85th Meeting of German Natural Scientists and Physicians
+    conference: German Natural Scientists and Physicians
+    type: oral
+
+  - authors:
+      - Einstein A
+    title: On the Quantum Theory of Radiation
+    year: "1916"
+    journal: Proceedings of the Zurich Physical Society
+    conference: Zurich Physical Society
+    type: oral
+
+  - authors:
+      - Einstein A
+    title: Ether and the Theory of Relativity
+    year: "1920"
+    journal: Lecture at the University of Leiden
+    conference: University of Leiden Lecture
+    type: Invited
+
+---

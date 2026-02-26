@@ -1,0 +1,469 @@
+---
+# ==========================================================================
+# Sample CV data — Albert Einstein
+#
+# This file serves as both test fixture and illustrative example for new
+# users.  The content is historically accurate (simplified for brevity).
+# ==========================================================================
+
+name: Albert Einstein
+email: einstein@ias.edu
+phone: "(609) 734-8000"
+website: https://www.ias.edu/scholars/einstein
+
+address-work:
+  - Institute for Advanced Study
+  - 1 Einstein Drive
+  - Princeton, NJ 08540
+
+address-home:
+  - 112 Mercer Street
+  - Princeton, NJ 08540
+
+# ------------------------------------------------------------------
+# Education
+# ------------------------------------------------------------------
+education:
+  - degree: PhD
+    year: 1905
+    subject: Physics
+    school: University of Zurich
+  - degree: Diploma
+    year: 1900
+    subject: Mathematics and Physics
+    school: Swiss Federal Polytechnic (ETH Zurich)
+
+# ------------------------------------------------------------------
+# Professional Experience
+# ------------------------------------------------------------------
+experience:
+  - title: Professor of Theoretical Physics
+    years: 1933-1955
+    employer: Institute for Advanced Study, Princeton
+  - title: Director, Kaiser Wilhelm Institute for Physics
+    years: 1917-1933
+    employer: Kaiser Wilhelm Society, Berlin
+  - title: Professor of Theoretical Physics
+    years: 1914-1917
+    employer: Humboldt University of Berlin
+  - title: Professor of Theoretical Physics
+    years: 1912-1914
+    employer: ETH Zurich
+  - title: Associate Professor of Theoretical Physics
+    years: 1909-1911
+    employer: University of Zurich
+  - title: Technical Expert, Class III
+    years: 1902-1909
+    employer: Swiss Patent Office, Bern
+
+# ------------------------------------------------------------------
+# Consulting
+# ------------------------------------------------------------------
+consulting:
+  - title: Scientific Advisor
+    years: 1939-1945
+    employer: United States Government (Manhattan Project advisory)
+
+# ------------------------------------------------------------------
+# Memberships
+# ------------------------------------------------------------------
+membership:
+  - org: Prussian Academy of Sciences
+    years: 1914-1933
+  - org: Royal Society (Foreign Member)
+    years: 1921-1955
+  - org: National Academy of Sciences (USA)
+    years: 1942-1955
+  - org: Royal Netherlands Academy of Arts and Sciences
+    years: 1920-1955
+
+# ------------------------------------------------------------------
+# Advisory Panels
+# ------------------------------------------------------------------
+panel:
+  - panel: Emergency Committee of Atomic Scientists
+    org: Federation of American Scientists
+    role: Chair
+    date: 1946-1948
+  - panel: Scientific Advisory Board
+    org: Hebrew University of Jerusalem
+    role: Member
+    date: 1925-1955
+
+# ------------------------------------------------------------------
+# Grant Review Panels
+# ------------------------------------------------------------------
+grantrev:
+  - panel: Physics Fellowship Selection Committee
+    org: Rockefeller Foundation
+    date: 1934
+    type: Reviewer
+    id: RF-1934
+
+# ------------------------------------------------------------------
+# Patents
+# ------------------------------------------------------------------
+patent:
+  - name: Refrigerator with no moving parts (Einstein-Szilard refrigerator)
+    number: US1781541
+    status: granted
+    authors:
+      - Einstein A
+      - Szilard L
+
+# ------------------------------------------------------------------
+# Organized Sessions / Symposia
+# ------------------------------------------------------------------
+symposium:
+  - title: Fifth Solvay Conference on Electrons and Photons
+    meeting: Solvay Conference
+    date: 1927
+    role: Invited Participant
+  - title: First Solvay Conference on Radiation and the Quanta
+    meeting: Solvay Conference
+    date: 1911
+    role: Invited Participant
+
+# ------------------------------------------------------------------
+# Teaching
+# ------------------------------------------------------------------
+classes:
+  - class: Statistical Mechanics
+    year: 1936
+    role: Instructor
+    school: Institute for Advanced Study
+    students: "12"
+    lectures: "24"
+    inthreeyear: false
+  - class: Theoretical Physics
+    year: 1913
+    role: Instructor
+    school: ETH Zurich
+    students: "25"
+    lectures: "30"
+    inthreeyear: false
+  - class: Introduction to Electrodynamics
+    year: 1909
+    role: Instructor
+    school: University of Zurich
+    students: "18"
+    lectures: "20"
+    inthreeyear: false
+
+# ------------------------------------------------------------------
+# Completed Grants
+# ------------------------------------------------------------------
+completedgrants:
+  - title: Unified Field Theory Research
+    org: Institute for Advanced Study
+    PI: Albert Einstein
+    amount: "25000"
+    dates: 1933-1955
+    role: PI
+    number: IAS-UFT-01
+    description: Research program seeking to unify gravitation and electromagnetism
+    type: institutional
+
+  - title: Investigation of Brownian Motion and Molecular Theory
+    org: University of Zurich
+    PI: Albert Einstein
+    amount: "1200"
+    dates: 1905-1908
+    role: PI
+    number: UZH-BM-1905
+    description: Theoretical and experimental study of Brownian motion providing evidence for the existence of atoms
+    type: institutional
+
+# ------------------------------------------------------------------
+# Honors and Awards
+# ------------------------------------------------------------------
+honor:
+  - name: Nobel Prize in Physics
+    date: 1921
+    grantee: Royal Swedish Academy of Sciences
+  - name: Copley Medal
+    date: 1925
+    grantee: Royal Society
+  - name: Max Planck Medal
+    date: 1929
+    grantee: German Physical Society
+  - name: Matteucci Medal
+    date: 1921
+    grantee: Italian Society of Sciences
+  - name: Barnard Medal for Meritorious Service to Science
+    date: 1920
+    grantee: Columbia University
+
+# ------------------------------------------------------------------
+# Media / Press
+# ------------------------------------------------------------------
+media:
+  - topic: General relativity confirmed by solar eclipse observations
+    date: 1919
+    outlets:
+      - The Times (London)
+      - The New York Times
+  - topic: "Letter to President Roosevelt regarding atomic energy"
+    date: 1939
+    outlets:
+      - The New York Times
+
+# ------------------------------------------------------------------
+# Advisees
+# ------------------------------------------------------------------
+advisees:
+  - name: Ernst Gabor Straus
+    degree: PhD
+    dates: 1944-1948
+    school: Institute for Advanced Study
+    type: advisor
+    thesis: Studies in unified field theory
+    wherenow: Professor, UCLA (deceased)
+  - name: Nathan Rosen
+    degree: PhD
+    dates: 1934-1936
+    school: Institute for Advanced Study
+    type: advisor
+    thesis: Einstein-Rosen bridge and EPR paradox investigations
+    wherenow: Professor, Technion (deceased)
+
+# ------------------------------------------------------------------
+# Postdocs
+# ------------------------------------------------------------------
+postdocs:
+  - name: Leopold Infeld
+    dates: 1936-1938
+    wherenow: Professor, University of Warsaw (deceased)
+  - name: Peter Bergmann
+    dates: 1936-1941
+    wherenow: Professor, Syracuse University (deceased)
+  - name: Bruria Kaufman
+    dates: 1947-1949
+    wherenow: Researcher, Weizmann Institute (deceased)
+
+# ------------------------------------------------------------------
+# Invited Seminars and Lectures
+# ------------------------------------------------------------------
+seminars:
+  - title: On the Electrodynamics of Moving Bodies
+    org: Prussian Academy of Sciences
+    date: 1915
+    loc: Berlin, Germany
+    event: Academy Lecture Series
+  - title: Geometry and Experience
+    org: Prussian Academy of Sciences
+    date: 1921
+    loc: Berlin, Germany
+    event: Academy Lecture
+  - title: The Meaning of Relativity
+    org: Princeton University
+    date: 1921
+    loc: Princeton, NJ
+    event: Stafford Little Lectures
+
+# ------------------------------------------------------------------
+# Committees
+# ------------------------------------------------------------------
+committees:
+  - committee: International Committee on Intellectual Cooperation
+    org: League of Nations
+    role: Member
+    dates: 1922-1932
+  - committee: Board of Governors
+    org: Hebrew University of Jerusalem
+    role: Governor
+    dates: 1925-1955
+
+# ------------------------------------------------------------------
+# Misc Sections
+# ------------------------------------------------------------------
+editor:
+  - journal: Annalen der Physik
+    term: 1906-1955
+
+peerrev:
+  - Physical Review
+  - Annalen der Physik
+  - Zeitschrift fur Physik
+
+assocedit:
+  - journal: Annalen der Physik (Associate Editor)
+    term: 1909-1914
+  - journal: Zeitschrift fur Physik
+    term: 1920-1933
+
+otheredit:
+  - journal: Physical Review
+    role: Advisory Board
+    term: 1935-1955
+  - journal: Journal of the Franklin Institute
+    role: Guest Editor, Special Issue on Unified Field Theory
+    term: 1936
+
+# ------------------------------------------------------------------
+# Other Departmental Service
+# ------------------------------------------------------------------
+otherservice:
+  - dates: 1940-1945
+    description: Chaired faculty hiring committee for theoretical physics
+    department: School of Mathematics, IAS
+  - dates: 1935-1955
+    description: Organized weekly physics colloquium series
+    department: School of Mathematics, IAS
+
+# ------------------------------------------------------------------
+# Policy Presentations
+# ------------------------------------------------------------------
+policypres:
+  - title: Atomic energy and its implications for international policy
+    date: November 1945
+    org: United States Senate Special Committee on Atomic Energy
+    description: Testified on the need for international control of atomic energy
+  - title: The case for a world government
+    date: October 1947
+    org: United Nations General Assembly Committee
+    description: Presented argument for supranational governance to prevent nuclear war
+
+# ------------------------------------------------------------------
+# Policy Consultations
+# ------------------------------------------------------------------
+policycons:
+  - title: Manhattan Project Advisory Consultation
+    org: United States War Department
+    date: 1941-1945
+    description: Provided advisory consultation on theoretical physics related to nuclear fission
+  - title: Atomic Energy Commission Advisory
+    org: United States Atomic Energy Commission
+    date: 1946-1950
+    description: Advised on peaceful applications of atomic energy and international arms control
+
+# ------------------------------------------------------------------
+# Other Policy Activities
+# ------------------------------------------------------------------
+policyother:
+  - title: Chairman, Emergency Committee of Atomic Scientists
+    date: 1946-1948
+    org: Emergency Committee of Atomic Scientists
+    description: Led fundraising and public education campaign on dangers of nuclear weapons and need for international control
+  - title: Russell-Einstein Manifesto
+    date: 1955
+    org: International scientific community
+    description: Co-authored manifesto with Bertrand Russell calling for peaceful resolution of international conflicts and warning of nuclear war dangers
+
+# ------------------------------------------------------------------
+# Thesis Committee Service — Departmental Orals
+# ------------------------------------------------------------------
+departmentalOrals:
+  - name: Valentine Bargmann
+    department: Physics
+    date: June 1942
+    school: Institute for Advanced Study
+  - name: Ernst Gabor Straus
+    department: Mathematics
+    date: March 1948
+    school: Institute for Advanced Study
+
+# ------------------------------------------------------------------
+# Thesis Committee Service — Final Defenses
+# ------------------------------------------------------------------
+finaldefense:
+  - name: Nathan Rosen
+    date: May 1936
+    department: Physics
+    school: Massachusetts Institute of Technology
+    ischair: yes
+  - name: Valentine Bargmann
+    date: January 1943
+    department: Physics
+    school: Princeton University
+  - name: Ernst Gabor Straus
+    date: June 1948
+    department: Mathematics
+    school: Columbia University
+    ischair: yes
+
+# ------------------------------------------------------------------
+# Thesis Committee Service — School-wide Orals
+# ------------------------------------------------------------------
+schoolwideOrals:
+  - name: John Archibald Wheeler
+    date: April 1938
+    department: Physics
+    school: Johns Hopkins University
+  - name: David Bohm
+    date: June 1943
+    department: Physics
+    school: University of California, Berkeley
+
+# ------------------------------------------------------------------
+# Software
+# ------------------------------------------------------------------
+software:
+  - title: Unified Field Equation Solver
+    authors:
+      - Einstein A
+      - Straus EG
+    year: 1944
+    publisher: Institute for Advanced Study
+    url: https://www.ias.edu/software/ufes
+  - title: Gravitational Lens Calculator
+    authors:
+      - Einstein A
+      - Rosen N
+    year: 1936
+    publisher: Institute for Advanced Study
+    url: https://www.ias.edu/software/grlens
+
+# ------------------------------------------------------------------
+# Active Grants
+# ------------------------------------------------------------------
+activegrants:
+  - org: Rockefeller Foundation
+    PI: Albert Einstein
+    dates: 1952-1956
+    amount: 50000
+    number: RF-UF-1952
+    amPI: yes
+    role: Principal Investigator
+    description: Research program pursuing a complete unified field theory unifying gravitation and electromagnetism
+    pcteffort: 80
+    title: Generalized Theory of Gravitation
+
+# ------------------------------------------------------------------
+# Keywords
+# ------------------------------------------------------------------
+keywords:
+  - General Relativity
+  - Quantum Mechanics
+  - Unified Field Theory
+  - Brownian Motion
+  - Statistical Mechanics
+  - Photoelectric Effect
+  - Cosmology
+  - Gravitation
+
+# ------------------------------------------------------------------
+# Research Statement
+# ------------------------------------------------------------------
+researchstatement: >-
+  I pursue the fundamental laws governing the physical universe, with
+  particular focus on the unification of gravitational and electromagnetic
+  forces into a single theoretical framework. My research program encompasses
+  general relativity, quantum mechanics, statistical mechanics, and
+  cosmology. I am especially interested in whether the apparent duality
+  between particles and fields can be resolved through a purely geometric
+  description of nature.
+
+chairedsessions:
+  - title: Quantum Mechanics Discussion
+    year: 1930
+    conference: Sixth Solvay Conference
+
+dissertation:
+  author: Einstein A
+  year: 1905
+  title: A New Determination of Molecular Dimensions
+  department: Department of Physics
+  institution: University of Zurich
+
+---

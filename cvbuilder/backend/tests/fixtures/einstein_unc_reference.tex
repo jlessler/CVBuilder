@@ -1,0 +1,709 @@
+%!TEX TS-program = MikTex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass[martgin, line]{article}
+\usepackage{helvet}
+\usepackage{tabularx}
+\usepackage{longtable}
+
+% LAYOUT
+%--------------------------------
+% Margins
+\usepackage{geometry} 
+\geometry{a4paper, left=.75in, right=.75in, top=.75in, bottom=.75in}
+
+% Do not indent paragraphs
+\setlength\parindent{0in}
+
+% Enable multicolumns
+\usepackage{multicol}
+\setlength{\columnsep}{-3.5cm}
+
+% MARGIN NOTES
+%--------------------------------
+\usepackage{marginnote}
+\newcommand{\note}[1]{\marginnote{\scriptsize #1}}
+\renewcommand*{\raggedleftmarginnote}{}
+\setlength{\marginparsep}{7pt}
+\reversemarginpar
+
+% HEADINGS
+%--------------------------------
+\usepackage{sectsty} 
+\usepackage[normalem]{ulem} 
+%\sectionfont{\rmfamily\mdseries} 
+%\subsectionfont{\rmfamily\mdseries\scshape\normalsize} 
+%\subsectionfont{\rmfamily\mdseries\normalsize} 
+%\subsubsectionfont{\rmfamily\bfseries\upshape\normalsize} 
+
+% PDF SETUP
+%--------------------------------
+\usepackage{hyperref}
+\hypersetup {
+  colorlinks, breaklinks, xetex, bookmarks,
+  urlcolor=[rgb]{0.1,0.1,0.858},
+  citecolor=[rgb]{0.1,0.1,0.858},
+  linkcolor=[rgb]{0.1,0.1,0.858}
+}
+
+% Make Sans serif
+\renewcommand{\familydefault}{\sfdefault}
+ 
+% \hypersetup
+% {
+%   pdfauthor={Albert Einstein},
+%   pdfsubject={Albert Einstein's CV},
+%   pdftitle={Albert Einstein's CV},
+%   colorlinks, breaklinks, xetex, bookmarks,
+%   filecolor=black,
+%   urlcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   linkcolor=[rgb]{0.117,0.682,0.858},
+%   citecolor=[rgb]{0.117,0.682,0.858}
+% }
+
+
+\newcommand\doi[1]{
+  \href{http://dx.doi.org/#1}
+  {doi:#1}
+}
+
+\newcommand\journal[1]{\emph{#1}} 
+
+%variable definitions for references
+\input{refvars.tex}
+
+% DOCUMENT
+%--------------------------------
+\begin{document}
+
+\begin{flushright}
+  \textit{\today}
+\end{flushright}
+
+%\begin{center}
+%  \textbf{CURRICULUM VITAE}
+
+
+\begin{LARGE}
+  \textbf{Albert Einstein}
+\end{LARGE}
+%\end{center}
+
+\section*{Contact}
+
+Institute for Advanced Study\\
+1 Einstein Drive\\
+Princeton, NJ 08540\\
+Phone: (609) 734-8000\\
+\href{mailto:einstein@ias.edu}{einstein@ias.edu}\\
+
+
+\section*{Education}
+\noindent
+\begin{tabular}{lll}
+1905&PhD&
+Physics,
+University of Zurich\\
+1900&Diploma&
+Mathematics and Physics,
+Swiss Federal Polytechnic (ETH Zurich)\\
+\end{tabular}
+
+\section*{Professional Experience}
+\noindent
+\begin{tabular}{lll}
+1933-1955&
+Professor of Theoretical Physics&
+Institute for Advanced Study, Princeton\\
+1917-1933&
+Director, Kaiser Wilhelm Institute for Physics&
+Kaiser Wilhelm Society, Berlin\\
+1914-1917&
+Professor of Theoretical Physics&
+Humboldt University of Berlin\\
+1912-1914&
+Professor of Theoretical Physics&
+ETH Zurich\\
+1909-1911&
+Associate Professor of Theoretical Physics&
+University of Zurich\\
+1902-1909&
+Technical Expert, Class III&
+Swiss Patent Office, Bern\\
+\end{tabular}
+
+\section*{Honors and Awards}
+\begin{tabular}{lp{5.5in}}
+1921&
+Nobel Prize in Physics, Royal Swedish Academy of Sciences
+\\
+1925&
+Copley Medal, Royal Society
+\\
+1929&
+Max Planck Medal, German Physical Society
+\\
+1921&
+Matteucci Medal, Italian Society of Sciences
+\\
+1920&
+Barnard Medal for Meritorious Service to Science, Columbia University
+\\
+\end{tabular}
+
+
+\section*{Memberships}
+
+\begin{tabular}{l}
+Prussian Academy of Sciences, 1914-1933\\
+Royal Society (Foreign Member), 1921-1955\\
+National Academy of Sciences (USA), 1942-1955\\
+Royal Netherlands Academy of Arts and Sciences, 1920-1955\\
+\end{tabular}
+
+
+\section*{Bibliography and Products of Scholarship}
+
+\begin{footnotesize}$^*$ indicates a UNC or JHSPH student or trainee;
+    $^{**}$ indicates an GIDTRP student or trainee;
+    $^\dagger$ indicates corresponding authorship;
+    $^\ddagger$ indicates equal contribution
+  \end{footnotesize}
+
+\subsection*{Peer-Reviewed Publications (\npeer\ total)} 
+
+\begin{enumerate}
+  \input{refs.tex}
+\end{enumerate}
+
+
+\subsection*{Patents (1 total)}
+\begin{enumerate}
+    \item
+  Refrigerator with no moving parts (Einstein-Szilard refrigerator)
+   (No. US1781541).
+    Einstein A,
+    Szilard L.
+  \textit{granted}
+  \end{enumerate}
+
+
+\subsection*{Published Articles and Editorials not Peer Reviewed (\nnopeer\ total)}
+
+\begin{enumerate}
+  \input{refs_norev.tex}
+\end{enumerate}
+
+
+\subsection*{Books \& Chapters (\nchapters\ total)}
+
+\begin{enumerate}
+  \input{chapters.tex}
+\end{enumerate}
+
+
+\subsection*{Preprints (\npreprint\ total)}
+
+\begin{enumerate}
+  \input{preprints.tex}
+\end{enumerate}
+
+
+\subsection*{Letters (\nletters\ total)}
+
+\begin{enumerate}
+  \input{letters.tex}
+\end{enumerate}
+
+
+\subsection*{Posters and Presentations at Scientific Meetings (\npres\ total)}
+
+\begin{enumerate}
+  \input{scipres.tex}
+\end{enumerate}
+
+
+\subsection*{Invited Seminars (3 total)}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{3.75in}l}
+    1915&
+  \parbox[t]{3.75in} { On the Electrodynamics of Moving Bodies\\
+    \scriptsize{%
+      \textit{Academy Lecture Series}. %
+      Prussian Academy of Sciences.%
+    }} & Berlin, Germany\\
+    1921&
+  \parbox[t]{3.75in} { Geometry and Experience\\
+    \scriptsize{%
+      \textit{Academy Lecture}. %
+      Prussian Academy of Sciences.%
+    }} & Berlin, Germany\\
+    1921&
+  \parbox[t]{3.75in} { The Meaning of Relativity\\
+    \scriptsize{%
+      \textit{Stafford Little Lectures}. %
+      Princeton University.%
+    }} & Princeton, NJ\\
+  \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Software (2 total)}
+
+\begin{enumerate}
+    \item
+    Einstein A,
+    Straus EG  (1944)
+  \href{https://www.ias.edu/software/ufes}{Unified Field Equation
+Solver}.
+  Institute for Advanced Study
+    \item
+    Einstein A,
+    Rosen N  (1936)
+  \href{https://www.ias.edu/software/grlens}{Gravitational Lens
+Calculator}.
+  Institute for Advanced Study
+  \end{enumerate}
+
+
+\subsection*{Dissertation}
+\textbf{Einstein A} (1905) A New Determination of Molecular Dimensions.
+Department of Physics, University of Zurich
+
+
+%% End scholarly outputs---------------------------------------------
+
+\section*{Teaching Record}
+
+\subsection*{Classroom Instruction (Past 3 Years)}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{4in}l}
+                    \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+
+\subsection*{Advisees}
+
+
+Ernst Gabor Straus, PhD (advisor)
+\hfill 1944-1948\\ 
+\textit{Studies in unified field theory}\\
+Institute for Advanced Study\\
+
+Nathan Rosen, PhD (advisor)
+\hfill 1934-1936\\ 
+\textit{Einstein-Rosen bridge and EPR paradox investigations}\\
+Institute for Advanced Study\\
+
+
+
+
+
+
+\subsection*{Postdoctoral Trainees}
+
+\setlength{\extrarowheight}{.25em}
+\begin{tabular}{ll}   
+Leopold Infeld&
+1936-1938\\
+Peter Bergmann&
+1936-1941\\
+Bruria Kaufman&
+1947-1949\\
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Oral Exam Participation}
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lp{3.75in}l}
+  \emph{Final Defense}\\
+  \hline
+    Nathan Rosen&
+  \parbox[t]{3.75in} {
+    Physics
+    \scriptsize{%
+      \\Massachusetts Institute of Technology
+    }
+  }&
+  May 1936\\
+    Valentine Bargmann&
+  \parbox[t]{3.75in} {
+    Physics
+    \scriptsize{%
+      \\Princeton University
+    }
+  }&
+  January 1943\\
+    Ernst Gabor Straus&
+  \parbox[t]{3.75in} {
+    Mathematics
+    \scriptsize{%
+      \\Columbia University
+    }
+  }&
+  June 1948\\
+    \\
+  \emph{School Wide}\\
+  \hline
+    John Archibald Wheeler&
+  \parbox[t]{3.75in} {
+    Physics
+    \scriptsize{%
+      \\Johns Hopkins University
+    }
+  }&
+  April 1938\\
+    David Bohm&
+  \parbox[t]{3.75in} {
+    Physics
+    \scriptsize{%
+      \\University of California, Berkeley
+    }
+  }&
+  June 1943\\
+    \\
+  \emph{Departmental}\\
+  \hline
+    Valentine Bargmann&
+  \parbox[t]{3.75in} {
+    Physics
+    \scriptsize{%
+      \\Institute for Advanced Study
+    }
+  }&
+  June 1942\\
+    Ernst Gabor Straus&
+  \parbox[t]{3.75in} {
+    Mathematics
+    \scriptsize{%
+      \\Institute for Advanced Study
+    }
+  }&
+  March 1948\\
+  \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+%%=========================END TEACHING
+
+
+\section*{Contracts and Grants}
+
+\subsection*{Active}
+
+
+\textbf{Rockefeller Foundation
+\hfill 1952-1956\\
+Albert Einstein (PI)
+\hfill
+\$ 50000 (Total Costs)
+\\
+Generalized Theory of Gravitation}\\
+Research program pursuing a complete unified field theory unifying
+gravitation and electromagnetism\\
+\textbf{Role: Principal Investigator}
+ 80\% FTE\\
+ RF-UF-1952\\
+
+
+
+
+\subsection*{Completed}
+
+\textbf{Institute for Advanced Study
+ (institutional)
+\hfill 1933-1955\\
+Albert Einstein (PI)
+\hfill
+\$ 25000 (Total Costs)
+\\
+Unified Field Theory Research}\\
+\textbf{Role: PI}
+\\
+ IAS-UFT-01\\
+
+
+\textbf{University of Zurich
+ (institutional)
+\hfill 1905-1908\\
+Albert Einstein (PI)
+\hfill
+\$ 1200 (Total Costs)
+\\
+Investigation of Brownian Motion and Molecular Theory}\\
+\textbf{Role: PI}
+\\
+ UZH-BM-1905\\
+
+
+
+
+
+
+\section*{Professional Service}
+
+\subsection*{Departmental, School and University}
+
+\subsubsection*{Committee Memberships}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{3.5in}l}
+    1922-1932& 
+  \parbox[t]{3.5in} { International Committee on Intellectual
+Cooperation\\
+    \scriptsize{%
+      League of Nations
+    }} &  Member \\
+    1925-1955& 
+  \parbox[t]{3.5in} { Board of Governors\\
+    \scriptsize{%
+      Hebrew University of Jerusalem
+    }} &  Governor \\
+  \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Other  Service}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5.5in}}
+    1940-1945& 
+  \parbox[t]{5.5in} { 
+    Chaired faculty hiring committee for theoretical physics\\
+    \scriptsize{%
+      School of Mathematics, IAS
+    }
+  } \\
+    1935-1955& 
+  \parbox[t]{5.5in} { 
+    Organized weekly physics colloquium series\\
+    \scriptsize{%
+      School of Mathematics, IAS
+    }
+  } \\
+  \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+%\subsection*{School}
+
+%\subsection*{University}
+
+\subsection*{National and International}
+
+\subsubsection*{Advisory Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+1946-1948&
+\parbox[t]{5.5in}{Chair, Emergency Committee of Atomic Scientists\\
+  \textit{Federation of American Scientists}}\\
+1925-1955&
+\parbox[t]{5.5in}{Member, Scientific Advisory Board\\
+  \textit{Hebrew University of Jerusalem}}\\
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Grant Review Panels}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+1934&
+\parbox[t]{5.5in}{
+   
+  Physics Fellowship Selection Committee\\
+  \textit{Rockefeller Foundation}
+   -- \textit{Reviewer}
+   -- \textit{RF-1934}
+  }\\
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+
+\subsubsection*{Organized Sessions and Round Tables}
+\setlength{\extrarowheight}{.75em}
+\begin{tabular}{lp{5.5in}}   
+1927&
+\parbox[t]{5.5in}{
+    Fifth Solvay Conference on Electrons and Photons\\
+  \textit{Solvay Conference}
+   -- Invited Participant 
+  }\\
+1911&
+\parbox[t]{5.5in}{
+    First Solvay Conference on Radiation and the Quanta\\
+  \textit{Solvay Conference}
+   -- Invited Participant 
+  }\\
+\end{tabular}
+\setlength{\extrarowheight}{0em}
+
+
+\subsubsection*{Chaired Sessions}
+
+\setlength{\extrarowheight}{.25em}
+\begin{longtable}[l]{lll}
+    1930&
+  Quantum Mechanics Discussion&
+  Sixth Solvay Conference\\
+  \end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsubsection*{Editorial Activities}
+
+\underline{Editor}
+
+\begin{tabular}{lll}
+1906-1955&
+Annalen der Physik
+\\
+\end{tabular}
+
+
+\underline{Associate Editor}
+
+\begin{tabular}{lll}
+1909-1914&
+Annalen der Physik (Associate Editor)
+\\
+1920-1933&
+Zeitschrift fur Physik
+\\
+\end{tabular}
+
+\underline{Other Editorial Activities}
+
+\begin{tabular}{lll}
+1935-1955&
+Physical Review&
+Advisory Board
+\\
+1936&
+Journal of the Franklin Institute&
+Guest Editor, Special Issue on Unified Field Theory
+\\
+\end{tabular}
+
+\subsection*{Peer Review Activities}
+Reviewed for:
+Physical Review;
+Annalen der Physik;
+Zeitschrift fur Physik
+
+\subsection*{Consulting Activities}
+\noindent
+\begin{tabular}{lll}
+    1939-1945&
+  Scientific Advisor&
+  United States Government (Manhattan Project advisory)\\
+    \end{tabular}
+  
+
+%%End Service--------------------------------
+
+\section*{Public Health Practice and Communication}
+
+(illustrative selection)
+
+\subsection*{Presentations to policy-makers and other stakeholders}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5in}}   
+November 1945&
+\parbox[t]{5in}{
+  Atomic energy and its implications for international policy%
+  \textit{, United States Senate Special Committee on Atomic Energy%
+    }%
+    : %
+    Testified on the need for international control of atomic energy%
+    .%
+  }\\
+October 1947&
+\parbox[t]{5in}{
+  The case for a world government%
+  \textit{, United Nations General Assembly Committee%
+    }%
+    : %
+    Presented argument for supranational governance to prevent nuclear
+war%
+    .%
+  }\\
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Consultations with policy-makers and other
+  stakeholders}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5in}}   
+1941-1945&
+\parbox[t]{5in}{
+    \textit{Manhattan Project Advisory Consultation%
+    , United States War Department%
+    }%
+    : %
+    Provided advisory consultation on theoretical physics related to
+nuclear fission%
+    .%
+  }\\
+1946-1950&
+\parbox[t]{5in}{
+    \textit{Atomic Energy Commission Advisory%
+    , United States Atomic Energy Commission%
+    }%
+    : %
+    Advised on peaceful applications of atomic energy and international
+arms control%
+    .%
+  }\\
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+\subsection*{Research finding dissemination through media appearances
+  and other communication venues}
+
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5in}}   
+1919&
+\parbox[t]{5in}{
+    General relativity confirmed by solar eclipse observations: %
+    The Times (London); The New York Times.%    
+  }\\
+1939&
+\parbox[t]{5in}{
+    Letter to President Roosevelt regarding atomic energy: %
+    The New York Times.%    
+  }\\
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+
+\subsection*{Other practice activities}
+
+\setlength{\extrarowheight}{.75em}
+\begin{longtable}[l]{lp{5in}}   
+1946-1948&
+\parbox[t]{5in}{
+    \textit{Chairman, Emergency Committee of Atomic Scientists%
+    , Emergency Committee of Atomic Scientists%
+    }%
+    : %
+    Led fundraising and public education campaign on dangers of nuclear
+weapons and need for international control%
+    .%
+  }\\
+1955&
+\parbox[t]{5in}{
+    \textit{Russell-Einstein Manifesto%
+    , International scientific community%
+    }%
+    : %
+    Co-authored manifesto with Bertrand Russell calling for peaceful
+resolution of international conflicts and warning of nuclear war
+dangers%
+    .%
+  }\\
+\end{longtable}
+\setlength{\extrarowheight}{0em}
+
+%%%----------------END PRACTICE ACTIVITIES
+
+\end{document}
