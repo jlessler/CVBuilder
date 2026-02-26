@@ -59,6 +59,9 @@ const ALL_SECTIONS = [
   { key: 'dissertation', label: 'Dissertation' },
   { key: 'chairedsessions', label: 'Chaired Sessions' },
   { key: 'otherpractice', label: 'Other Practice Activities' },
+  { key: 'departmentalOrals', label: 'Departmental Oral Exams' },
+  { key: 'finaldefense', label: 'Final Dissertation Defenses' },
+  { key: 'schoolwideOrals', label: 'School-wide Oral Exams' },
 ]
 
 function SortableRow({

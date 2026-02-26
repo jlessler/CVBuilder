@@ -382,6 +382,56 @@
       {% endfor %}
     </div>
 
+    {# Departmental Oral Exams #}
+    {% elif key == 'departmentalOrals' and cv.departmentalOrals %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Departmental Oral Exams') }}</div>
+      {% for s in cv.departmentalOrals %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('name', '') }}</span>
+          {% if s.data.get('department') %}, {{ s.data.get('department') }}{% endif %}
+          {% if s.data.get('school') %}<br><span class="cv-entry-org">{{ s.data.get('school') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Final Dissertation Defenses #}
+    {% elif key == 'finaldefense' and cv.finaldefense %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Final Dissertation Defenses') }}</div>
+      {% for s in cv.finaldefense %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('name', '') }}</span>
+          {% if s.data.get('ischair') %} (Chair){% endif %}
+          {% if s.data.get('department') %}, {{ s.data.get('department') }}{% endif %}
+          {% if s.data.get('school') %}<br><span class="cv-entry-org">{{ s.data.get('school') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# School-wide Oral Exams #}
+    {% elif key == 'schoolwideOrals' and cv.schoolwideOrals %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'School-wide Oral Exams') }}</div>
+      {% for s in cv.schoolwideOrals %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">{{ s.data.get('date', '') }}</div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ s.data.get('name', '') }}</span>
+          {% if s.data.get('ischair') %} (Chair){% endif %}
+          {% if s.data.get('department') %}, {{ s.data.get('department') }}{% endif %}
+          {% if s.data.get('school') %}<br><span class="cv-entry-org">{{ s.data.get('school') }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
     {% endif %}
   {% endfor %}
   </div>

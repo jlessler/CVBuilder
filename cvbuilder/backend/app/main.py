@@ -94,6 +94,9 @@ _HEADINGS = {
     "dissertation":               "Dissertation",
     "chairedsessions":            "Chaired Sessions",
     "otherpractice":              "Other Practice Activities",
+    "departmentalOrals":          "Departmental Oral Exams",
+    "finaldefense":               "Final Dissertation Defenses",
+    "schoolwideOrals":            "School-wide Oral Exams",
 }
 
 # ---------------------------------------------------------------------------
