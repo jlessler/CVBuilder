@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { CVTemplate, CVInstance } from '../lib/api'
+import type { CVInstance } from '../lib/api'
 import { Button, Card, PageHeader, Spinner } from '../components/ui'
 import { Download, Upload, FileText, AlertCircle, CheckCircle, Files } from 'lucide-react'
 
@@ -10,11 +10,6 @@ export function Export() {
   const [importMsg, setImportMsg] = useState<{ ok: boolean; msg: string } | null>(null)
   const cvRef = useRef<HTMLInputElement>(null)
   const refsRef = useRef<HTMLInputElement>(null)
-
-  const { data: templates = [], isLoading } = useQuery<CVTemplate[]>({
-    queryKey: ['templates'],
-    queryFn: () => api.get('/templates').then(r => r.data),
-  })
 
   const { data: cvInstances = [], isLoading: instancesLoading } = useQuery<CVInstance[]>({
     queryKey: ['cv-instances'],
@@ -26,18 +21,6 @@ export function Export() {
     const url = URL.createObjectURL(new Blob([res.data]))
     const a = document.createElement('a'); a.href = url; a.download = 'cvbuilder_backup.yml'; a.click()
     URL.revokeObjectURL(url)
-  }
-
-  async function downloadPdf(id: number, name: string) {
-    try {
-      const res = await api.post(`/templates/${id}/export/pdf`, {}, { responseType: 'blob' })
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-      const a = document.createElement('a'); a.href = url; a.download = `${name}.pdf`; a.click()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('PDF export failed:', err)
-      alert('PDF export failed. Check the browser console for details.')
-    }
   }
 
   async function downloadInstancePdf(id: number, name: string) {
@@ -97,34 +80,10 @@ export function Export() {
               </Button>
             </div>
 
-            {isLoading ? <Spinner /> : templates.length > 0 ? (
-              <div className="p-4 border border-gray-200 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-1">PDF Export</p>
-                <p className="text-xs text-gray-500 mb-3">Generate a PDF from one of your templates.</p>
-                <div className="space-y-2">
-                  {templates.map(t => (
-                    <div key={t.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-700">{t.name}</span>
-                      </div>
-                      <Button size="sm" onClick={() => downloadPdf(t.id, t.name)}>
-                        <Download size={12} /> PDF
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 text-center py-4">
-                No templates yet. Create one on the Templates page.
-              </p>
-            )}
-
-            {instancesLoading ? <Spinner /> : cvInstances.length > 0 && (
+            {instancesLoading ? <Spinner /> : cvInstances.length > 0 ? (
               <div className="p-4 border border-gray-200 rounded-lg">
                 <p className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <Files size={14} /> CV Instance PDF Export
+                  <Files size={14} /> PDF Export
                 </p>
                 <p className="text-xs text-gray-500 mb-3">Generate a PDF from one of your curated CVs.</p>
                 <div className="space-y-2">
@@ -142,19 +101,11 @@ export function Export() {
                   ))}
                 </div>
               </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">
+                No CV instances yet. Create one on the CV Instances page.
+              </p>
             )}
-
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-1">HTML Preview</p>
-              <p className="text-xs text-gray-500 mb-3">Open the live HTML preview of any template.</p>
-              {templates.map(t => (
-                <a key={t.id} href={`/api/templates/${t.id}/preview`} target="_blank" rel="noreferrer" className="block">
-                  <Button variant="ghost" size="sm" className="mb-1">
-                    <FileText size={12} /> {t.name}
-                  </Button>
-                </a>
-              ))}
-            </div>
           </div>
         </Card>
 
