@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.database import create_tables, get_db
 from app import models, schemas
-from app.routers import profile, publications, templates, export
+from app.auth import get_current_user
+from app.routers import auth, profile, publications, templates, export
 
 app = FastAPI(
     title="CVBuilder API",
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(publications.router)
 app.include_router(templates.router)
@@ -38,25 +40,74 @@ def startup():
     from app.database import SessionLocal
     db = SessionLocal()
     try:
-        _seed_templates(db)
+        _ensure_default_user(db)
+        _seed_templates(db, user_id=1)
     finally:
         db.close()
+
+
+# Tables that need a user_id column added via migration
+_USER_ID_TABLES = [
+    "profile", "education", "experience", "consulting", "memberships",
+    "panels", "patents", "symposia", "classes", "grants", "awards",
+    "press", "trainees", "seminars", "committees", "misc_sections",
+    "publications", "cv_templates",
+]
 
 
 def _run_migrations():
     """Apply additive schema changes that create_all() won't handle."""
     from app.database import engine
     from sqlalchemy import text
+    stmts = [
+        "ALTER TABLE pub_authors ADD COLUMN student INTEGER DEFAULT 0",
+        "ALTER TABLE cv_templates ADD COLUMN sort_direction TEXT DEFAULT 'desc'",
+    ]
+    # Add user_id column to all content tables
+    for table in _USER_ID_TABLES:
+        stmts.append(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)")
+
     with engine.connect() as conn:
-        for stmt in [
-            "ALTER TABLE pub_authors ADD COLUMN student INTEGER DEFAULT 0",
-            "ALTER TABLE cv_templates ADD COLUMN sort_direction TEXT DEFAULT 'desc'",
-        ]:
+        for stmt in stmts:
             try:
                 conn.execute(text(stmt))
                 conn.commit()
             except Exception:
                 pass  # Column already exists
+
+
+def _ensure_default_user(db):
+    """Create default admin user and backfill existing rows."""
+    from app.auth import get_password_hash
+    from sqlalchemy import text
+
+    user = db.query(models.User).filter(models.User.email == "admin@local").first()
+    if not user:
+        user = models.User(
+            email="admin@local",
+            hashed_password=get_password_hash("changeme"),
+            full_name="Admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # Backfill any rows that have NULL user_id with the default user
+    for table in _USER_ID_TABLES:
+        db.execute(
+            text(f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL"),
+            {"uid": user.id},
+        )
+    db.commit()
+
+    # Create indexes for user_id lookups
+    for table in _USER_ID_TABLES:
+        try:
+            db.execute(text(f"CREATE INDEX IF NOT EXISTS idx_{table}_user ON {table}(user_id)"))
+        except Exception:
+            pass
+    db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -168,12 +219,18 @@ _TEMPLATES = {
 }
 
 
-def _seed_templates(db):
+def _seed_templates(db, user_id: int = 1):
     """Insert new templates and add any missing sections to existing templates."""
-    existing_tmpls = {t.name: t for t in db.query(models.CVTemplate).all()}
+    existing_tmpls = {
+        t.name: t for t in
+        db.query(models.CVTemplate).filter_by(user_id=user_id).all()
+    }
     for name, (description, theme_css, sections) in _TEMPLATES.items():
         if name not in existing_tmpls:
-            tmpl = models.CVTemplate(name=name, description=description, theme_css=theme_css)
+            tmpl = models.CVTemplate(
+                name=name, description=description, theme_css=theme_css,
+                user_id=user_id,
+            )
             db.add(tmpl)
             db.flush()
         else:
@@ -207,21 +264,30 @@ def health():
 
 
 @app.get("/api/dashboard", response_model=schemas.DashboardStats)
-def dashboard(db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).first()
-    total = db.query(models.Publication).count()
+def dashboard(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    uid = current_user.id
+    profile = db.query(models.Profile).filter_by(user_id=uid).first()
+    total = db.query(models.Publication).filter_by(user_id=uid).count()
 
     def count_type(t):
-        return db.query(models.Publication).filter(models.Publication.type == t).count()
+        return db.query(models.Publication).filter(
+            models.Publication.user_id == uid,
+            models.Publication.type == t,
+        ).count()
 
     trainee_rows = (
         db.query(models.Trainee.trainee_type, func.count(models.Trainee.id))
+        .filter(models.Trainee.user_id == uid)
         .group_by(models.Trainee.trainee_type)
         .all()
     )
     active_grant_rows = (
         db.query(models.Grant.role, func.count(models.Grant.id))
         .filter(
+            models.Grant.user_id == uid,
             models.Grant.status == "active",
             models.Grant.role.isnot(None),
             models.Grant.role != "",
@@ -230,7 +296,10 @@ def dashboard(db: Session = Depends(get_db)):
         .order_by(func.count(models.Grant.id).desc())
         .all()
     )
-    active_grants = db.query(models.Grant).filter(models.Grant.status == "active").count()
+    active_grants = db.query(models.Grant).filter(
+        models.Grant.user_id == uid,
+        models.Grant.status == "active",
+    ).count()
 
     return schemas.DashboardStats(
         total_publications=total,
@@ -240,8 +309,8 @@ def dashboard(db: Session = Depends(get_db)):
         letters=count_type("letters"),
         scimeetings=count_type("scimeetings"),
         editorials=count_type("editorials"),
-        trainees=db.query(models.Trainee).count(),
-        grants=db.query(models.Grant).count(),
+        trainees=db.query(models.Trainee).filter_by(user_id=uid).count(),
+        grants=db.query(models.Grant).filter_by(user_id=uid).count(),
         active_grants=active_grants,
         profile_complete=bool(profile and profile.name),
         trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_rows],

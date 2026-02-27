@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../lib/api'
+import { api, getToken } from '../lib/api'
 import type { CVTemplate, TemplateSection } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
 import { Plus, Trash2, Edit2, Eye, FileDown, GripVertical } from 'lucide-react'
@@ -202,7 +202,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
             <button onClick={() => setPreview(false)} className="text-xs text-gray-500 hover:text-gray-700">Hide</button>
           </div>
           <iframe
-            src={`/api/templates/${template.id}/preview`}
+            src={`/api/templates/${template.id}/preview?token=${encodeURIComponent(getToken() || '')}`}
             className="w-full h-[600px]"
             title="CV Preview"
           />
@@ -279,7 +279,7 @@ export function Templates() {
               <Button variant="secondary" size="sm" onClick={() => setComposing(tmpl)}>
                 <Edit2 size={12} /> Edit
               </Button>
-              <a href={`/api/templates/${tmpl.id}/preview`} target="_blank" rel="noreferrer">
+              <a href={`/api/templates/${tmpl.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
                 <Button variant="ghost" size="sm"><Eye size={12} /> Preview</Button>
               </a>
               <Button variant="ghost" size="sm" onClick={() => downloadPdf(tmpl.id, tmpl.name)}>

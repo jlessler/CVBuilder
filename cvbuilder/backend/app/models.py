@@ -9,12 +9,27 @@ from app.database import Base
 
 
 # ---------------------------------------------------------------------------
+# User table
+# ---------------------------------------------------------------------------
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(500))
+    full_name: Mapped[Optional[str]] = mapped_column(String(200))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
+# ---------------------------------------------------------------------------
 # Profile tables
 # ---------------------------------------------------------------------------
 
 class Profile(Base):
     __tablename__ = "profile"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[Optional[str]] = mapped_column(String(200))
     email: Mapped[Optional[str]] = mapped_column(String(200))
     phone: Mapped[Optional[str]] = mapped_column(String(100))
@@ -39,6 +54,7 @@ class Address(Base):
 class Education(Base):
     __tablename__ = "education"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     degree: Mapped[Optional[str]] = mapped_column(String(100))
     year: Mapped[Optional[int]] = mapped_column(Integer)
     subject: Mapped[Optional[str]] = mapped_column(String(200))
@@ -49,6 +65,7 @@ class Education(Base):
 class Experience(Base):
     __tablename__ = "experience"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[Optional[str]] = mapped_column(String(300))
     years_start: Mapped[Optional[str]] = mapped_column(String(50))
     years_end: Mapped[Optional[str]] = mapped_column(String(50))
@@ -59,6 +76,7 @@ class Experience(Base):
 class Consulting(Base):
     __tablename__ = "consulting"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[Optional[str]] = mapped_column(String(300))
     years: Mapped[Optional[str]] = mapped_column(String(100))
     employer: Mapped[Optional[str]] = mapped_column(String(500))
@@ -68,6 +86,7 @@ class Consulting(Base):
 class Membership(Base):
     __tablename__ = "memberships"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     org: Mapped[Optional[str]] = mapped_column(String(500))
     years: Mapped[Optional[str]] = mapped_column(String(100))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
@@ -76,6 +95,7 @@ class Membership(Base):
 class Panel(Base):
     __tablename__ = "panels"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     panel: Mapped[Optional[str]] = mapped_column(Text)
     org: Mapped[Optional[str]] = mapped_column(Text)
     role: Mapped[Optional[str]] = mapped_column(String(200))
@@ -88,6 +108,7 @@ class Panel(Base):
 class Patent(Base):
     __tablename__ = "patents"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[Optional[str]] = mapped_column(Text)
     number: Mapped[Optional[str]] = mapped_column(String(100))
     status: Mapped[Optional[str]] = mapped_column(String(100))
@@ -109,6 +130,7 @@ class PatentAuthor(Base):
 class Symposium(Base):
     __tablename__ = "symposia"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[Optional[str]] = mapped_column(Text)
     meeting: Mapped[Optional[str]] = mapped_column(Text)
     date: Mapped[Optional[str]] = mapped_column(String(100))
@@ -119,6 +141,7 @@ class Symposium(Base):
 class Class(Base):
     __tablename__ = "classes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     class_name: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[int]] = mapped_column(Integer)
     role: Mapped[Optional[str]] = mapped_column(String(200))
@@ -132,6 +155,7 @@ class Class(Base):
 class Grant(Base):
     __tablename__ = "grants"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[Optional[str]] = mapped_column(Text)
     agency: Mapped[Optional[str]] = mapped_column(String(500))
     pi: Mapped[Optional[str]] = mapped_column(String(300))
@@ -150,6 +174,7 @@ class Grant(Base):
 class Award(Base):
     __tablename__ = "awards"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[str]] = mapped_column(String(50))
     org: Mapped[Optional[str]] = mapped_column(String(500))
@@ -160,6 +185,7 @@ class Award(Base):
 class Press(Base):
     __tablename__ = "press"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     outlet: Mapped[Optional[str]] = mapped_column(String(500))
     title: Mapped[Optional[str]] = mapped_column(Text)
     date: Mapped[Optional[str]] = mapped_column(String(100))
@@ -171,6 +197,7 @@ class Press(Base):
 class Trainee(Base):
     __tablename__ = "trainees"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[Optional[str]] = mapped_column(String(300))
     degree: Mapped[Optional[str]] = mapped_column(String(100))
     years_start: Mapped[Optional[str]] = mapped_column(String(50))
@@ -187,6 +214,7 @@ class Seminar(Base):
     """Invited seminars / talks."""
     __tablename__ = "seminars"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[Optional[str]] = mapped_column(Text)
     org: Mapped[Optional[str]] = mapped_column(String(500))
     date: Mapped[Optional[str]] = mapped_column(String(100))
@@ -199,6 +227,7 @@ class Committee(Base):
     """Committee memberships (departmental, school, university)."""
     __tablename__ = "committees"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     committee: Mapped[Optional[str]] = mapped_column(Text)
     org: Mapped[Optional[str]] = mapped_column(String(500))
     role: Mapped[Optional[str]] = mapped_column(String(200))
@@ -211,6 +240,7 @@ class MiscSection(Base):
     """Generic key-value store for miscellaneous CV sections."""
     __tablename__ = "misc_sections"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     section: Mapped[str] = mapped_column(String(100))   # e.g. "editor", "peerrev", "software"
     data: Mapped[dict] = mapped_column(JSON)             # flexible payload
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
@@ -223,6 +253,7 @@ class MiscSection(Base):
 class Publication(Base):
     __tablename__ = "publications"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     type: Mapped[str] = mapped_column(String(50))  # papers | preprints | chapters | letters | scimeetings
     title: Mapped[Optional[str]] = mapped_column(Text)
     year: Mapped[Optional[str]] = mapped_column(String(20))
@@ -262,6 +293,7 @@ class PubAuthor(Base):
 class CVTemplate(Base):
     __tablename__ = "cv_templates"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(Text)
     theme_css: Mapped[str] = mapped_column(String(100), default="academic")

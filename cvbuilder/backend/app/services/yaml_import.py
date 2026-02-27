@@ -46,7 +46,7 @@ def _parse_dates(dates_str: str) -> tuple[str, str]:
     return (start, end)
 
 
-def import_cv_yaml(cv_path: str, session) -> None:
+def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     """Populate profile + CV section tables from CV.yml."""
     from app.models import (
         Address, Award, Class, Committee, Consulting, Education, Experience,
@@ -61,11 +61,11 @@ def import_cv_yaml(cv_path: str, session) -> None:
     # ------------------------------------------------------------------
     # Profile
     # ------------------------------------------------------------------
-    existing = session.query(Profile).first()
+    existing = session.query(Profile).filter_by(user_id=user_id).first()
     if existing:
         profile = existing
     else:
-        profile = Profile()
+        profile = Profile(user_id=user_id)
         session.add(profile)
 
     profile.name = _clean(data.get("name", ""))
@@ -84,7 +84,7 @@ def import_cv_yaml(cv_path: str, session) -> None:
     # ------------------------------------------------------------------
     # Education
     # ------------------------------------------------------------------
-    session.query(Education).delete()
+    session.query(Education).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("education", [])):
         session.add(Education(
             degree=_clean(item.get("degree", "")),
@@ -92,12 +92,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             subject=_clean(item.get("subject", "")),
             school=_clean(item.get("school", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Experience
     # ------------------------------------------------------------------
-    session.query(Experience).delete()
+    session.query(Experience).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("experience", [])):
         yrs = str(item.get("years", ""))
         start, end = _parse_years(yrs)
@@ -107,35 +108,38 @@ def import_cv_yaml(cv_path: str, session) -> None:
             years_end=end,
             employer=_clean(item.get("employer", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Consulting
     # ------------------------------------------------------------------
-    session.query(Consulting).delete()
+    session.query(Consulting).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("consulting", [])):
         session.add(Consulting(
             title=_clean(item.get("title", "")),
             years=str(item.get("years", "")),
             employer=_clean(item.get("employer", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Memberships
     # ------------------------------------------------------------------
-    session.query(Membership).delete()
+    session.query(Membership).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("membership", [])):
         session.add(Membership(
             org=_clean(item.get("org", "")),
             years=str(item.get("years", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Panels (advisory + grant review)
     # ------------------------------------------------------------------
-    session.query(Panel).delete()
+    session.query(Panel).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("panel", [])):
         session.add(Panel(
             panel=_clean(item.get("panel", "")),
@@ -145,6 +149,7 @@ def import_cv_yaml(cv_path: str, session) -> None:
             panel_id=item.get("id", ""),
             type="advisory",
             sort_order=i,
+            user_id=user_id,
         ))
     offset = len(data.get("panel", []))
     for i, item in enumerate(data.get("grantrev", [])):
@@ -156,19 +161,24 @@ def import_cv_yaml(cv_path: str, session) -> None:
             panel_id=item.get("id", ""),
             type="grant_review",
             sort_order=offset + i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Patents
     # ------------------------------------------------------------------
-    session.query(PatentAuthor).delete()
-    session.query(Patent).delete()
+    # Delete patent authors for this user's patents first
+    user_patent_ids = [p.id for p in session.query(Patent).filter_by(user_id=user_id).all()]
+    if user_patent_ids:
+        session.query(PatentAuthor).filter(PatentAuthor.patent_id.in_(user_patent_ids)).delete(synchronize_session=False)
+    session.query(Patent).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("patent", [])):
         patent = Patent(
             name=_clean(item.get("name", "")),
             number=str(item.get("number", "")),
             status=item.get("status", ""),
             sort_order=i,
+            user_id=user_id,
         )
         session.add(patent)
         session.flush()
@@ -178,7 +188,7 @@ def import_cv_yaml(cv_path: str, session) -> None:
     # ------------------------------------------------------------------
     # Symposia
     # ------------------------------------------------------------------
-    session.query(Symposium).delete()
+    session.query(Symposium).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("symposium", [])):
         session.add(Symposium(
             title=_clean(item.get("title", "")),
@@ -186,12 +196,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             date=str(item.get("date", "")),
             role=_clean(item.get("role", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Classes (teaching)
     # ------------------------------------------------------------------
-    session.query(Class).delete()
+    session.query(Class).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("classes", [])):
         in3 = item.get("inthreeyear", False)
         session.add(Class(
@@ -203,12 +214,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             lectures=str(item.get("lectures", "") or ""),
             in_three_year=bool(in3),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Grants — activegrants + completedgrants
     # ------------------------------------------------------------------
-    session.query(Grant).delete()
+    session.query(Grant).filter_by(user_id=user_id).delete()
     sort_i = 0
     for item in data.get("activegrants", []):
         dates = str(item.get("dates", ""))
@@ -228,6 +240,7 @@ def import_cv_yaml(cv_path: str, session) -> None:
             pcteffort=item.get("pcteffort"),
             status="active",
             sort_order=sort_i,
+            user_id=user_id,
         ))
         sort_i += 1
     for item in data.get("completedgrants", []):
@@ -248,13 +261,14 @@ def import_cv_yaml(cv_path: str, session) -> None:
             pcteffort=item.get("pcteffort"),
             status="completed",
             sort_order=sort_i,
+            user_id=user_id,
         ))
         sort_i += 1
 
     # ------------------------------------------------------------------
     # Awards / Honors
     # ------------------------------------------------------------------
-    session.query(Award).delete()
+    session.query(Award).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("honor", [])):
         session.add(Award(
             name=_clean(item.get("name", "")),
@@ -262,12 +276,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             org=_clean(item.get("grantee", "")),
             date=str(item.get("date", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Press / Media
     # ------------------------------------------------------------------
-    session.query(Press).delete()
+    session.query(Press).filter_by(user_id=user_id).delete()
     sort_i = 0
     for item in data.get("media", []):
         topic = _clean(item.get("topic", ""))
@@ -278,13 +293,14 @@ def import_cv_yaml(cv_path: str, session) -> None:
                 topic=topic,
                 date=date,
                 sort_order=sort_i,
+                user_id=user_id,
             ))
             sort_i += 1
 
     # ------------------------------------------------------------------
     # Trainees (advisees + postdocs)
     # ------------------------------------------------------------------
-    session.query(Trainee).delete()
+    session.query(Trainee).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("advisees", [])):
         dates = str(item.get("dates", ""))
         start, end = _parse_dates(dates)
@@ -299,6 +315,7 @@ def import_cv_yaml(cv_path: str, session) -> None:
             current_position=_clean(item.get("wherenow", "")),
             trainee_type="advisee",
             sort_order=i,
+            user_id=user_id,
         ))
     offset = len(data.get("advisees", []))
     for i, item in enumerate(data.get("postdocs", [])):
@@ -311,12 +328,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             current_position=_clean(item.get("wherenow", "")),
             trainee_type="postdoc",
             sort_order=offset + i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Seminars (invited talks)
     # ------------------------------------------------------------------
-    session.query(Seminar).delete()
+    session.query(Seminar).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("seminars", [])):
         session.add(Seminar(
             title=_clean(item.get("title", "")),
@@ -325,12 +343,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             location=_clean(item.get("loc", "")),
             event=_clean(item.get("event", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Committees
     # ------------------------------------------------------------------
-    session.query(Committee).delete()
+    session.query(Committee).filter_by(user_id=user_id).delete()
     for i, item in enumerate(data.get("committees", [])):
         session.add(Committee(
             committee=_clean(item.get("committee", "")),
@@ -338,12 +357,13 @@ def import_cv_yaml(cv_path: str, session) -> None:
             role=_clean(item.get("role", "")),
             dates=str(item.get("dates", "")),
             sort_order=i,
+            user_id=user_id,
         ))
 
     # ------------------------------------------------------------------
     # Misc sections (editor, peerrev, software, policypres, etc.)
     # ------------------------------------------------------------------
-    session.query(MiscSection).delete()
+    session.query(MiscSection).filter_by(user_id=user_id).delete()
     misc_keys = [
         "editor", "assocedit", "otheredit", "peerrev",
         "software", "policypres", "policycons",
@@ -355,11 +375,11 @@ def import_cv_yaml(cv_path: str, session) -> None:
         if isinstance(items, list):
             for i, item in enumerate(items):
                 payload = item if isinstance(item, dict) else {"value": item}
-                session.add(MiscSection(section=key, data=payload, sort_order=i))
+                session.add(MiscSection(section=key, data=payload, sort_order=i, user_id=user_id))
 
     # chairedsessions: remap YAML keys year/conference → date/meeting
     for i, item in enumerate(data.get("chairedsessions", [])):
-        session.add(MiscSection(section="chairedsessions", sort_order=i, data={
+        session.add(MiscSection(section="chairedsessions", sort_order=i, user_id=user_id, data={
             "title": _clean(item.get("title", "")),
             "date": str(item.get("year", "")),
             "meeting": _clean(item.get("conference", "")),
@@ -368,12 +388,12 @@ def import_cv_yaml(cv_path: str, session) -> None:
     # policyother → stored as "otherpractice"
     for i, item in enumerate(data.get("policyother", [])):
         payload = item if isinstance(item, dict) else {"value": item}
-        session.add(MiscSection(section="otherpractice", data=payload, sort_order=i))
+        session.add(MiscSection(section="otherpractice", data=payload, sort_order=i, user_id=user_id))
 
     # dissertation: single dict, not a list
     diss = data.get("dissertation")
     if isinstance(diss, dict):
-        session.add(MiscSection(section="dissertation", sort_order=0, data={
+        session.add(MiscSection(section="dissertation", sort_order=0, user_id=user_id, data={
             "year": str(diss.get("year", "")),
             "title": _clean(diss.get("title", "")),
             "institution": _clean(
@@ -385,15 +405,18 @@ def import_cv_yaml(cv_path: str, session) -> None:
     print(f"[yaml_import] CV.yml imported successfully.")
 
 
-def import_refs_yaml(refs_path: str, session) -> None:
+def import_refs_yaml(refs_path: str, session, user_id: int = 1) -> None:
     """Populate publications tables from refs.yml."""
     from app.models import Publication, PubAuthor
 
     docs = list(yaml.safe_load_all(Path(refs_path).read_text(encoding="utf-8")))
     data = next((d for d in docs if d is not None), {})
 
-    session.query(PubAuthor).delete()
-    session.query(Publication).delete()
+    # Delete only this user's pub authors and publications
+    user_pub_ids = [p.id for p in session.query(Publication).filter_by(user_id=user_id).all()]
+    if user_pub_ids:
+        session.query(PubAuthor).filter(PubAuthor.pub_id.in_(user_pub_ids)).delete(synchronize_session=False)
+    session.query(Publication).filter_by(user_id=user_id).delete()
 
     # Map YAML keys to DB type names (papersNoPeer → editorials)
     pub_type_map = {
@@ -434,6 +457,7 @@ def import_refs_yaml(refs_path: str, session) -> None:
                 conference=_clean(item.get("conference", "") or ""),
                 pres_type=item.get("pres_type", ""),
                 publisher=_clean(item.get("publisher", "") or ""),
+                user_id=user_id,
             )
             session.add(pub)
             session.flush()
@@ -467,12 +491,12 @@ def main():
     db = SessionLocal()
     try:
         if Path(args.cv).exists():
-            import_cv_yaml(args.cv, db)
+            import_cv_yaml(args.cv, db, user_id=1)
         else:
             print(f"[yaml_import] CV file not found: {args.cv}", file=sys.stderr)
 
         if Path(args.refs).exists():
-            import_refs_yaml(args.refs, db)
+            import_refs_yaml(args.refs, db, user_id=1)
         else:
             print(f"[yaml_import] refs file not found: {args.refs}", file=sys.stderr)
     finally:

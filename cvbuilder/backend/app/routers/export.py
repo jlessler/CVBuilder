@@ -7,21 +7,19 @@ import yaml
 
 from app.database import get_db
 from app import models
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
-def _dump(value) -> str:
-    """Convert SQLAlchemy model attribute to a plain Python value."""
-    if hasattr(value, "__dict__"):
-        return str(value)
-    return value
-
-
 @router.get("/yaml")
-def export_yaml(db: Session = Depends(get_db)):
+def export_yaml(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """Export all data as a YAML backup (CV.yml + refs.yml combined)."""
-    profile = db.query(models.Profile).first()
+    uid = current_user.id
+    profile = db.query(models.Profile).filter_by(user_id=uid).first()
 
     cv_data: dict = {}
     if profile:
@@ -39,7 +37,7 @@ def export_yaml(db: Session = Depends(get_db)):
             cv_data["address-work"] = work_addrs
 
     def model_list(model_class, fields, extra_fn=None):
-        rows = db.query(model_class).order_by(model_class.sort_order).all()
+        rows = db.query(model_class).filter_by(user_id=uid).order_by(model_class.sort_order).all()
         result = []
         for r in rows:
             d = {f: getattr(r, f) for f in fields if getattr(r, f) is not None}
@@ -55,14 +53,14 @@ def export_yaml(db: Session = Depends(get_db)):
     cv_data["membership"] = model_list(models.Membership, ["org", "years"])
     cv_data["panel"] = [
         {"panel": r.panel, "org": r.org, "role": r.role, "date": r.date}
-        for r in db.query(models.Panel).filter(models.Panel.type == "advisory").order_by(models.Panel.sort_order).all()
+        for r in db.query(models.Panel).filter_by(user_id=uid).filter(models.Panel.type == "advisory").order_by(models.Panel.sort_order).all()
     ]
     cv_data["grantrev"] = [
         {"panel": r.panel, "org": r.org, "date": r.date, "type": r.role, "id": r.panel_id}
-        for r in db.query(models.Panel).filter(models.Panel.type == "grant_review").order_by(models.Panel.sort_order).all()
+        for r in db.query(models.Panel).filter_by(user_id=uid).filter(models.Panel.type == "grant_review").order_by(models.Panel.sort_order).all()
     ]
     cv_data["patent"] = []
-    for p in db.query(models.Patent).order_by(models.Patent.sort_order).all():
+    for p in db.query(models.Patent).filter_by(user_id=uid).order_by(models.Patent.sort_order).all():
         cv_data["patent"].append({
             "name": p.name, "number": p.number, "status": p.status,
             "authors": [a.author_name for a in p.authors],
@@ -71,7 +69,7 @@ def export_yaml(db: Session = Depends(get_db)):
     cv_data["classes"] = [
         {"class": r.class_name, "year": r.year, "role": r.role, "school": r.school,
          "students": r.students, "lectures": r.lectures, "inthreeyear": r.in_three_year}
-        for r in db.query(models.Class).order_by(models.Class.sort_order).all()
+        for r in db.query(models.Class).filter_by(user_id=uid).order_by(models.Class.sort_order).all()
     ]
     cv_data["grants"] = model_list(models.Grant, ["title", "agency", "amount", "role", "status"],
         lambda r: {"years": f"{r.years_start}-{r.years_end}".strip("-"), "id": r.id_number})
@@ -82,7 +80,8 @@ def export_yaml(db: Session = Depends(get_db)):
     pub_data: dict = {"myname": profile.name if profile else ""}
     for pub_type in ["papers", "preprints", "papersNoPeer", "chapters", "letters", "scimeetings"]:
         pubs = db.query(models.Publication).filter(
-            models.Publication.type == pub_type
+            models.Publication.user_id == uid,
+            models.Publication.type == pub_type,
         ).order_by(models.Publication.year.desc()).all()
         pub_data[pub_type] = []
         for p in pubs:
@@ -121,6 +120,7 @@ async def import_yaml_upload(
     cv_file: UploadFile = File(None),
     refs_file: UploadFile = File(None),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """Accept uploaded CV.yml and/or refs.yml and import them."""
     import tempfile, os
@@ -132,14 +132,14 @@ async def import_yaml_upload(
             cv_path = os.path.join(tmpdir, "CV.yml")
             with open(cv_path, "wb") as f:
                 f.write(await cv_file.read())
-            import_cv_yaml(cv_path, db)
+            import_cv_yaml(cv_path, db, user_id=current_user.id)
             results.append("CV.yml imported")
 
         if refs_file:
             refs_path = os.path.join(tmpdir, "refs.yml")
             with open(refs_path, "wb") as f:
                 f.write(await refs_file.read())
-            import_refs_yaml(refs_path, db)
+            import_refs_yaml(refs_path, db, user_id=current_user.id)
             results.append("refs.yml imported")
 
     if not results:

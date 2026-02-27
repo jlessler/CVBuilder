@@ -1,129 +1,101 @@
 """CV Template CRUD, preview, and PDF export endpoints."""
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.auth import get_current_user, get_current_user_from_token_qs, get_optional_current_user
 from app.services.sort import sort_items
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
-def _build_cv_data(db: Session, sort_direction: str = "desc") -> dict:
+def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> dict:
     """Assemble all CV data for template rendering."""
-    profile = db.query(models.Profile).first()
+    profile = db.query(models.Profile).filter_by(user_id=user_id).first()
     rev = sort_direction == "desc"
+
+    def _user_query(model_class):
+        return db.query(model_class).filter_by(user_id=user_id).all()
+
+    def _misc_query(section_key):
+        return db.query(models.MiscSection).filter(
+            models.MiscSection.user_id == user_id,
+            models.MiscSection.section == section_key,
+        ).all()
+
     return {
         "profile": profile,
-        "education": sort_items(db.query(models.Education).all(), models.Education, reverse=rev),
-        "experience": sort_items(db.query(models.Experience).all(), models.Experience, reverse=rev),
-        "consulting": sort_items(db.query(models.Consulting).all(), models.Consulting, reverse=rev),
-        "memberships": sort_items(db.query(models.Membership).all(), models.Membership, reverse=rev),
-        "panels": sort_items(db.query(models.Panel).all(), models.Panel, reverse=rev),
-        "patents": sort_items(db.query(models.Patent).all(), models.Patent, reverse=rev),
-        "symposia": sort_items(db.query(models.Symposium).all(), models.Symposium, reverse=rev),
-        "classes": sort_items(db.query(models.Class).all(), models.Class, reverse=rev),
-        "grants": sort_items(db.query(models.Grant).all(), models.Grant, reverse=rev),
-        "awards": sort_items(db.query(models.Award).all(), models.Award, reverse=rev),
-        "press": sort_items(db.query(models.Press).all(), models.Press, reverse=rev),
-        "trainees": sort_items(db.query(models.Trainee).all(), models.Trainee, reverse=rev),
-        "seminars": sort_items(db.query(models.Seminar).all(), models.Seminar, reverse=rev),
-        "committees": sort_items(db.query(models.Committee).all(), models.Committee, reverse=rev),
+        "education": sort_items(_user_query(models.Education), models.Education, reverse=rev),
+        "experience": sort_items(_user_query(models.Experience), models.Experience, reverse=rev),
+        "consulting": sort_items(_user_query(models.Consulting), models.Consulting, reverse=rev),
+        "memberships": sort_items(_user_query(models.Membership), models.Membership, reverse=rev),
+        "panels": sort_items(_user_query(models.Panel), models.Panel, reverse=rev),
+        "patents": sort_items(_user_query(models.Patent), models.Patent, reverse=rev),
+        "symposia": sort_items(_user_query(models.Symposium), models.Symposium, reverse=rev),
+        "classes": sort_items(_user_query(models.Class), models.Class, reverse=rev),
+        "grants": sort_items(_user_query(models.Grant), models.Grant, reverse=rev),
+        "awards": sort_items(_user_query(models.Award), models.Award, reverse=rev),
+        "press": sort_items(_user_query(models.Press), models.Press, reverse=rev),
+        "trainees": sort_items(_user_query(models.Trainee), models.Trainee, reverse=rev),
+        "seminars": sort_items(_user_query(models.Seminar), models.Seminar, reverse=rev),
+        "committees": sort_items(_user_query(models.Committee), models.Committee, reverse=rev),
         "editorial": sort_items(
             db.query(models.MiscSection).filter(
-                models.MiscSection.section.in_(["editor", "assocedit", "otheredit"])
+                models.MiscSection.user_id == user_id,
+                models.MiscSection.section.in_(["editor", "assocedit", "otheredit"]),
             ).all(),
             models.MiscSection, reverse=rev,
         ),
-        "peerrev": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "peerrev"
-            ).all(),
-            models.MiscSection, reverse=rev,
+        "peerrev": sort_items(_misc_query("peerrev"), models.MiscSection, reverse=rev),
+        "software": sort_items(_misc_query("software"), models.MiscSection, reverse=rev),
+        "policypres": sort_items(_misc_query("policypres"), models.MiscSection, reverse=rev),
+        "policycons": sort_items(_misc_query("policycons"), models.MiscSection, reverse=rev),
+        "otherservice": sort_items(_misc_query("otherservice"), models.MiscSection, reverse=rev),
+        "dissertation": sort_items(_misc_query("dissertation"), models.MiscSection, reverse=rev),
+        "chairedsessions": sort_items(_misc_query("chairedsessions"), models.MiscSection, reverse=rev),
+        "otherpractice": sort_items(_misc_query("otherpractice"), models.MiscSection, reverse=rev),
+        "departmentalOrals": sort_items(_misc_query("departmentalOrals"), models.MiscSection, reverse=rev),
+        "finaldefense": sort_items(_misc_query("finaldefense"), models.MiscSection, reverse=rev),
+        "schoolwideOrals": sort_items(_misc_query("schoolwideOrals"), models.MiscSection, reverse=rev),
+        "publications": sort_items(
+            db.query(models.Publication).filter_by(user_id=user_id).all(),
+            models.Publication, reverse=rev,
         ),
-        "software": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "software"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "policypres": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "policypres"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "policycons": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "policycons"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "otherservice": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "otherservice"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "dissertation": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "dissertation"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "chairedsessions": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "chairedsessions"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "otherpractice": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "otherpractice"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "departmentalOrals": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "departmentalOrals"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "finaldefense": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "finaldefense"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "schoolwideOrals": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.section == "schoolwideOrals"
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "publications": sort_items(db.query(models.Publication).all(), models.Publication, reverse=rev),
     }
 
 
 @router.get("", response_model=list[schemas.CVTemplateOut])
-def list_templates(db: Session = Depends(get_db)):
-    return db.query(models.CVTemplate).all()
+def list_templates(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return db.query(models.CVTemplate).filter_by(user_id=current_user.id).all()
 
 
 @router.get("/{template_id}", response_model=schemas.CVTemplateOut)
-def get_template(template_id: int, db: Session = Depends(get_db)):
-    tmpl = db.get(models.CVTemplate, template_id)
+def get_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
     return tmpl
 
 
 @router.post("", response_model=schemas.CVTemplateOut)
-def create_template(data: schemas.CVTemplateCreate, db: Session = Depends(get_db)):
+def create_template(
+    data: schemas.CVTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     tmpl = models.CVTemplate(
         name=data.name, description=data.description, theme_css=data.theme_css,
-        sort_direction=data.sort_direction,
+        sort_direction=data.sort_direction, user_id=current_user.id,
     )
     db.add(tmpl)
     db.flush()
@@ -141,8 +113,13 @@ def create_template(data: schemas.CVTemplateCreate, db: Session = Depends(get_db
 
 
 @router.put("/{template_id}", response_model=schemas.CVTemplateOut)
-def update_template(template_id: int, data: schemas.CVTemplateUpdate, db: Session = Depends(get_db)):
-    tmpl = db.get(models.CVTemplate, template_id)
+def update_template(
+    template_id: int,
+    data: schemas.CVTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
     tmpl.name = data.name
@@ -167,8 +144,12 @@ def update_template(template_id: int, data: schemas.CVTemplateUpdate, db: Sessio
 
 
 @router.delete("/{template_id}")
-def delete_template(template_id: int, db: Session = Depends(get_db)):
-    tmpl = db.get(models.CVTemplate, template_id)
+def delete_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
     db.delete(tmpl)
@@ -177,11 +158,22 @@ def delete_template(template_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{template_id}/preview", response_class=HTMLResponse)
-def preview_template(template_id: int, db: Session = Depends(get_db)):
-    tmpl = db.get(models.CVTemplate, template_id)
+def preview_template(
+    template_id: int,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_optional_current_user),
+):
+    # Use the header-based user if available; fall back to ?token= query param
+    user = current_user
+    if user is None and token:
+        user = get_current_user_from_token_qs(token, db)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
-    cv_data = _build_cv_data(db, sort_direction=tmpl.sort_direction)
+    cv_data = _build_cv_data(db, user_id=user.id, sort_direction=tmpl.sort_direction)
     enabled_sections = [
         {"key": s.section_key, "config": s.config or {}}
         for s in tmpl.sections if s.enabled
@@ -192,11 +184,15 @@ def preview_template(template_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{template_id}/export/pdf")
-def export_pdf(template_id: int, db: Session = Depends(get_db)):
-    tmpl = db.get(models.CVTemplate, template_id)
+def export_pdf(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
-    cv_data = _build_cv_data(db, sort_direction=tmpl.sort_direction)
+    cv_data = _build_cv_data(db, user_id=current_user.id, sort_direction=tmpl.sort_direction)
     enabled_sections = [
         {"key": s.section_key, "config": s.config or {}}
         for s in tmpl.sections if s.enabled

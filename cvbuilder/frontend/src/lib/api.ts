@@ -5,6 +5,79 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ---- Token helpers ----
+
+export function getToken(): string | null {
+  return localStorage.getItem('cvbuilder_token')
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem('cvbuilder_token', token)
+}
+
+export function clearToken(): void {
+  localStorage.removeItem('cvbuilder_token')
+}
+
+// Attach token to every request
+api.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// On 401, redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/')) {
+      clearToken()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  },
+)
+
+// ---- Auth API ----
+
+export interface UserOut {
+  id: number
+  email: string
+  full_name: string | null
+  is_active: boolean
+}
+
+export interface Token {
+  access_token: string
+  token_type: string
+}
+
+export async function loginUser(email: string, password: string): Promise<Token> {
+  const form = new URLSearchParams()
+  form.append('username', email)
+  form.append('password', password)
+  const { data } = await api.post<Token>('/auth/login', form, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  })
+  return data
+}
+
+export async function registerUser(email: string, password: string, fullName?: string): Promise<UserOut> {
+  const { data } = await api.post<UserOut>('/auth/register', {
+    email,
+    password,
+    full_name: fullName || null,
+  })
+  return data
+}
+
+export async function getCurrentUser(): Promise<UserOut> {
+  const { data } = await api.get<UserOut>('/auth/me')
+  return data
+}
+
 // ---- Types ----
 
 export interface Profile {
