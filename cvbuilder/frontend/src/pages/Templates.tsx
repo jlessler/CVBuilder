@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken } from '../lib/api'
 import type { CVTemplate, TemplateSection } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, FileDown, GripVertical } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, GripVertical } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -18,14 +18,110 @@ const SORT_DIRECTIONS = [
   { value: 'asc',  label: 'Oldest first' },
 ]
 
-const THEMES = [
-  { value: 'academic', label: 'Academic (Times, formal)' },
-  { value: 'unc', label: 'UNC (sans-serif, Carolina Blue)' },
-  { value: 'hopkins', label: 'Hopkins (serif, Heritage Blue)' },
-  { value: 'unige', label: 'UNIGE (sans-serif, RedViolet)' },
-  { value: 'minimal', label: 'Minimal (Helvetica, clean)' },
-  { value: 'modern', label: 'Modern (colored header)' },
+const HEADER_ALIGNMENTS = [
+  { value: 'left', label: 'Left' },
+  { value: 'center', label: 'Center' },
+  { value: 'right', label: 'Right' },
 ]
+
+const SECTION_DECORATIONS = [
+  { value: 'bottom-border', label: 'Bottom border' },
+  { value: 'left-border', label: 'Left border' },
+  { value: 'none', label: 'None' },
+]
+
+const HEADING_TRANSFORMS = [
+  { value: 'uppercase', label: 'UPPERCASE' },
+  { value: 'none', label: 'Normal case' },
+]
+
+const THEME_PRESETS: Record<string, Record<string, string>> = {
+  academic: {
+    primary_color: '#1a3a5c', accent_color: '#2e6da4',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: 'Arial, Helvetica, sans-serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '20pt', header_alignment: 'center',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#222222', muted_color: '#666666', border_color: '#cccccc',
+    page_width: '8.5in', page_padding: '0.75in 0.75in 1in 0.75in',
+    date_column_width: '1.3in', header_border_style: '2px solid',
+    name_font_weight: 'bold', name_letter_spacing: '0.05em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.08em',
+    line_height: '1.4',
+  },
+  unc: {
+    primary_color: '#13294B', accent_color: '#4B9CD3',
+    font_body: 'Helvetica, Arial, sans-serif',
+    font_heading: 'Helvetica, Arial, sans-serif',
+    body_font_size: '10.5pt', heading_font_size: '11pt',
+    name_font_size: '18pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'none',
+    text_color: '#222222', muted_color: '#666666', border_color: '#c0d0e0',
+    page_width: '8.5in', page_padding: '0.75in',
+    date_column_width: '1.1in', header_border_style: '2px solid',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.1em', heading_letter_spacing: '0',
+    line_height: '1.4',
+  },
+  hopkins: {
+    primary_color: '#002D72', accent_color: '#002D72',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Times New Roman", Times, serif',
+    body_font_size: '12pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'center',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#111111', muted_color: '#555555', border_color: '#aaaaaa',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.04em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.05em',
+    line_height: '1.5',
+  },
+  unige: {
+    primary_color: '#C01584', accent_color: '#a8127a',
+    font_body: '"Latin Modern Sans", "DejaVu Sans", Helvetica, Arial, sans-serif',
+    font_heading: '"Latin Modern Sans", "DejaVu Sans", Helvetica, Arial, sans-serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'right',
+    section_decoration: 'none', heading_transform: 'none',
+    text_color: '#1a1a1a', muted_color: '#666666', border_color: '#dddddd',
+    page_width: '8.27in', page_padding: '1in 0.75in',
+    date_column_width: '1.1in', header_border_style: '1px solid',
+    name_font_weight: 'bold', name_letter_spacing: '0',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0',
+    line_height: '1.45',
+  },
+  minimal: {
+    primary_color: '#333333', accent_color: '#555555',
+    font_body: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    font_heading: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    body_font_size: '10.5pt', heading_font_size: '9pt',
+    name_font_size: '22pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#333333', muted_color: '#888888', border_color: '#dddddd',
+    page_width: '8.5in', page_padding: '0.75in',
+    date_column_width: '1.2in', header_border_style: 'none',
+    name_font_weight: '300', name_letter_spacing: '0.1em',
+    section_margin_bottom: '1.5em', heading_letter_spacing: '0.12em',
+    line_height: '1.5',
+  },
+  modern: {
+    primary_color: '#7c3aed', accent_color: '#5b21b6',
+    font_body: '"Georgia", serif',
+    font_heading: '"Arial", sans-serif',
+    body_font_size: '10.5pt', heading_font_size: '11pt',
+    name_font_size: '24pt', header_alignment: 'left',
+    section_decoration: 'left-border', heading_transform: 'uppercase',
+    text_color: '#1f2937', muted_color: '#6b7280', border_color: '#e5e7eb',
+    page_width: '8.5in', page_padding: '0',
+    date_column_width: '1.2in', header_border_style: 'none',
+    header_bg_color: '#7c3aed',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.1em',
+    line_height: '1.45',
+  },
+}
 
 const ALL_SECTIONS = [
   { key: 'education', label: 'Education' },
@@ -64,6 +160,113 @@ const ALL_SECTIONS = [
   { key: 'schoolwideOrals', label: 'School-wide Oral Exams' },
 ]
 
+function ColorInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <input type="color" value={value || '#000000'} onChange={e => onChange(e.target.value)} className="w-8 h-8 rounded border border-gray-200 cursor-pointer" />
+        <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" placeholder="#000000" />
+      </div>
+    </div>
+  )
+}
+
+function StyleEditor({ style, onChange }: { style: Record<string, string>; onChange: (s: Record<string, string>) => void }) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  function set(key: string, value: string) {
+    onChange({ ...style, [key]: value })
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-gray-700">Style</p>
+      <div className="grid grid-cols-2 gap-3">
+        <ColorInput label="Primary color" value={style.primary_color || ''} onChange={v => set('primary_color', v)} />
+        <ColorInput label="Accent color" value={style.accent_color || ''} onChange={v => set('accent_color', v)} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Body font</label>
+          <input type="text" value={style.font_body || ''} onChange={e => set('font_body', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Heading font</label>
+          <input type="text" value={style.font_heading || ''} onChange={e => set('font_heading', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Body size</label>
+          <input type="text" value={style.body_font_size || ''} onChange={e => set('body_font_size', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Name size</label>
+          <input type="text" value={style.name_font_size || ''} onChange={e => set('name_font_size', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Header alignment</label>
+          <select value={style.header_alignment || 'center'} onChange={e => set('header_alignment', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
+            {HEADER_ALIGNMENTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Section decoration</label>
+          <select value={style.section_decoration || 'bottom-border'} onChange={e => set('section_decoration', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
+            {SECTION_DECORATIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Heading transform</label>
+          <select value={style.heading_transform || 'uppercase'} onChange={e => set('heading_transform', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
+            {HEADING_TRANSFORMS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <details open={showAdvanced} onToggle={e => setShowAdvanced((e.target as HTMLDetailsElement).open)}>
+        <summary className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">
+          Advanced style options
+        </summary>
+        <div className="mt-2 space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <ColorInput label="Text color" value={style.text_color || ''} onChange={v => set('text_color', v)} />
+            <ColorInput label="Muted color" value={style.muted_color || ''} onChange={v => set('muted_color', v)} />
+            <ColorInput label="Border color" value={style.border_color || ''} onChange={v => set('border_color', v)} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              ['heading_font_size', 'Heading size'],
+              ['page_width', 'Page width'],
+              ['page_padding', 'Page padding'],
+              ['date_column_width', 'Date col width'],
+              ['header_border_style', 'Header border'],
+              ['name_font_weight', 'Name weight'],
+              ['name_letter_spacing', 'Name spacing'],
+              ['section_margin_bottom', 'Section margin'],
+              ['heading_letter_spacing', 'Heading spacing'],
+              ['line_height', 'Line height'],
+            ] as const).map(([key, label]) => (
+              <div key={key}>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <input type="text" value={style[key] || ''} onChange={e => set(key, e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+              </div>
+            ))}
+          </div>
+          <ColorInput label="Header bg color (empty = transparent)" value={style.header_bg_color || ''} onChange={v => set('header_bg_color', v)} />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Custom CSS</label>
+            <textarea value={style.custom_css || ''} onChange={e => set('custom_css', e.target.value)} rows={4} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400 font-mono" placeholder="/* Additional CSS rules */" />
+          </div>
+        </div>
+      </details>
+    </div>
+  )
+}
+
 function SortableRow({
   section, onToggle, onHeadingChange,
 }: {
@@ -100,7 +303,8 @@ function SortableRow({
 function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose: () => void }) {
   const qc = useQueryClient()
   const [name, setName] = useState(template.name)
-  const [theme, setTheme] = useState(template.theme_css)
+  const [description, setDescription] = useState(template.description || '')
+  const [style, setStyle] = useState<Record<string, string>>(template.style || THEME_PRESETS.academic)
   const [sortDirection, setSortDirection] = useState(template.sort_direction ?? 'desc')
 
   // Build sections list with labels
@@ -141,7 +345,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/templates/${template.id}`, {
-      name, description: template.description, theme_css: theme,
+      name, description: description || null, style,
       sort_direction: sortDirection,
       sections: sections.map((s, i) => ({
         section_key: s.section_key,
@@ -157,11 +361,13 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
     <div className="flex gap-6">
       {/* Composer panel */}
       <div className="flex-1 space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <Input label="Template Name" value={name} onChange={e => setName(e.target.value)} />
-          <Select label="Theme" options={THEMES} value={theme} onChange={e => setTheme(e.target.value)} />
           <Select label="Item Sort Order" options={SORT_DIRECTIONS} value={sortDirection} onChange={e => setSortDirection(e.target.value)} />
         </div>
+        <Input label="Description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description of this template..." />
+
+        <StyleEditor style={style} onChange={setStyle} />
 
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Sections (drag to reorder)</p>
@@ -217,6 +423,7 @@ export function Templates() {
   const [composing, setComposing] = useState<CVTemplate | null>(null)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [copyStyleFrom, setCopyStyleFrom] = useState('')
 
   const { data = [], isLoading } = useQuery<CVTemplate[]>({
     queryKey: ['templates'],
@@ -224,14 +431,22 @@ export function Templates() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => api.post('/templates', {
-      name: newName, theme_css: 'academic', sort_direction: 'desc',
-      sections: ALL_SECTIONS.map((s, i) => ({
-        section_key: s.key, enabled: true, section_order: i,
-        config: { heading: s.label },
-      })),
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); setCreating(false); setNewName('') },
+    mutationFn: () => {
+      // Determine initial style: copy from existing template or use academic defaults
+      let initialStyle = THEME_PRESETS.academic
+      if (copyStyleFrom) {
+        const source = data.find(t => String(t.id) === copyStyleFrom)
+        if (source?.style) initialStyle = source.style
+      }
+      return api.post('/templates', {
+        name: newName, style: initialStyle, sort_direction: 'desc',
+        sections: ALL_SECTIONS.map((s, i) => ({
+          section_key: s.key, enabled: true, section_order: i,
+          config: { heading: s.label },
+        })),
+      })
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); setCreating(false); setNewName(''); setCopyStyleFrom('') },
   })
 
   const deleteMut = useMutation({
@@ -239,20 +454,13 @@ export function Templates() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
   })
 
-  async function downloadPdf(id: number, name: string) {
-    const res = await api.post(`/templates/${id}/export/pdf`, {}, { responseType: 'blob' })
-    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-    const a = document.createElement('a'); a.href = url; a.download = `${name}.pdf`; a.click()
-    URL.revokeObjectURL(url)
-  }
-
   if (isLoading) return <div className="p-8"><Spinner /></div>
 
   return (
     <div className="p-8">
       <PageHeader
         title="Templates"
-        subtitle="Compose and export your CV"
+        subtitle="Define section layout, order, and style for your CVs"
         actions={<Button onClick={() => setCreating(true)}><Plus size={16} /> New Template</Button>}
       />
 
@@ -262,9 +470,12 @@ export function Templates() {
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
-                <div className="flex gap-1 mt-1">
-                  <Badge color="purple">{tmpl.theme_css}</Badge>
+                <div className="flex gap-1 mt-1 items-center">
+                  {tmpl.style?.primary_color && (
+                    <span className="inline-block w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: tmpl.style.primary_color }} />
+                  )}
                   <Badge color="gray">{tmpl.sections.filter(s => s.enabled).length} sections</Badge>
+                  <Badge color="blue">{tmpl.sort_direction === 'desc' ? 'Newest first' : 'Oldest first'}</Badge>
                 </div>
               </div>
               <button
@@ -282,9 +493,6 @@ export function Templates() {
               <a href={`/api/templates/${tmpl.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
                 <Button variant="ghost" size="sm"><Eye size={12} /> Preview</Button>
               </a>
-              <Button variant="ghost" size="sm" onClick={() => downloadPdf(tmpl.id, tmpl.name)}>
-                <FileDown size={12} /> PDF
-              </Button>
             </div>
           </Card>
         ))}
@@ -300,6 +508,19 @@ export function Templates() {
       <Modal open={creating} onClose={() => setCreating(false)} title="New Template">
         <div className="space-y-4">
           <Input label="Template Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Full Academic CV" />
+          {data.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Copy style from</label>
+              <select
+                value={copyStyleFrom}
+                onChange={e => setCopyStyleFrom(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+              >
+                <option value="">Academic (default)</option>
+                {data.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
           <p className="text-sm text-gray-500">All sections will be enabled by default. You can customize in the composer.</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>

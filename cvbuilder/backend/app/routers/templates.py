@@ -94,7 +94,7 @@ def create_template(
     current_user: models.User = Depends(get_current_user),
 ):
     tmpl = models.CVTemplate(
-        name=data.name, description=data.description, theme_css=data.theme_css,
+        name=data.name, description=data.description, style=data.style,
         sort_direction=data.sort_direction, user_id=current_user.id,
     )
     db.add(tmpl)
@@ -124,7 +124,7 @@ def update_template(
         raise HTTPException(status_code=404, detail="Template not found")
     tmpl.name = data.name
     tmpl.description = data.description
-    tmpl.theme_css = data.theme_css
+    tmpl.style = data.style
     tmpl.sort_direction = data.sort_direction
     if data.sections is not None:
         db.query(models.TemplateSection).filter(
@@ -152,6 +152,13 @@ def delete_template(
     tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
+    # Prevent deletion if CV instances reference this template
+    instance_count = db.query(models.CVInstance).filter_by(template_id=template_id).count()
+    if instance_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete template: {instance_count} CV instance(s) reference it. Delete those first.",
+        )
     db.delete(tmpl)
     db.commit()
     return {"ok": True}
@@ -179,7 +186,7 @@ def preview_template(
         for s in tmpl.sections if s.enabled
     ]
     from app.services.pdf import render_cv_html
-    html = render_cv_html(cv_data, theme=tmpl.theme_css, sections=enabled_sections)
+    html = render_cv_html(cv_data, style=tmpl.style, sections=enabled_sections)
     return HTMLResponse(content=html)
 
 
@@ -198,7 +205,7 @@ def export_pdf(
         for s in tmpl.sections if s.enabled
     ]
     from app.services.pdf import render_cv_html, html_to_pdf
-    html = render_cv_html(cv_data, theme=tmpl.theme_css, sections=enabled_sections)
+    html = render_cv_html(cv_data, style=tmpl.style, sections=enabled_sections)
     pdf_bytes = html_to_pdf(html)
     return Response(
         content=pdf_bytes,

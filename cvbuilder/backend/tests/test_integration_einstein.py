@@ -408,12 +408,13 @@ class TestUNCPreview:
     ]
 
     def _setup(self, client, db_session):
+        from app.services.pdf import THEME_PRESETS
         import_cv_yaml(str(FIXTURES / "einstein_cv.yml"), db_session)
         import_refs_yaml(str(FIXTURES / "einstein_refs.yml"), db_session)
         resp = client.post("/api/templates", json={
             "name": "Einstein UNC CV",
             "description": "UNC format for Einstein",
-            "theme_css": "unc",
+            "style": THEME_PRESETS["unc"],
             "sort_direction": "desc",
             "sections": [
                 {"section_key": k, "enabled": True, "section_order": i}

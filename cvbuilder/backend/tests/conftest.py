@@ -127,7 +127,14 @@ def sample_template(client):
     resp = client.post("/api/templates", json={
         "name": "Test Template",
         "description": "For testing",
-        "theme_css": "academic",
+        "style": {
+            "primary_color": "#1a3a5c", "accent_color": "#2e6da4",
+            "font_body": '"Times New Roman", Times, serif',
+            "font_heading": "Arial, Helvetica, sans-serif",
+            "body_font_size": "11pt", "name_font_size": "20pt",
+            "header_alignment": "center", "section_decoration": "bottom-border",
+            "heading_transform": "uppercase",
+        },
         "sort_direction": "desc",
         "sections": [
             {"section_key": "education", "enabled": True, "section_order": 0},

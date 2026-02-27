@@ -263,11 +263,45 @@ export interface CVTemplate {
   id: number
   name: string
   description: string | null
-  theme_css: string
+  style: Record<string, string> | null
   sort_direction: string
   created_at: string
   updated_at: string
   sections: TemplateSection[]
+}
+
+export interface CVInstanceItem {
+  id: number
+  item_id: number
+}
+
+export interface CVInstanceSection {
+  id: number
+  section_key: string
+  enabled: boolean | null
+  section_order: number | null
+  heading_override: string | null
+  curated: boolean
+  items: CVInstanceItem[]
+}
+
+export interface CVInstance {
+  id: number
+  template_id: number
+  name: string
+  description: string | null
+  style_overrides: Record<string, string> | null
+  sort_direction_override: string | null
+  created_at: string
+  updated_at: string
+  sections: CVInstanceSection[]
+  template_name: string | null
+}
+
+export interface AvailableItem {
+  id: number
+  label: string
+  selected: boolean
 }
 
 export interface DashboardStats {

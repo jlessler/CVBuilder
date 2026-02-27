@@ -75,11 +75,12 @@ UNC_SECTIONS = [
 
 def _setup_new_pipeline(client, db_session):
     """Import Einstein YAML into new pipeline and create a UNC template."""
+    from app.services.pdf import THEME_PRESETS
     import_cv_yaml(str(FIXTURES / "einstein_cv.yml"), db_session)
     import_refs_yaml(str(FIXTURES / "einstein_refs.yml"), db_session)
     resp = client.post("/api/templates", json={
         "name": "Einstein UNC CV",
-        "theme_css": "unc",
+        "style": THEME_PRESETS["unc"],
         "sort_direction": "desc",
         "sections": [
             {"section_key": k, "enabled": True, "section_order": i}

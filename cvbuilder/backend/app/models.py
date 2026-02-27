@@ -296,7 +296,7 @@ class CVTemplate(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(Text)
-    theme_css: Mapped[str] = mapped_column(String(100), default="academic")
+    style: Mapped[Optional[dict]] = mapped_column(JSON)
     sort_direction: Mapped[str] = mapped_column(String(20), default="desc")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
@@ -314,3 +314,50 @@ class TemplateSection(Base):
     section_order: Mapped[int] = mapped_column(Integer, default=0)
     config: Mapped[Optional[dict]] = mapped_column(JSON)  # heading text, etc.
     template: Mapped["CVTemplate"] = relationship(back_populates="sections")
+
+
+# ---------------------------------------------------------------------------
+# CV Instance tables — curated CV versions linked to a template
+# ---------------------------------------------------------------------------
+
+class CVInstance(Base):
+    __tablename__ = "cv_instances"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    template_id: Mapped[int] = mapped_column(Integer, ForeignKey("cv_templates.id"))
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    style_overrides: Mapped[Optional[dict]] = mapped_column(JSON)
+    sort_direction_override: Mapped[Optional[str]] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    template: Mapped["CVTemplate"] = relationship()
+    sections: Mapped[list["CVInstanceSection"]] = relationship(
+        back_populates="cv_instance", cascade="all, delete-orphan",
+        order_by="CVInstanceSection.section_order",
+    )
+
+
+class CVInstanceSection(Base):
+    __tablename__ = "cv_instance_sections"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cv_instance_id: Mapped[int] = mapped_column(Integer, ForeignKey("cv_instances.id", ondelete="CASCADE"))
+    section_key: Mapped[str] = mapped_column(String(100))
+    enabled: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)  # null = inherit
+    section_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    heading_override: Mapped[Optional[str]] = mapped_column(String(300))
+    curated: Mapped[bool] = mapped_column(Boolean, default=False)
+    cv_instance: Mapped["CVInstance"] = relationship(back_populates="sections")
+    items: Mapped[list["CVInstanceItem"]] = relationship(
+        back_populates="section", cascade="all, delete-orphan",
+    )
+
+
+class CVInstanceItem(Base):
+    __tablename__ = "cv_instance_items"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cv_instance_section_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("cv_instance_sections.id", ondelete="CASCADE"),
+    )
+    item_id: Mapped[int] = mapped_column(Integer)
+    section: Mapped["CVInstanceSection"] = relationship(back_populates="items")

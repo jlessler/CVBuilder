@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, User, BookOpen, Layout, Download, GraduationCap,
-  LogOut,
+  LogOut, Files,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -10,8 +10,9 @@ const navItems = [
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/sections', label: 'CV Sections', icon: GraduationCap },
   { to: '/publications', label: 'Publications', icon: BookOpen },
-  { to: '/templates', label: 'Templates', icon: Layout },
+  { to: '/cvs', label: 'CVs', icon: Files },
   { to: '/export', label: 'Import/Export', icon: Download },
+  { to: '/templates', label: 'Templates', icon: Layout },
 ]
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

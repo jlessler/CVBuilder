@@ -488,7 +488,7 @@ class TemplateSectionOut(TemplateSectionBase):
 class CVTemplateBase(BaseModel):
     name: str
     description: Optional[str] = None
-    theme_css: str = "academic"
+    style: Optional[dict] = None
     sort_direction: str = "desc"
 
 class CVTemplateCreate(CVTemplateBase):
@@ -503,6 +503,78 @@ class CVTemplateOut(CVTemplateBase):
     created_at: datetime
     updated_at: datetime
     sections: list[TemplateSectionOut] = []
+
+
+# ---------------------------------------------------------------------------
+# CV Instances
+# ---------------------------------------------------------------------------
+
+class CVInstanceItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    item_id: int
+
+
+class CVInstanceSectionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    section_key: str
+    enabled: Optional[bool] = None
+    section_order: Optional[int] = None
+    heading_override: Optional[str] = None
+    curated: bool = False
+    items: list[CVInstanceItemOut] = []
+
+
+class CVInstanceCreate(BaseModel):
+    name: str
+    template_id: int
+    description: Optional[str] = None
+    style_overrides: Optional[dict] = None
+    sort_direction_override: Optional[str] = None
+
+
+class CVInstanceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    style_overrides: Optional[dict] = None
+    sort_direction_override: Optional[str] = None
+
+
+class CVInstanceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    template_id: int
+    name: str
+    description: Optional[str] = None
+    style_overrides: Optional[dict] = None
+    sort_direction_override: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    sections: list[CVInstanceSectionOut] = []
+    template_name: Optional[str] = None
+
+
+class CVInstanceSectionUpdate(BaseModel):
+    section_key: str
+    enabled: Optional[bool] = None
+    section_order: Optional[int] = None
+    heading_override: Optional[str] = None
+    curated: bool = False
+
+
+class CVInstanceSectionsUpdate(BaseModel):
+    sections: list[CVInstanceSectionUpdate]
+
+
+class CVInstanceItemBulkUpdate(BaseModel):
+    item_ids: list[int]
+
+
+class AvailableItem(BaseModel):
+    id: int
+    label: str
+    selected: bool = False
 
 
 # ---------------------------------------------------------------------------

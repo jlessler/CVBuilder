@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { CVTemplate } from '../lib/api'
+import type { CVTemplate, CVInstance } from '../lib/api'
 import { Button, Card, PageHeader, Spinner } from '../components/ui'
-import { Download, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { Download, Upload, FileText, AlertCircle, CheckCircle, Files } from 'lucide-react'
 
 export function Export() {
   const [importing, setImporting] = useState(false)
@@ -16,6 +16,11 @@ export function Export() {
     queryFn: () => api.get('/templates').then(r => r.data),
   })
 
+  const { data: cvInstances = [], isLoading: instancesLoading } = useQuery<CVInstance[]>({
+    queryKey: ['cv-instances'],
+    queryFn: () => api.get('/cv-instances').then(r => r.data),
+  })
+
   async function downloadYaml() {
     const res = await api.get('/export/yaml', { responseType: 'blob' })
     const url = URL.createObjectURL(new Blob([res.data]))
@@ -24,10 +29,27 @@ export function Export() {
   }
 
   async function downloadPdf(id: number, name: string) {
-    const res = await api.post(`/templates/${id}/export/pdf`, {}, { responseType: 'blob' })
-    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-    const a = document.createElement('a'); a.href = url; a.download = `${name}.pdf`; a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const res = await api.post(`/templates/${id}/export/pdf`, {}, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a'); a.href = url; a.download = `${name}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('PDF export failed. Check the browser console for details.')
+    }
+  }
+
+  async function downloadInstancePdf(id: number, name: string) {
+    try {
+      const res = await api.post(`/cv-instances/${id}/export/pdf`, {}, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a'); a.href = url; a.download = `${name}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('PDF export failed. Check the browser console for details.')
+    }
   }
 
   async function handleImport() {
@@ -97,6 +119,29 @@ export function Export() {
               <p className="text-sm text-gray-400 text-center py-4">
                 No templates yet. Create one on the Templates page.
               </p>
+            )}
+
+            {instancesLoading ? <Spinner /> : cvInstances.length > 0 && (
+              <div className="p-4 border border-gray-200 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <Files size={14} /> CV Instance PDF Export
+                </p>
+                <p className="text-xs text-gray-500 mb-3">Generate a PDF from one of your curated CVs.</p>
+                <div className="space-y-2">
+                  {cvInstances.map(inst => (
+                    <div key={inst.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-gray-400" />
+                        <span className="text-sm text-gray-700">{inst.name}</span>
+                        <span className="text-xs text-gray-400">({inst.template_name})</span>
+                      </div>
+                      <Button size="sm" onClick={() => downloadInstancePdf(inst.id, inst.name)}>
+                        <Download size={12} /> PDF
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             <div className="p-4 border border-gray-200 rounded-lg">

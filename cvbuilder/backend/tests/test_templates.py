@@ -28,7 +28,7 @@ def test_update_template_replaces_sections(client, sample_template):
     resp = client.put(f"/api/templates/{tid}", json={
         "name": "Updated",
         "description": "Updated desc",
-        "theme_css": "minimal",
+        "style": {"primary_color": "#333333", "accent_color": "#555555"},
         "sort_direction": "asc",
         "sections": [
             {"section_key": "grants", "enabled": True, "section_order": 0},

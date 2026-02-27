@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import create_tables, get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.routers import auth, profile, publications, templates, export
+from app.routers import auth, profile, publications, templates, export, cv_instances
 
 app = FastAPI(
     title="CVBuilder API",
@@ -31,6 +31,7 @@ app.include_router(profile.router)
 app.include_router(publications.router)
 app.include_router(templates.router)
 app.include_router(export.router)
+app.include_router(cv_instances.router)
 
 
 @app.on_event("startup")
@@ -58,10 +59,14 @@ _USER_ID_TABLES = [
 def _run_migrations():
     """Apply additive schema changes that create_all() won't handle."""
     from app.database import engine
+    from app.services.pdf import THEME_PRESETS
     from sqlalchemy import text
+    import json
     stmts = [
         "ALTER TABLE pub_authors ADD COLUMN student INTEGER DEFAULT 0",
         "ALTER TABLE cv_templates ADD COLUMN sort_direction TEXT DEFAULT 'desc'",
+        "ALTER TABLE cv_templates ADD COLUMN style TEXT",
+        "ALTER TABLE cv_instances ADD COLUMN style_overrides TEXT",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
@@ -74,6 +79,33 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 pass  # Column already exists
+
+        # Backfill style from theme_css for existing templates
+        try:
+            rows = conn.execute(text(
+                "SELECT id, theme_css FROM cv_templates WHERE style IS NULL AND theme_css IS NOT NULL"
+            )).fetchall()
+            for row in rows:
+                preset = THEME_PRESETS.get(row[1])
+                if preset:
+                    conn.execute(
+                        text("UPDATE cv_templates SET style = :style WHERE id = :id"),
+                        {"style": json.dumps(preset), "id": row[0]},
+                    )
+            conn.commit()
+        except Exception:
+            pass
+
+        # Drop legacy theme columns (SQLite 3.35.0+ supports DROP COLUMN)
+        for drop_stmt in [
+            "ALTER TABLE cv_templates DROP COLUMN theme_css",
+            "ALTER TABLE cv_instances DROP COLUMN theme_css_override",
+        ]:
+            try:
+                conn.execute(text(drop_stmt))
+                conn.commit()
+            except Exception:
+                pass  # Column already dropped or doesn't exist
 
 
 def _ensure_default_user(db):
@@ -151,7 +183,7 @@ _HEADINGS = {
 }
 
 # ---------------------------------------------------------------------------
-# Template definitions: name → (description, theme_css, ordered section keys)
+# Template definitions: name → (description, style_preset_name, ordered section keys)
 # ---------------------------------------------------------------------------
 _TEMPLATES = {
     "Academic CV": (
@@ -221,14 +253,17 @@ _TEMPLATES = {
 
 def _seed_templates(db, user_id: int = 1):
     """Insert new templates and add any missing sections to existing templates."""
+    from app.services.pdf import THEME_PRESETS
+
     existing_tmpls = {
         t.name: t for t in
         db.query(models.CVTemplate).filter_by(user_id=user_id).all()
     }
-    for name, (description, theme_css, sections) in _TEMPLATES.items():
+    for name, (description, preset_name, sections) in _TEMPLATES.items():
         if name not in existing_tmpls:
             tmpl = models.CVTemplate(
-                name=name, description=description, theme_css=theme_css,
+                name=name, description=description,
+                style=THEME_PRESETS.get(preset_name, THEME_PRESETS["academic"]),
                 user_id=user_id,
             )
             db.add(tmpl)

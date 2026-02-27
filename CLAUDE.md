@@ -16,12 +16,11 @@ cvbuilder/
 │   │   │   └── export.py     # YAML import/export
 │   │   └── services/
 │   │       ├── sort.py    # Date-based sort helpers (sort_items, SECTION_SORT_KEY)
-│   │       ├── pdf.py     # WeasyPrint HTML→PDF, Jinja2 rendering
+│   │       ├── pdf.py     # WeasyPrint HTML→PDF, Jinja2 rendering, generate_css(), THEME_PRESETS
 │   │       └── yaml_import.py
 │   └── cv_templates/      # Jinja2 templates
 │       ├── base.html      # Main CV renderer — one {% elif key == '...' %} block per section
-│       ├── sections/      # Included partials (publications, grants, panels, trainees, …)
-│       └── themes/        # Per-theme CSS files (academic, unc, hopkins, unige, minimal, modern)
+│       └── sections/      # Included partials (publications, grants, panels, trainees, …)
 ├── frontend/              # React 19 + Vite + Tailwind
 │   └── src/
 │       ├── pages/
@@ -77,10 +76,13 @@ Items are sorted automatically by their primary date field via `sort_items()` in
 Templates have a `sort_direction` field ("desc" = newest first, "asc" = oldest first).
 Publications follow the same direction. Patent and MiscSection items sort by id (insertion order).
 
-### Templates
-CV templates store an ordered list of enabled section keys.
+### Templates & Styling
+CV templates store an ordered list of enabled section keys and a `style` JSON dict.
+There are no separate theme CSS files — all styling is generated dynamically by `generate_css()` in `services/pdf.py` from the style properties dict.
+`THEME_PRESETS` in `services/pdf.py` maps old theme names (academic, unc, hopkins, etc.) to style dicts for use as presets.
 `_build_cv_data()` in `routers/templates.py` assembles all data; `base.html` renders it.
 Adding a section to a template requires it to exist in both `_HEADINGS` (main.py) and `ALL_SECTIONS` (Templates.tsx).
+CV instances can override individual style properties via `style_overrides` (merged over the template's style).
 
 ## Database
 SQLite by default at `cvbuilder/data/cvbuilder.db`.
