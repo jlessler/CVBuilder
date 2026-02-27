@@ -5,7 +5,10 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from app.database import Base, get_db
+from app.auth import get_current_user, get_optional_current_user
 from app.main import app
+from app.models import User
+from app.auth import get_password_hash
 
 
 # ── In-memory SQLite engine (shared across the session) ──────────────────
@@ -52,13 +55,34 @@ def db_session(engine, _disable_startup):
 
 
 @pytest.fixture()
-def client(db_session):
-    """TestClient that uses the per-test DB session."""
+def test_user(db_session):
+    """Create a test user in the DB and return it."""
+    user = db_session.query(User).filter_by(email="test@test.com").first()
+    if not user:
+        user = User(
+            email="test@test.com",
+            hashed_password=get_password_hash("testpass"),
+            full_name="Test User",
+            is_active=True,
+        )
+        db_session.add(user)
+        db_session.flush()
+    return user
+
+
+@pytest.fixture()
+def client(db_session, test_user):
+    """TestClient that uses the per-test DB session and authenticated user."""
 
     def _override_get_db():
         yield db_session
 
+    def _override_get_current_user():
+        return test_user
+
     app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_current_user] = _override_get_current_user
+    app.dependency_overrides[get_optional_current_user] = _override_get_current_user
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

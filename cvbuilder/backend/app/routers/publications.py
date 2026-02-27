@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.auth import get_current_user
 from app.services.doi import lookup_doi
 from app.services.fetch_pubs import fetch_new_publications
 
@@ -20,8 +21,9 @@ def list_publications(
     skip: int = 0,
     limit: int = Query(default=500, le=2000),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    q = db.query(models.Publication)
+    q = db.query(models.Publication).filter_by(user_id=current_user.id)
     if type:
         q = q.filter(models.Publication.type == type)
     if year:
@@ -51,15 +53,22 @@ def doi_lookup(request: schemas.DOILookupRequest):
 
 
 @router.get("/sync-check", response_model=schemas.SyncCheckResponse)
-async def sync_check(db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).first()
+async def sync_check(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    profile = db.query(models.Profile).filter_by(user_id=current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found — add your name/ORCID first")
     return await fetch_new_publications(db, profile.name, profile.orcid)
 
 
 @router.post("/sync-add", response_model=list[schemas.PublicationOut])
-def sync_add(request: schemas.SyncAddRequest, db: Session = Depends(get_db)):
+def sync_add(
+    request: schemas.SyncAddRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     created = []
     for candidate in request.publications:
         pub = models.Publication(
@@ -71,6 +80,7 @@ def sync_add(request: schemas.SyncAddRequest, db: Session = Depends(get_db)):
             issue=candidate.issue,
             pages=candidate.pages,
             doi=candidate.doi,
+            user_id=current_user.id,
         )
         db.add(pub)
         db.flush()
@@ -84,16 +94,24 @@ def sync_add(request: schemas.SyncAddRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/{pub_id}", response_model=schemas.PublicationOut)
-def get_publication(pub_id: int, db: Session = Depends(get_db)):
-    pub = db.get(models.Publication, pub_id)
+def get_publication(
+    pub_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    pub = db.query(models.Publication).filter_by(id=pub_id, user_id=current_user.id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
     return pub
 
 
 @router.post("", response_model=schemas.PublicationOut)
-def create_publication(data: schemas.PublicationCreate, db: Session = Depends(get_db)):
-    pub = models.Publication(**data.model_dump(exclude={"authors"}))
+def create_publication(
+    data: schemas.PublicationCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    pub = models.Publication(**data.model_dump(exclude={"authors"}), user_id=current_user.id)
     db.add(pub)
     db.flush()
     for i, a in enumerate(data.authors):
@@ -104,8 +122,13 @@ def create_publication(data: schemas.PublicationCreate, db: Session = Depends(ge
 
 
 @router.put("/{pub_id}", response_model=schemas.PublicationOut)
-def update_publication(pub_id: int, data: schemas.PublicationUpdate, db: Session = Depends(get_db)):
-    pub = db.get(models.Publication, pub_id)
+def update_publication(
+    pub_id: int,
+    data: schemas.PublicationUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    pub = db.query(models.Publication).filter_by(id=pub_id, user_id=current_user.id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
 
@@ -123,8 +146,12 @@ def update_publication(pub_id: int, data: schemas.PublicationUpdate, db: Session
 
 
 @router.delete("/{pub_id}")
-def delete_publication(pub_id: int, db: Session = Depends(get_db)):
-    pub = db.get(models.Publication, pub_id)
+def delete_publication(
+    pub_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    pub = db.query(models.Publication).filter_by(id=pub_id, user_id=current_user.id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
     db.delete(pub)

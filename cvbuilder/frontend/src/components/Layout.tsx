@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, User, BookOpen, Layout, Download, GraduationCap,
+  LogOut,
 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,6 +16,7 @@ const navItems = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const { user, logout } = useAuth()
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -43,8 +46,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             )
           })}
         </nav>
-        <div className="px-4 py-3 border-t border-primary-800 text-xs text-primary-400">
-          v1.0.0
+        <div className="px-4 py-3 border-t border-primary-800">
+          {user && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-primary-300 truncate max-w-[120px]" title={user.email}>
+                {user.email}
+              </span>
+              <button
+                onClick={logout}
+                className="text-primary-400 hover:text-white transition-colors"
+                title="Sign out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-primary-400 mt-1">v1.0.0</p>
         </div>
       </aside>
 
