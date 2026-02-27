@@ -57,7 +57,7 @@ export function Export() {
 
   return (
     <div className="p-8">
-      <PageHeader title="Export" subtitle="Download your CV or import existing YAML files" />
+      <PageHeader title="Import/Export" subtitle="Download your CV or import existing YAML files" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Download section */}

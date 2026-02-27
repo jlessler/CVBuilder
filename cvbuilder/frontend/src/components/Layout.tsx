@@ -11,7 +11,7 @@ const navItems = [
   { to: '/sections', label: 'CV Sections', icon: GraduationCap },
   { to: '/publications', label: 'Publications', icon: BookOpen },
   { to: '/templates', label: 'Templates', icon: Layout },
-  { to: '/export', label: 'Export', icon: Download },
+  { to: '/export', label: 'Import/Export', icon: Download },
 ]
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
