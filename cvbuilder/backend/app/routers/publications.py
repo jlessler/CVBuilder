@@ -12,6 +12,48 @@ from app.services.fetch_pubs import fetch_new_publications
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
 
+def _sync_crossref_links(pub: models.Publication, db: Session, old_preprint_doi: str | None = None, old_published_doi: str | None = None) -> None:
+    """Ensure cross-reference DOIs are reciprocal.
+
+    When pub.published_doi is set, find the publication with that DOI and set
+    its preprint_doi back to pub.doi (and vice versa).  Also clears stale
+    links when a cross-ref DOI is changed or removed.
+    """
+    user_id = pub.user_id
+
+    # --- published_doi changed → update the counterpart paper ---
+    if pub.published_doi != old_published_doi:
+        # Clear old counterpart if it pointed back to us
+        if old_published_doi:
+            old_match = db.query(models.Publication).filter_by(
+                user_id=user_id, doi=old_published_doi
+            ).first()
+            if old_match and old_match.preprint_doi == pub.doi:
+                old_match.preprint_doi = None
+        # Set new counterpart
+        if pub.published_doi and pub.doi:
+            match = db.query(models.Publication).filter_by(
+                user_id=user_id, doi=pub.published_doi
+            ).first()
+            if match:
+                match.preprint_doi = pub.doi
+
+    # --- preprint_doi changed → update the counterpart preprint ---
+    if pub.preprint_doi != old_preprint_doi:
+        if old_preprint_doi:
+            old_match = db.query(models.Publication).filter_by(
+                user_id=user_id, doi=old_preprint_doi
+            ).first()
+            if old_match and old_match.published_doi == pub.doi:
+                old_match.published_doi = None
+        if pub.preprint_doi and pub.doi:
+            match = db.query(models.Publication).filter_by(
+                user_id=user_id, doi=pub.preprint_doi
+            ).first()
+            if match:
+                match.published_doi = pub.doi
+
+
 @router.get("", response_model=list[schemas.PublicationOut])
 def list_publications(
     type: Optional[str] = None,
@@ -88,6 +130,7 @@ def sync_add(
         db.flush()
         for i, name in enumerate(candidate.authors):
             db.add(models.PubAuthor(pub_id=pub.id, author_name=name, author_order=i, student=False))
+        _sync_crossref_links(pub, db)
         created.append(pub)
     db.commit()
     for pub in created:
@@ -118,6 +161,7 @@ def create_publication(
     db.flush()
     for i, a in enumerate(data.authors):
         db.add(models.PubAuthor(pub_id=pub.id, author_name=a.author_name, author_order=a.author_order or i))
+    _sync_crossref_links(pub, db)
     db.commit()
     db.refresh(pub)
     return pub
@@ -134,6 +178,9 @@ def update_publication(
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
 
+    old_preprint_doi = pub.preprint_doi
+    old_published_doi = pub.published_doi
+
     for field, value in data.model_dump(exclude={"authors"}, exclude_none=True).items():
         setattr(pub, field, value)
 
@@ -142,6 +189,7 @@ def update_publication(
         for i, a in enumerate(data.authors):
             db.add(models.PubAuthor(pub_id=pub_id, author_name=a.author_name, author_order=a.author_order or i))
 
+    _sync_crossref_links(pub, db, old_preprint_doi, old_published_doi)
     db.commit()
     db.refresh(pub)
     return pub
@@ -156,6 +204,19 @@ def delete_publication(
     pub = db.query(models.Publication).filter_by(id=pub_id, user_id=current_user.id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
+    # Clear reciprocal cross-ref links before deleting
+    if pub.published_doi and pub.doi:
+        match = db.query(models.Publication).filter_by(
+            user_id=current_user.id, doi=pub.published_doi
+        ).first()
+        if match and match.preprint_doi == pub.doi:
+            match.preprint_doi = None
+    if pub.preprint_doi and pub.doi:
+        match = db.query(models.Publication).filter_by(
+            user_id=current_user.id, doi=pub.preprint_doi
+        ).first()
+        if match and match.published_doi == pub.doi:
+            match.published_doi = None
     db.delete(pub)
     db.commit()
     return {"ok": True}
