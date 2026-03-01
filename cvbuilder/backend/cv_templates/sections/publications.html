@@ -1,5 +1,8 @@
 {% set pub_type = config.get('pub_type', 'papers') %}
 {% set pubs = cv.publications | selectattr('type', 'equalto', pub_type) | list %}
+{% if config.get('hide_if_published') %}
+  {% set pubs = pubs | rejectattr('published_doi') | list %}
+{% endif %}
 {% if pubs %}
 {% set profile_name = (cv.profile.name or '') if cv.profile else '' %}
 {% set ns = namespace(has_students=false, has_corr=false) %}
@@ -25,8 +28,10 @@
     {% endif %}
     {% if p.year %}({{ p.year }}){% endif %}
     {% if p.doi %}<a href="https://doi.org/{{ p.doi }}">doi:{{ p.doi }}</a>{% endif %}
+    {% if config.get('show_crossref', true) %}
     {% if p.preprint_doi %} (preprinted as <a href="https://doi.org/{{ p.preprint_doi }}">doi:{{ p.preprint_doi }}</a>){% endif %}
     {% if p.published_doi %} (published as <a href="https://doi.org/{{ p.published_doi }}">doi:{{ p.published_doi }}</a>){% endif %}
+    {% endif %}
     {% if p.select_flag %} <span class="pub-select-flag">&#9733;</span>{% endif %}
   </div>
   {% endfor %}

@@ -224,6 +224,7 @@ def update_sections(
             sec.enabled = sec_data.enabled
             sec.section_order = sec_data.section_order
             sec.heading_override = sec_data.heading_override
+            sec.config_overrides = sec_data.config_overrides
             sec.curated = sec_data.curated
         else:
             db.add(models.CVInstanceSection(
@@ -232,6 +233,7 @@ def update_sections(
                 enabled=sec_data.enabled,
                 section_order=sec_data.section_order,
                 heading_override=sec_data.heading_override,
+                config_overrides=sec_data.config_overrides,
                 curated=sec_data.curated,
             ))
     db.commit()
@@ -317,16 +319,26 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
     # Resolve effective sections: instance sections override template
     inst_sections_map = {s.section_key: s for s in inst.sections}
 
+    # Build lookup of template section configs
+    tmpl_section_configs = {}
+    for ts in (tmpl.sections or []):
+        tmpl_section_configs[ts.section_key] = dict(ts.config) if ts.config else {}
+
     # Build ordered section list
     effective_sections = []
     for sec in sorted(inst.sections, key=lambda s: s.section_order or 0):
         enabled = sec.enabled if sec.enabled is not None else True
         if not enabled:
             continue
-        heading = sec.heading_override or ""
+        # Start with template section config as base, overlay instance overrides + heading
+        config = dict(tmpl_section_configs.get(sec.section_key, {}))
+        if sec.config_overrides:
+            config.update(sec.config_overrides)
+        if sec.heading_override:
+            config["heading"] = sec.heading_override
         effective_sections.append({
             "key": sec.section_key,
-            "config": {"heading": heading},
+            "config": config,
             "_curated": sec.curated,
             "_item_ids": {item.item_id for item in sec.items} if sec.curated else None,
         })

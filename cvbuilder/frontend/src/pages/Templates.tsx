@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken } from '../lib/api'
 import type { CVTemplate, TemplateSection } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, GripVertical } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -267,35 +267,74 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
   )
 }
 
+const PUB_CROSSREF_SECTIONS = ['publications_papers', 'publications_preprints']
+
 function SortableRow({
-  section, onToggle, onHeadingChange,
+  section, onToggle, onConfigChange,
 }: {
   section: TemplateSection & { label: string }
   onToggle: () => void
-  onHeadingChange: (h: string) => void
+  onConfigChange: (config: Record<string, unknown>) => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.section_key })
+  const hasCrossrefOptions = PUB_CROSSREF_SECTIONS.includes(section.section_key)
+  const isPreprints = section.section_key === 'publications_preprints'
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border mb-1.5 ${
+      className={`rounded-lg border mb-1.5 ${
         section.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
       }`}
     >
-      <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
-        <GripVertical size={16} />
-      </button>
-      <Checkbox checked={section.enabled} onChange={onToggle} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800">{section.label}</p>
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
+          <GripVertical size={16} />
+        </button>
+        <Checkbox checked={section.enabled} onChange={onToggle} />
+        {hasCrossrefOptions && (
+          <button
+            className="text-gray-400 hover:text-gray-600"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800">{section.label}</p>
+        </div>
+        <input
+          className="w-40 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
+          placeholder="Section heading..."
+          value={section.config?.heading || ''}
+          onChange={e => onConfigChange({ ...section.config, heading: e.target.value })}
+        />
       </div>
-      <input
-        className="w-40 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
-        placeholder="Section heading..."
-        value={section.config?.heading || ''}
-        onChange={e => onHeadingChange(e.target.value)}
-      />
+      {expanded && hasCrossrefOptions && (
+        <div className="border-t border-gray-100 px-4 py-2 space-y-1">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+            <input
+              type="checkbox"
+              className="rounded border-gray-300"
+              checked={section.config?.show_crossref !== false}
+              onChange={e => onConfigChange({ ...section.config, show_crossref: e.target.checked })}
+            />
+            Show cross-ref DOI
+          </label>
+          {isPreprints && (
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={!!section.config?.hide_if_published}
+                onChange={e => onConfigChange({ ...section.config, hide_if_published: e.target.checked })}
+              />
+              Hide if published version exists
+            </label>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -380,9 +419,9 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
                   onToggle={() => setSections(ss =>
                     ss.map(s => s.section_key === sec.section_key ? { ...s, enabled: !s.enabled } : s)
                   )}
-                  onHeadingChange={h => setSections(ss =>
+                  onConfigChange={config => setSections(ss =>
                     ss.map(s => s.section_key === sec.section_key
-                      ? { ...s, config: { ...s.config, heading: h } } : s)
+                      ? { ...s, config } : s)
                   )}
                 />
               ))}

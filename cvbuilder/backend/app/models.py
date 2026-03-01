@@ -349,6 +349,7 @@ class CVInstanceSection(Base):
     enabled: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)  # null = inherit
     section_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     heading_override: Mapped[Optional[str]] = mapped_column(String(300))
+    config_overrides: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     curated: Mapped[bool] = mapped_column(Boolean, default=False)
     cv_instance: Mapped["CVInstance"] = relationship(back_populates="sections")
     items: Mapped[list["CVInstanceItem"]] = relationship(

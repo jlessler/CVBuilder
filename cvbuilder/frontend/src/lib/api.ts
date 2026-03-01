@@ -283,6 +283,7 @@ export interface CVInstanceSection {
   enabled: boolean | null
   section_order: number | null
   heading_override: string | null
+  config_overrides: Record<string, unknown> | null
   curated: boolean
   items: CVInstanceItem[]
 }

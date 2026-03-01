@@ -167,21 +167,28 @@ type SectionState = {
   enabled: boolean
   section_order: number
   heading_override: string
+  config_overrides: Record<string, unknown> | null
   curated: boolean
 }
 
+const PUB_CROSSREF_SECTIONS = ['publications_papers', 'publications_preprints']
+
 function SortableSectionRow({
   section, instanceId,
-  onToggle, onHeadingChange, onCuratedChange,
+  onToggle, onHeadingChange, onConfigOverridesChange, onCuratedChange,
 }: {
   section: SectionState
   instanceId: number
   onToggle: () => void
   onHeadingChange: (h: string) => void
+  onConfigOverridesChange: (overrides: Record<string, unknown>) => void
   onCuratedChange: (curated: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.section_key })
+  const hasCrossrefOptions = PUB_CROSSREF_SECTIONS.includes(section.section_key)
+  const isPreprints = section.section_key === 'publications_preprints'
+  const overrides = section.config_overrides || {}
 
   return (
     <div
@@ -217,6 +224,30 @@ function SortableSectionRow({
       </div>
       {expanded && section.enabled && (
         <div className="border-t border-gray-100">
+          {hasCrossrefOptions && (
+            <div className="px-4 py-2 border-b border-gray-100 space-y-1">
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={overrides.show_crossref !== false}
+                  onChange={e => onConfigOverridesChange({ ...overrides, show_crossref: e.target.checked })}
+                />
+                Show cross-ref DOI
+              </label>
+              {isPreprints && (
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300"
+                    checked={!!overrides.hide_if_published}
+                    onChange={e => onConfigOverridesChange({ ...overrides, hide_if_published: e.target.checked })}
+                  />
+                  Hide if published version exists
+                </label>
+              )}
+            </div>
+          )}
           <ItemCurator
             instanceId={instanceId}
             sectionKey={section.section_key}
@@ -319,6 +350,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
         enabled: sec?.enabled ?? false,
         section_order: sec?.section_order ?? i,
         heading_override: sec?.heading_override || '',
+        config_overrides: sec?.config_overrides || null,
         curated: sec?.curated ?? false,
       }
     })
@@ -359,6 +391,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
           enabled: s.enabled,
           section_order: i,
           heading_override: s.heading_override || null,
+          config_overrides: s.config_overrides,
           curated: s.curated,
         })),
       })
@@ -396,6 +429,9 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
                   )}
                   onHeadingChange={h => setSections(ss =>
                     ss.map(s => s.section_key === sec.section_key ? { ...s, heading_override: h } : s)
+                  )}
+                  onConfigOverridesChange={overrides => setSections(ss =>
+                    ss.map(s => s.section_key === sec.section_key ? { ...s, config_overrides: overrides } : s)
                   )}
                   onCuratedChange={curated => setSections(ss =>
                     ss.map(s => s.section_key === sec.section_key ? { ...s, curated } : s)

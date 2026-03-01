@@ -526,6 +526,7 @@ class CVInstanceSectionOut(BaseModel):
     enabled: Optional[bool] = None
     section_order: Optional[int] = None
     heading_override: Optional[str] = None
+    config_overrides: Optional[dict] = None
     curated: bool = False
     items: list[CVInstanceItemOut] = []
 
@@ -564,6 +565,7 @@ class CVInstanceSectionUpdate(BaseModel):
     enabled: Optional[bool] = None
     section_order: Optional[int] = None
     heading_override: Optional[str] = None
+    config_overrides: Optional[dict] = None
     curated: bool = False
 
 

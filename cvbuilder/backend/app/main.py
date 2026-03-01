@@ -69,6 +69,7 @@ def _run_migrations():
         "ALTER TABLE cv_instances ADD COLUMN style_overrides TEXT",
         "ALTER TABLE publications ADD COLUMN preprint_doi VARCHAR(500)",
         "ALTER TABLE publications ADD COLUMN published_doi VARCHAR(500)",
+        "ALTER TABLE cv_instance_sections ADD COLUMN config_overrides TEXT",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
