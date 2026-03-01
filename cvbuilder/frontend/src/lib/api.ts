@@ -248,6 +248,8 @@ export interface Publication {
   conference: string | null
   pres_type: string | null
   publisher: string | null
+  preprint_doi: string | null
+  published_doi: string | null
   authors: PubAuthor[]
 }
 
@@ -344,6 +346,8 @@ export interface PublicationCandidate {
   pmid: string | null
   pub_type: string
   match_warning: string | null
+  preprint_doi: string | null
+  published_doi: string | null
 }
 
 export interface SyncCheckResponse {

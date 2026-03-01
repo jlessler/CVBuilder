@@ -103,6 +103,10 @@ def export_yaml(
                 entry["cofirsts"] = p.cofirsts
             if p.coseniors:
                 entry["coseniors"] = p.coseniors
+            if p.preprint_doi:
+                entry["preprint_doi"] = p.preprint_doi
+            if p.published_doi:
+                entry["published_doi"] = p.published_doi
             pub_data[pub_type].append(entry)
 
     combined = {"cv": cv_data, "refs": pub_data}

@@ -49,6 +49,8 @@ class RawCandidate:
     pmid: str | None = None
     pub_type: str = "papers"
     match_warning: str | None = None
+    preprint_doi: str | None = None
+    published_doi: str | None = None
 
     def _field_count(self) -> int:
         """Count non-empty fields (used to prefer richer records during dedup)."""
@@ -147,8 +149,12 @@ def _dedup_candidates(candidates: list[RawCandidate]) -> list[RawCandidate]:
     return result
 
 
-def deduplicate(candidates: list[RawCandidate], db_pubs) -> list[RawCandidate]:
-    """Remove exact DB matches; flag fuzzy matches with match_warning."""
+_PREPRINT_TYPES = {"preprints"}
+_PUBLISHED_TYPES = {"papers", "chapters", "letters"}
+
+
+def deduplicate(candidates: list[RawCandidate], db_pubs, db=None) -> list[RawCandidate]:
+    """Remove exact DB matches; flag fuzzy matches with match_warning and cross-ref DOIs."""
     db_dois: set[str] = set()
     db_titles: set[tuple] = set()
     # Keep full pub objects for fuzzy comparison
@@ -173,7 +179,7 @@ def deduplicate(candidates: list[RawCandidate], db_pubs) -> list[RawCandidate]:
         if title_key and title_key[0] and title_key in db_titles:
             continue
 
-        # Fuzzy title match → keep but warn
+        # Fuzzy title match → keep but warn + auto-populate cross-ref DOIs
         c_words = set(_normalize_title(c.title).split()) if c.title else set()
         if len(c_words) >= 4:  # skip fuzzy check for very short titles
             c_year = (c.year or "").strip()
@@ -194,9 +200,26 @@ def deduplicate(candidates: list[RawCandidate], db_pubs) -> list[RawCandidate]:
                 snippet = pub.title if len(pub.title) <= 80 else pub.title[:77] + "…"
                 year_str = f" ({pub.year})" if pub.year else ""
                 c.match_warning = f'Similar to existing: "{snippet}"{year_str}'
+
+                # Auto-populate cross-reference DOIs
+                if c.doi and pub.doi:
+                    pub_type = getattr(pub, "type", "")
+                    if c.pub_type in _PREPRINT_TYPES and pub_type in _PUBLISHED_TYPES:
+                        c.published_doi = pub.doi
+                        if db and not pub.preprint_doi:
+                            pub.preprint_doi = c.doi
+                    elif c.pub_type in _PUBLISHED_TYPES and pub_type in _PREPRINT_TYPES:
+                        c.preprint_doi = pub.doi
+                        if db and not pub.published_doi:
+                            pub.published_doi = c.doi
+
                 break
 
         result.append(c)
+
+    if db:
+        db.flush()
+
     return result
 
 
@@ -541,7 +564,7 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
 
     # Dedup within results, then against DB
     merged = _dedup_candidates(all_candidates)
-    new_pubs = deduplicate(merged, db_pubs)
+    new_pubs = deduplicate(merged, db_pubs, db=db)
 
     # Enrich ORCID-only results that still lack authors
     async with httpx.AsyncClient() as enrich_client:
@@ -566,6 +589,8 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
                 "pmid": c.pmid,
                 "pub_type": c.pub_type,
                 "match_warning": c.match_warning,
+                "preprint_doi": c.preprint_doi,
+                "published_doi": c.published_doi,
             }
             for c in new_pubs
         ],

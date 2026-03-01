@@ -271,6 +271,9 @@ class Publication(Base):
     pres_type: Mapped[Optional[str]] = mapped_column(String(100))
     # For chapters
     publisher: Mapped[Optional[str]] = mapped_column(Text)
+    # Cross-references between preprints and published versions
+    preprint_doi: Mapped[Optional[str]] = mapped_column(String(500))
+    published_doi: Mapped[Optional[str]] = mapped_column(String(500))
     authors: Mapped[list["PubAuthor"]] = relationship(
         back_populates="publication", cascade="all, delete-orphan", order_by="PubAuthor.author_order"
     )

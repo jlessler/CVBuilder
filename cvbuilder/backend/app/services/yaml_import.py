@@ -457,6 +457,8 @@ def import_refs_yaml(refs_path: str, session, user_id: int = 1) -> None:
                 conference=_clean(item.get("conference", "") or ""),
                 pres_type=item.get("pres_type", ""),
                 publisher=_clean(item.get("publisher", "") or ""),
+                preprint_doi=str(item.get("preprint_doi", "") or "") or None,
+                published_doi=str(item.get("published_doi", "") or "") or None,
                 user_id=user_id,
             )
             session.add(pub)

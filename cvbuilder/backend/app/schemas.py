@@ -417,6 +417,8 @@ class PublicationBase(BaseModel):
     conference: Optional[str] = None
     pres_type: Optional[str] = None
     publisher: Optional[str] = None
+    preprint_doi: Optional[str] = None
+    published_doi: Optional[str] = None
 
 class PublicationCreate(PublicationBase):
     authors: list[PubAuthorCreate] = []
@@ -457,6 +459,8 @@ class PublicationCandidate(BaseModel):
     pmid: Optional[str] = None
     pub_type: str = "papers"
     match_warning: Optional[str] = None
+    preprint_doi: Optional[str] = None
+    published_doi: Optional[str] = None
 
 class SyncCheckResponse(BaseModel):
     candidates: list[PublicationCandidate]

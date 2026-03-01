@@ -25,6 +25,8 @@
     {% endif %}
     {% if p.year %}({{ p.year }}){% endif %}
     {% if p.doi %}<a href="https://doi.org/{{ p.doi }}">doi:{{ p.doi }}</a>{% endif %}
+    {% if p.preprint_doi %} (preprinted as <a href="https://doi.org/{{ p.preprint_doi }}">doi:{{ p.preprint_doi }}</a>){% endif %}
+    {% if p.published_doi %} (published as <a href="https://doi.org/{{ p.published_doi }}">doi:{{ p.published_doi }}</a>){% endif %}
     {% if p.select_flag %} <span class="pub-select-flag">&#9733;</span>{% endif %}
   </div>
   {% endfor %}

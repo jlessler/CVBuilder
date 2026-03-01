@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Publication, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2 } from 'lucide-react'
 
 type AuthorRow = { author_name: string; student: boolean }
 
@@ -30,7 +30,9 @@ function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorRows: AuthorR
   return {
     type: 'papers', title: '', year: '', journal: '', volume: '', issue: '',
     pages: '', doi: '', corr: false, cofirsts: 0, coseniors: 0, select_flag: false,
-    conference: '', pres_type: '', publisher: '', authorRows: [{ author_name: '', student: false }],
+    conference: '', pres_type: '', publisher: '',
+    preprint_doi: '', published_doi: '',
+    authorRows: [{ author_name: '', student: false }],
   }
 }
 
@@ -357,6 +359,43 @@ export function Publications() {
 
       <Input label="DOI" value={form.doi || ''} onChange={e => setForm(f => ({ ...f, doi: e.target.value }))} />
 
+      {/* Cross-reference DOI — only the one that differs from the main DOI */}
+      {(form.type === 'preprints' || ['papers', 'chapters', 'letters'].includes(form.type)) && (
+        <div>
+          <Input
+            label={form.type === 'preprints' ? 'Published DOI' : 'Preprint DOI'}
+            placeholder="10.1234/..."
+            value={form.type === 'preprints' ? (form.published_doi || '') : (form.preprint_doi || '')}
+            onChange={e => setForm(f => form.type === 'preprints'
+              ? { ...f, published_doi: e.target.value }
+              : { ...f, preprint_doi: e.target.value }
+            )}
+          />
+          <button
+            type="button"
+            className="mt-1 text-xs text-primary-600 hover:text-primary-800"
+            onClick={() => {
+              const targetDoi = form.doi
+              if (!targetDoi) { alert('Enter a DOI first to search for cross-references.'); return }
+              // Search for an existing pub whose DOI cross-references this one
+              const match = data.find(p => p.doi && (
+                p.preprint_doi === targetDoi || p.published_doi === targetDoi
+              ))
+              if (match) {
+                setForm(f => form.type === 'preprints'
+                  ? { ...f, published_doi: match.doi || '' }
+                  : { ...f, preprint_doi: match.doi || '' }
+                )
+              } else {
+                alert('No matching publication found in your library.')
+              }
+            }}
+          >
+            <Search size={10} className="inline mr-1" />Find in library
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <Input label="Co-first authors" type="number" value={form.cofirsts} onChange={e => setForm(f => ({ ...f, cofirsts: parseInt(e.target.value) || 0 }))} />
         <Input label="Co-senior authors" type="number" value={form.coseniors} onChange={e => setForm(f => ({ ...f, coseniors: parseInt(e.target.value) || 0 }))} />
@@ -585,6 +624,12 @@ export function Publications() {
                               <ExternalLink size={10} /> doi:{c.doi}
                             </a>
                           )}
+                          {(c.preprint_doi || c.published_doi) && (
+                            <span className="inline-flex items-center gap-1 text-xs text-purple-600 mt-0.5">
+                              <Link2 size={10} />
+                              {c.pub_type === 'preprints' ? 'Published' : 'Preprint'} DOI: {c.published_doi || c.preprint_doi}
+                            </span>
+                          )}
                         </div>
                         <button
                           className="flex-shrink-0 text-gray-400 hover:text-gray-700 p-1"
@@ -643,6 +688,15 @@ export function Publications() {
                             label="DOI"
                             value={candidateForm.doi || ''}
                             onChange={e => setCandidateForm(f => f ? { ...f, doi: e.target.value } : f)}
+                          />
+                          <Input
+                            label={candidateForm.pub_type === 'preprints' ? 'Published DOI' : 'Preprint DOI'}
+                            value={candidateForm.pub_type === 'preprints' ? (candidateForm.published_doi || '') : (candidateForm.preprint_doi || '')}
+                            onChange={e => setCandidateForm(f => f
+                              ? f.pub_type === 'preprints'
+                                ? { ...f, published_doi: e.target.value }
+                                : { ...f, preprint_doi: e.target.value }
+                              : f)}
                           />
                           <Textarea
                             label="Authors (one per line)"

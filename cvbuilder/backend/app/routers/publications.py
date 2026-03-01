@@ -80,6 +80,8 @@ def sync_add(
             issue=candidate.issue,
             pages=candidate.pages,
             doi=candidate.doi,
+            preprint_doi=candidate.preprint_doi,
+            published_doi=candidate.published_doi,
             user_id=current_user.id,
         )
         db.add(pub)
