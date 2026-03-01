@@ -7,7 +7,7 @@ import pytest
 from app.services.fetch_pubs import (
     RawCandidate,
     _dedup_candidates,
-    _enrich_authors_via_crossref,
+    _enrich_via_crossref,
 )
 
 
@@ -94,7 +94,7 @@ class TestDedupAuthorMerge:
 
 
 # ---------------------------------------------------------------------------
-# _enrich_authors_via_crossref
+# _enrich_via_crossref
 # ---------------------------------------------------------------------------
 
 class TestEnrichAuthorsViaCrossref:
@@ -136,7 +136,7 @@ class TestEnrichAuthorsViaCrossref:
                 }
             }
         })
-        self._run(_enrich_authors_via_crossref(candidates, mock_client))
+        self._run(_enrich_via_crossref(candidates, mock_client))
         assert candidates[0].authors == ["Smith John", "Doe Jane"]
 
     def test_skips_candidates_with_existing_authors(self):
@@ -153,7 +153,7 @@ class TestEnrichAuthorsViaCrossref:
                 }
             }
         })
-        self._run(_enrich_authors_via_crossref(candidates, mock_client))
+        self._run(_enrich_via_crossref(candidates, mock_client))
         # Should NOT overwrite existing authors
         assert candidates[0].authors == ["Already Here"]
 
@@ -162,7 +162,7 @@ class TestEnrichAuthorsViaCrossref:
             RawCandidate(title="Paper", source="orcid"),
         ]
         mock_client = self._mock_client({})
-        self._run(_enrich_authors_via_crossref(candidates, mock_client))
+        self._run(_enrich_via_crossref(candidates, mock_client))
         assert candidates[0].authors == []
 
     def test_handles_crossref_failure_gracefully(self):
@@ -170,7 +170,7 @@ class TestEnrichAuthorsViaCrossref:
             RawCandidate(title="Paper", doi="10.1234/missing", source="orcid"),
         ]
         mock_client = self._mock_client({})  # 404 for this DOI
-        self._run(_enrich_authors_via_crossref(candidates, mock_client))
+        self._run(_enrich_via_crossref(candidates, mock_client))
         # Should remain empty, no exception raised
         assert candidates[0].authors == []
 
@@ -184,7 +184,7 @@ class TestEnrichAuthorsViaCrossref:
             "10.1/a": {"message": {"author": [{"family": "Alpha", "given": "A"}]}},
             "10.1/b": {"message": {"author": [{"family": "Beta", "given": "B"}]}},
         })
-        self._run(_enrich_authors_via_crossref(candidates, mock_client))
+        self._run(_enrich_via_crossref(candidates, mock_client))
         assert candidates[0].authors == ["Alpha A"]
         assert candidates[1].authors == ["Beta B"]
         assert candidates[2].authors == ["Has Author"]  # untouched

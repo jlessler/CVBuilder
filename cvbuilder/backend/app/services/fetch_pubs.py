@@ -494,11 +494,13 @@ async def _fetch_crossref(name: str, client: httpx.AsyncClient) -> tuple[list[Ra
 # Orchestrator
 # ---------------------------------------------------------------------------
 
-async def _enrich_authors_via_crossref(
+async def _enrich_via_crossref(
     candidates: list[RawCandidate], client: httpx.AsyncClient
 ) -> None:
-    """For candidates with a DOI but no authors, fetch authors from Crossref."""
-    to_enrich = [c for c in candidates if c.doi and not c.authors]
+    """For candidates with a DOI but missing metadata, fetch details from Crossref."""
+    to_enrich = [c for c in candidates if c.doi and (
+        not c.authors or not c.journal
+    )]
     if not to_enrich:
         return
 
@@ -512,15 +514,26 @@ async def _enrich_authors_via_crossref(
             if r.status_code != 200:
                 return
             item = r.json().get("message", {})
-            authors = []
-            for a in item.get("author", []):
-                family = a.get("family", "")
-                given = a.get("given", "")
-                full = f"{family} {given}".strip()
-                if full:
-                    authors.append(full)
-            if authors:
-                c.authors = authors
+            if not c.authors:
+                authors = []
+                for a in item.get("author", []):
+                    family = a.get("family", "")
+                    given = a.get("given", "")
+                    full = f"{family} {given}".strip()
+                    if full:
+                        authors.append(full)
+                if authors:
+                    c.authors = authors
+            if not c.journal:
+                c.journal = _scalar(item.get("container-title", [])) or None
+            if not c.volume:
+                c.volume = _scalar(item.get("volume")) or None
+            if not c.issue:
+                c.issue = _scalar(item.get("issue")) or None
+            if not c.pages:
+                c.pages = _scalar(item.get("page")) or None
+            if not c.year:
+                c.year = _year_from_date_parts(item)
         except Exception:
             pass  # best-effort enrichment
 
@@ -566,9 +579,13 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
     merged = _dedup_candidates(all_candidates)
     new_pubs = deduplicate(merged, db_pubs, db=db)
 
-    # Enrich ORCID-only results that still lack authors
+    # Enrich candidates (esp. ORCID-only) that lack authors, journal, etc.
     async with httpx.AsyncClient() as enrich_client:
-        await _enrich_authors_via_crossref(new_pubs, enrich_client)
+        await _enrich_via_crossref(new_pubs, enrich_client)
+
+    # Re-infer pub type after enrichment (journal may now be populated)
+    for c in new_pubs:
+        c.pub_type = _infer_pub_type(c)
 
     # Sort by year desc, then title
     new_pubs.sort(key=lambda c: (-(int(c.year) if c.year and c.year.isdigit() else 0), c.title or ""))
