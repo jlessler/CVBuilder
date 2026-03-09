@@ -91,6 +91,52 @@ def client(db_session, test_user):
 # ── Factory helpers ──────────────────────────────────────────────────────
 
 @pytest.fixture()
+def unauth_client(db_session, test_user):
+    """TestClient with DB override but NO auth override — for testing real auth flow."""
+
+    def _override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
+    # Do NOT override get_current_user — let real JWT auth run
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def user_b(db_session):
+    """Second test user for isolation tests."""
+    user = User(
+        email="userb@test.com",
+        hashed_password=get_password_hash("testpass"),
+        full_name="User B",
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture()
+def client_b(db_session, user_b):
+    """TestClient authenticated as user_b."""
+
+    def _override_get_db():
+        yield db_session
+
+    def _override_get_current_user():
+        return user_b
+
+    app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_current_user] = _override_get_current_user
+    app.dependency_overrides[get_optional_current_user] = _override_get_current_user
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
 def sample_profile(client):
     """Create a minimal profile and return the response JSON."""
     resp = client.put("/api/profile", json={

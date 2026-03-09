@@ -279,3 +279,127 @@ def test_sync_add_non_numeric_year(client):
     body = resp.json()
     assert body[0]["year"] is None
     assert body[0]["data"]["year_raw"] == "in press"
+
+
+# ── sync-check ──────────────────────────────────────────────────────────
+
+def test_sync_check_no_profile(client):
+    resp = client.get("/api/works/sync-check")
+    assert resp.status_code == 404
+    assert "Profile" in resp.json()["detail"]
+
+
+def test_sync_check_with_profile(client, sample_profile, monkeypatch):
+    import asyncio
+
+    async def mock_fetch(db, name, orcid):
+        return {"candidates": [], "searched": ["pubmed"], "errors": {}}
+
+    monkeypatch.setattr("app.routers.works.fetch_new_publications", mock_fetch)
+    resp = client.get("/api/works/sync-check")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["candidates"] == []
+    assert "pubmed" in body["searched"]
+
+
+# ── Crossref DOI reciprocal sync ────────────────────────────────────────
+
+def test_crossref_create_sets_reciprocal_published_doi(client):
+    """Creating work B with published_doi pointing to A should set A.preprint_doi."""
+    a = client.post("/api/works", json={
+        "work_type": "preprints", "title": "Preprint A",
+        "doi": "10.1/preprint", "authors": [],
+    }).json()
+    client.post("/api/works", json={
+        "work_type": "papers", "title": "Published B",
+        "doi": "10.1/published",
+        "data": {"preprint_doi": "10.1/preprint"},
+        "authors": [],
+    })
+    # A should now have published_doi pointing back
+    a_refreshed = client.get(f"/api/works/{a['id']}").json()
+    assert a_refreshed["data"].get("published_doi") == "10.1/published"
+
+
+def test_crossref_create_sets_reciprocal_preprint_doi(client):
+    """Creating work B with preprint_doi pointing to A should set A.published_doi (not preprint)."""
+    # This is the reverse direction: B says "my preprint is A"
+    a = client.post("/api/works", json={
+        "work_type": "papers", "title": "Published A",
+        "doi": "10.1/pub-a", "authors": [],
+    }).json()
+    client.post("/api/works", json={
+        "work_type": "preprints", "title": "Preprint B",
+        "doi": "10.1/pre-b",
+        "data": {"published_doi": "10.1/pub-a"},
+        "authors": [],
+    })
+    a_refreshed = client.get(f"/api/works/{a['id']}").json()
+    assert a_refreshed["data"].get("preprint_doi") == "10.1/pre-b"
+
+
+def test_crossref_update_moves_reciprocal_link(client):
+    """Updating B's published_doi from A to C should clear A's link and set C's."""
+    a = client.post("/api/works", json={
+        "work_type": "papers", "title": "A", "doi": "10.1/a", "authors": [],
+    }).json()
+    c = client.post("/api/works", json={
+        "work_type": "papers", "title": "C", "doi": "10.1/c", "authors": [],
+    }).json()
+    b = client.post("/api/works", json={
+        "work_type": "preprints", "title": "B", "doi": "10.1/b",
+        "data": {"published_doi": "10.1/a"},
+        "authors": [],
+    }).json()
+
+    # A should have preprint_doi → B
+    a_check = client.get(f"/api/works/{a['id']}").json()
+    assert a_check["data"].get("preprint_doi") == "10.1/b"
+
+    # Now update B to point to C instead
+    client.put(f"/api/works/{b['id']}", json={
+        "work_type": "preprints", "title": "B", "doi": "10.1/b",
+        "data": {"published_doi": "10.1/c"},
+    })
+
+    # A should no longer have preprint_doi
+    a_after = client.get(f"/api/works/{a['id']}").json()
+    assert a_after["data"].get("preprint_doi") is None
+
+    # C should now have preprint_doi → B
+    c_after = client.get(f"/api/works/{c['id']}").json()
+    assert c_after["data"].get("preprint_doi") == "10.1/b"
+
+
+def test_crossref_delete_clears_reciprocal(client):
+    """Deleting work B should clear A's reciprocal link."""
+    a = client.post("/api/works", json={
+        "work_type": "papers", "title": "A", "doi": "10.1/del-a", "authors": [],
+    }).json()
+    b = client.post("/api/works", json={
+        "work_type": "preprints", "title": "B", "doi": "10.1/del-b",
+        "data": {"published_doi": "10.1/del-a"},
+        "authors": [],
+    }).json()
+
+    # Verify link exists
+    a_check = client.get(f"/api/works/{a['id']}").json()
+    assert a_check["data"].get("preprint_doi") == "10.1/del-b"
+
+    # Delete B
+    client.delete(f"/api/works/{b['id']}")
+
+    # A should no longer have the link
+    a_after = client.get(f"/api/works/{a['id']}").json()
+    assert a_after["data"].get("preprint_doi") is None
+
+
+def test_crossref_no_doi_no_crash(client):
+    """Work with no doi but with published_doi in data should not crash."""
+    resp = client.post("/api/works", json={
+        "work_type": "preprints", "title": "No DOI",
+        "data": {"published_doi": "10.1/somewhere"},
+        "authors": [],
+    })
+    assert resp.status_code == 200

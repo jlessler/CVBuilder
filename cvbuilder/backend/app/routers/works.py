@@ -28,10 +28,10 @@ def _sync_crossref_links(work: models.Work, db: Session,
                 user_id=user_id, doi=old_published_doi
             ).first()
             if old_match:
-                od = old_match.data or {}
+                od = dict(old_match.data or {})
                 if od.get("preprint_doi") == work_doi:
                     od.pop("preprint_doi", None)
-                    old_match.data = dict(od)
+                    old_match.data = od
         if published_doi and work_doi:
             match = db.query(models.Work).filter_by(
                 user_id=user_id, doi=published_doi
@@ -47,10 +47,10 @@ def _sync_crossref_links(work: models.Work, db: Session,
                 user_id=user_id, doi=old_preprint_doi
             ).first()
             if old_match:
-                od = old_match.data or {}
+                od = dict(old_match.data or {})
                 if od.get("published_doi") == work_doi:
                     od.pop("published_doi", None)
-                    old_match.data = dict(od)
+                    old_match.data = od
         if preprint_doi and work_doi:
             match = db.query(models.Work).filter_by(
                 user_id=user_id, doi=preprint_doi
@@ -256,19 +256,19 @@ def delete_work(
             user_id=current_user.id, doi=data["published_doi"]
         ).first()
         if match:
-            md = match.data or {}
+            md = dict(match.data or {})
             if md.get("preprint_doi") == work.doi:
                 md.pop("preprint_doi", None)
-                match.data = dict(md)
+                match.data = md
     if data.get("preprint_doi") and work.doi:
         match = db.query(models.Work).filter_by(
             user_id=current_user.id, doi=data["preprint_doi"]
         ).first()
         if match:
-            md = match.data or {}
+            md = dict(match.data or {})
             if md.get("published_doi") == work.doi:
                 md.pop("published_doi", None)
-                match.data = dict(md)
+                match.data = md
     db.delete(work)
     db.commit()
     return {"ok": True}
