@@ -166,7 +166,7 @@ def deduplicate(candidates: list[RawCandidate], db_pubs, db=None) -> list[RawCan
             db_dois.add(nd)
         if pub.title:
             nt = _normalize_title(pub.title)
-            yr = (pub.year or "").strip()
+            yr = str(pub.year) if pub.year else ""
             if nt:
                 db_titles.add((nt, yr))
 
@@ -190,7 +190,7 @@ def deduplicate(candidates: list[RawCandidate], db_pubs, db=None) -> list[RawCan
                 if sim < 0.75:
                     continue
                 # If both years are known, allow up to 2-year gap (preprint→published)
-                pub_year = (pub.year or "").strip()
+                pub_year = str(pub.year) if pub.year else ""
                 if c_year and pub_year:
                     try:
                         if abs(int(c_year) - int(pub_year)) > 2:
@@ -199,19 +199,20 @@ def deduplicate(candidates: list[RawCandidate], db_pubs, db=None) -> list[RawCan
                         pass
                 snippet = pub.title if len(pub.title) <= 80 else pub.title[:77] + "…"
                 year_str = f" ({pub.year})" if pub.year else ""
+
                 c.match_warning = f'Similar to existing: "{snippet}"{year_str}'
 
                 # Auto-populate cross-reference DOIs
                 if c.doi and pub.doi:
-                    pub_type = getattr(pub, "type", "")
+                    pub_type = getattr(pub, "work_type", "") or getattr(pub, "type", "")
                     if c.pub_type in _PREPRINT_TYPES and pub_type in _PUBLISHED_TYPES:
                         c.published_doi = pub.doi
                         if db and not pub.preprint_doi:
-                            pub.preprint_doi = c.doi
+                            pub.data = {**(pub.data or {}), "preprint_doi": c.doi}
                     elif c.pub_type in _PUBLISHED_TYPES and pub_type in _PREPRINT_TYPES:
                         c.preprint_doi = pub.doi
                         if db and not pub.published_doi:
-                            pub.published_doi = c.doi
+                            pub.data = {**(pub.data or {}), "published_doi": c.doi}
 
                 break
 
@@ -545,7 +546,7 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
     Fan out to all 4 sources, dedup against DB, return structured result.
     Returns: {candidates: [...], searched: [...], errors: {...}}
     """
-    db_pubs = db.query(models.Publication).all()
+    db_pubs = db.query(models.Work).all()
 
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(

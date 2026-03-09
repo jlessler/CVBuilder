@@ -197,50 +197,6 @@ def delete_panel(item_id: int, db: Session = Depends(get_db), current_user: mode
 
 
 # ---------------------------------------------------------------------------
-# Patents
-# ---------------------------------------------------------------------------
-
-@router.get("/patents", response_model=list[schemas.PatentOut])
-def list_patents(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _list(models.Patent, db, current_user.id)
-
-@router.post("/patents", response_model=schemas.PatentOut)
-def create_patent(data: schemas.PatentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    patent = models.Patent(
-        name=data.name, number=data.number,
-        status=data.status, sort_order=data.sort_order,
-        user_id=current_user.id,
-    )
-    db.add(patent)
-    db.flush()
-    for i, a in enumerate(data.authors):
-        db.add(models.PatentAuthor(patent_id=patent.id, author_name=a.author_name, author_order=a.author_order or i))
-    db.commit()
-    db.refresh(patent)
-    return patent
-
-@router.put("/patents/{item_id}", response_model=schemas.PatentOut)
-def update_patent(item_id: int, data: schemas.PatentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    patent = db.query(models.Patent).filter_by(id=item_id, user_id=current_user.id).first()
-    if not patent:
-        raise HTTPException(status_code=404, detail="Patent not found")
-    patent.name = data.name
-    patent.number = data.number
-    patent.status = data.status
-    patent.sort_order = data.sort_order
-    db.query(models.PatentAuthor).filter(models.PatentAuthor.patent_id == item_id).delete()
-    for i, a in enumerate(data.authors):
-        db.add(models.PatentAuthor(patent_id=item_id, author_name=a.author_name, author_order=a.author_order or i))
-    db.commit()
-    db.refresh(patent)
-    return patent
-
-@router.delete("/patents/{item_id}")
-def delete_patent(item_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _delete(models.Patent, item_id, db, current_user.id)
-
-
-# ---------------------------------------------------------------------------
 # Symposia
 # ---------------------------------------------------------------------------
 
@@ -367,27 +323,6 @@ def update_trainee(item_id: int, data: schemas.TraineeCreate, db: Session = Depe
 @router.delete("/trainees/{item_id}")
 def delete_trainee(item_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     return _delete(models.Trainee, item_id, db, current_user.id)
-
-
-# ---------------------------------------------------------------------------
-# Seminars
-# ---------------------------------------------------------------------------
-
-@router.get("/seminars", response_model=list[schemas.SeminarOut])
-def list_seminars(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _list(models.Seminar, db, current_user.id)
-
-@router.post("/seminars", response_model=schemas.SeminarOut)
-def create_seminar(data: schemas.SeminarCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _create(models.Seminar, data, db, current_user.id)
-
-@router.put("/seminars/{item_id}", response_model=schemas.SeminarOut)
-def update_seminar(item_id: int, data: schemas.SeminarCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _update(models.Seminar, item_id, data, db, current_user.id)
-
-@router.delete("/seminars/{item_id}")
-def delete_seminar(item_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return _delete(models.Seminar, item_id, db, current_user.id)
 
 
 # ---------------------------------------------------------------------------

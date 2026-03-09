@@ -24,20 +24,17 @@ def _misc_date_key(e) -> int:
 
 # Maps SQLAlchemy model class name → callable that returns a sortable integer
 SECTION_SORT_KEY = {
-    "Publication": lambda p: _parse_year(p.year),
     "Education":   lambda e: e.year or 0,
     "Experience":  lambda e: _parse_year(e.years_start),
     "Consulting":  lambda e: _parse_year(e.years),
     "Membership":  lambda e: _parse_year(e.years),
     "Panel":       lambda e: _parse_year(e.date),
-    "Patent":      lambda e: e.id,          # no date → insertion order
     "Symposium":   lambda e: _parse_year(e.date),
     "Class":       lambda e: e.year or 0,
     "Grant":       lambda e: _parse_year(e.years_start),
     "Award":       lambda e: _parse_year(e.year or e.date),
     "Press":       lambda e: _parse_year(e.date),
     "Trainee":     lambda e: _parse_year(e.years_start),
-    "Seminar":     lambda e: _parse_year(e.date),
     "Committee":   lambda e: _parse_year(e.dates),
     "MiscSection": lambda e: _misc_date_key(e),
     "Work":        lambda w: (w.year or 0, w.month or 0, w.day or 0),

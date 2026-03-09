@@ -159,37 +159,6 @@ class PanelOut(PanelBase):
 
 
 # ---------------------------------------------------------------------------
-# Patent
-# ---------------------------------------------------------------------------
-
-class PatentAuthorBase(BaseModel):
-    author_name: str
-    author_order: int = 0
-
-class PatentAuthorCreate(PatentAuthorBase):
-    pass
-
-class PatentAuthorOut(PatentAuthorBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-
-
-class PatentBase(BaseModel):
-    name: Optional[str] = None
-    number: Optional[str] = None
-    status: Optional[str] = None
-    sort_order: int = 0
-
-class PatentCreate(PatentBase):
-    authors: list[PatentAuthorCreate] = []
-
-class PatentOut(PatentBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    authors: list[PatentAuthorOut] = []
-
-
-# ---------------------------------------------------------------------------
 # Symposium
 # ---------------------------------------------------------------------------
 
@@ -329,26 +298,6 @@ class TraineeOut(TraineeBase):
 
 
 # ---------------------------------------------------------------------------
-# Seminar
-# ---------------------------------------------------------------------------
-
-class SeminarBase(BaseModel):
-    title: Optional[str] = None
-    org: Optional[str] = None
-    date: Optional[str] = None
-    location: Optional[str] = None
-    event: Optional[str] = None
-    sort_order: int = 0
-
-class SeminarCreate(SeminarBase):
-    pass
-
-class SeminarOut(SeminarBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-
-
-# ---------------------------------------------------------------------------
 # Committee
 # ---------------------------------------------------------------------------
 
@@ -428,50 +377,6 @@ class WorkOut(WorkBase):
 # ---------------------------------------------------------------------------
 # Publications
 # ---------------------------------------------------------------------------
-
-class PubAuthorBase(BaseModel):
-    author_name: str
-    author_order: int = 0
-    student: bool = False
-
-class PubAuthorCreate(PubAuthorBase):
-    pass
-
-class PubAuthorOut(PubAuthorBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-
-
-class PublicationBase(BaseModel):
-    type: str
-    title: Optional[str] = None
-    year: Optional[str] = None
-    journal: Optional[str] = None
-    volume: Optional[str] = None
-    issue: Optional[str] = None
-    pages: Optional[str] = None
-    doi: Optional[str] = None
-    corr: bool = False
-    cofirsts: int = 0
-    coseniors: int = 0
-    select_flag: bool = False
-    conference: Optional[str] = None
-    pres_type: Optional[str] = None
-    publisher: Optional[str] = None
-    preprint_doi: Optional[str] = None
-    published_doi: Optional[str] = None
-
-class PublicationCreate(PublicationBase):
-    authors: list[PubAuthorCreate] = []
-
-class PublicationUpdate(PublicationBase):
-    authors: Optional[list[PubAuthorCreate]] = None
-
-class PublicationOut(PublicationBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    authors: list[PubAuthorOut] = []
-
 
 class DOILookupRequest(BaseModel):
     doi: str
