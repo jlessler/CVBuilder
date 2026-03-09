@@ -385,6 +385,47 @@ class MiscSectionOut(MiscSectionBase):
 
 
 # ---------------------------------------------------------------------------
+# Works (unified scholarly outputs)
+# ---------------------------------------------------------------------------
+
+class WorkAuthorBase(BaseModel):
+    author_name: str
+    author_order: int = 0
+    student: bool = False
+    corresponding: bool = False
+    cofirst: bool = False
+    cosenior: bool = False
+
+class WorkAuthorCreate(WorkAuthorBase):
+    pass
+
+class WorkAuthorOut(WorkAuthorBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
+class WorkBase(BaseModel):
+    work_type: str
+    title: Optional[str] = None
+    year: Optional[int] = None
+    month: Optional[int] = None
+    day: Optional[int] = None
+    doi: Optional[str] = None
+    data: Optional[dict[str, Any]] = None
+
+class WorkCreate(WorkBase):
+    authors: list[WorkAuthorCreate] = []
+
+class WorkUpdate(WorkBase):
+    authors: Optional[list[WorkAuthorCreate]] = None
+
+class WorkOut(WorkBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    authors: list[WorkAuthorOut] = []
+
+
+# ---------------------------------------------------------------------------
 # Publications
 # ---------------------------------------------------------------------------
 

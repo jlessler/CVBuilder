@@ -247,6 +247,52 @@ class MiscSection(Base):
 
 
 # ---------------------------------------------------------------------------
+# Works tables (unified scholarly outputs)
+# ---------------------------------------------------------------------------
+
+class Work(Base):
+    """Unified model for all authored scholarly outputs."""
+    __tablename__ = "works"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    work_type: Mapped[str] = mapped_column(String(50))  # papers|preprints|chapters|letters|scimeetings|editorials|patents|software|dissertation|seminars
+    title: Mapped[Optional[str]] = mapped_column(Text)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+    month: Mapped[Optional[int]] = mapped_column(Integer)
+    day: Mapped[Optional[int]] = mapped_column(Integer)
+    doi: Mapped[Optional[str]] = mapped_column(String(500))
+    data: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    authors: Mapped[list["WorkAuthor"]] = relationship(
+        back_populates="work", cascade="all, delete-orphan", order_by="WorkAuthor.author_order"
+    )
+
+    def __getattr__(self, name):
+        if name.startswith('_') or name in (
+            'id', 'user_id', 'work_type', 'title', 'year', 'month', 'day',
+            'doi', 'data', 'authors',
+            'metadata', 'registry', '__clause_element__',
+        ):
+            raise AttributeError(name)
+        data = object.__getattribute__(self, 'data')
+        if data and name in data:
+            return data[name]
+        return None
+
+
+class WorkAuthor(Base):
+    __tablename__ = "work_authors"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    work_id: Mapped[int] = mapped_column(ForeignKey("works.id"))
+    author_name: Mapped[str] = mapped_column(String(300))
+    author_order: Mapped[int] = mapped_column(Integer, default=0)
+    student: Mapped[bool] = mapped_column(Boolean, default=False)
+    corresponding: Mapped[bool] = mapped_column(Boolean, default=False)
+    cofirst: Mapped[bool] = mapped_column(Boolean, default=False)
+    cosenior: Mapped[bool] = mapped_column(Boolean, default=False)
+    work: Mapped["Work"] = relationship(back_populates="authors")
+
+
+# ---------------------------------------------------------------------------
 # Publications tables
 # ---------------------------------------------------------------------------
 

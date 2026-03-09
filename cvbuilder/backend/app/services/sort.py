@@ -40,6 +40,7 @@ SECTION_SORT_KEY = {
     "Seminar":     lambda e: _parse_year(e.date),
     "Committee":   lambda e: _parse_year(e.dates),
     "MiscSection": lambda e: _misc_date_key(e),
+    "Work":        lambda w: (w.year or 0, w.month or 0, w.day or 0),
 }
 
 
