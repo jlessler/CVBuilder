@@ -375,6 +375,28 @@ class WorkOut(WorkBase):
 
 
 # ---------------------------------------------------------------------------
+# CVItem (generic CV section items)
+# ---------------------------------------------------------------------------
+
+class CVItemBase(BaseModel):
+    section: str
+    data: dict[str, Any] = {}
+    sort_order: int = 0
+
+class CVItemCreate(CVItemBase):
+    pass
+
+class CVItemUpdate(BaseModel):
+    data: Optional[dict[str, Any]] = None
+    sort_order: Optional[int] = None
+
+class CVItemOut(CVItemBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    sort_date: Optional[int] = None
+
+
+# ---------------------------------------------------------------------------
 # Publications
 # ---------------------------------------------------------------------------
 

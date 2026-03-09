@@ -279,6 +279,28 @@ class Work(Base):
         return None
 
 
+class CVItem(Base):
+    """Generic CV section item — stores all non-Work section data in a JSON blob."""
+    __tablename__ = "cv_items"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    section: Mapped[str] = mapped_column(String(100), index=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    sort_date: Mapped[Optional[int]] = mapped_column(Integer)
+
+    def __getattr__(self, name):
+        if name.startswith('_') or name in (
+            'id', 'user_id', 'section', 'data', 'sort_order', 'sort_date',
+            'metadata', 'registry', '__clause_element__',
+        ):
+            raise AttributeError(name)
+        data = object.__getattribute__(self, 'data')
+        if data and name in data:
+            return data[name]
+        return None
+
+
 class WorkAuthor(Base):
     __tablename__ = "work_authors"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

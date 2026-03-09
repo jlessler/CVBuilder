@@ -38,7 +38,54 @@ SECTION_SORT_KEY = {
     "Committee":   lambda e: _parse_year(e.dates),
     "MiscSection": lambda e: _misc_date_key(e),
     "Work":        lambda w: (w.year or 0, w.month or 0, w.day or 0),
+    "CVItem":      lambda e: e.sort_date or 0,
 }
+
+
+# Maps CVItem section → data field(s) used to compute sort_date
+SORT_DATE_FIELD_MAP: dict[str, list[str]] = {
+    "education":          ["year"],
+    "experience":         ["years_start"],
+    "consulting":         ["years"],
+    "memberships":        ["years"],
+    "panels_advisory":    ["date"],
+    "panels_grantreview": ["date"],
+    "symposia":           ["date"],
+    "classes":            ["year"],
+    "grants":             ["years_start"],
+    "awards":             ["year", "date"],
+    "press":              ["date"],
+    "trainees_advisees":  ["years_start"],
+    "trainees_postdocs":  ["years_start"],
+    "committees":         ["dates"],
+    "chairedsessions":    ["date"],
+}
+
+
+def compute_sort_date(section: str, data: dict) -> int | None:
+    """Extract a sortable year integer from a CVItem's data dict."""
+    fields = SORT_DATE_FIELD_MAP.get(section)
+    if fields:
+        for field in fields:
+            val = data.get(field)
+            if val:
+                parsed = _parse_year(val)
+                if parsed:
+                    return parsed
+        return None
+    # Fallback: scan common date-like fields (for misc sections)
+    return _misc_date_key_from_dict(data) or None
+
+
+def _misc_date_key_from_dict(data: dict) -> int:
+    """Extract a sortable year from a dict by scanning common date fields."""
+    for field in ("date", "year", "years", "dates", "term"):
+        val = data.get(field)
+        if val:
+            parsed = _parse_year(val)
+            if parsed:
+                return parsed
+    return 0
 
 
 def sort_items(items: list, model_class, reverse: bool = True) -> list:
