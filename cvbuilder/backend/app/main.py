@@ -43,6 +43,7 @@ def startup():
     db = SessionLocal()
     try:
         _ensure_default_user(db)
+        _migrate_works_data(db)
         _seed_templates(db, user_id=1)
     finally:
         db.close()
@@ -144,6 +145,258 @@ def _ensure_default_user(db):
         except Exception:
             pass
     db.commit()
+
+
+def _migrate_works_data(db):
+    """One-time migration: copy publications, patents, seminars, and
+    software/dissertation MiscSections into the unified works table.
+    Idempotent — skips if works table already has rows."""
+    import re, json, logging
+    from sqlalchemy import text
+
+    log = logging.getLogger("cvbuilder.migrate")
+
+    # Idempotency guard
+    if db.query(models.Work).count() > 0:
+        return
+
+    # Check if any source data exists
+    pub_count = db.query(models.Publication).count()
+    patent_count = db.query(models.Patent).count()
+    seminar_count = db.query(models.Seminar).count()
+    misc_sw = db.query(models.MiscSection).filter_by(section="software").count()
+    misc_dis = db.query(models.MiscSection).filter_by(section="dissertation").count()
+    total_source = pub_count + patent_count + seminar_count + misc_sw + misc_dis
+    if total_source == 0:
+        return
+
+    log.info("Migrating %d source rows to works table", total_source)
+
+    def _parse_year_int(val):
+        """Extract 4-digit year from string/int, return (year_int, raw_or_None)."""
+        if val is None:
+            return None, None
+        if isinstance(val, int):
+            return val, None
+        s = str(val).strip()
+        m = re.search(r'\d{4}', s)
+        if m:
+            year_int = int(m.group())
+            # If the string is just the year, no need for year_raw
+            if s == m.group():
+                return year_int, None
+            return year_int, s
+        # Non-numeric (e.g., "in press")
+        return None, s if s else None
+
+    def _parse_month(date_str):
+        """Try to extract month from a date string."""
+        if not date_str:
+            return None
+        months = {
+            'january': 1, 'february': 2, 'march': 3, 'april': 4,
+            'may': 5, 'june': 6, 'july': 7, 'august': 8,
+            'september': 9, 'october': 10, 'november': 11, 'december': 12,
+            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+            'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        }
+        lower = str(date_str).lower()
+        for name, num in months.items():
+            if name in lower:
+                return num
+        return None
+
+    # Build ID remapping: (section_key, old_id) → new_work_id
+    id_remap = {}
+
+    # --- 1. Publications ---
+    for pub in db.query(models.Publication).all():
+        year_int, year_raw = _parse_year_int(pub.year)
+        data = {}
+        if pub.journal:
+            data["journal"] = pub.journal
+        if pub.volume:
+            data["volume"] = pub.volume
+        if pub.issue:
+            data["issue"] = pub.issue
+        if pub.pages:
+            data["pages"] = pub.pages
+        if pub.select_flag:
+            data["select_flag"] = True
+        if pub.conference:
+            data["conference"] = pub.conference
+        if pub.pres_type:
+            data["pres_type"] = pub.pres_type
+        if pub.publisher:
+            data["publisher"] = pub.publisher
+        if pub.preprint_doi:
+            data["preprint_doi"] = pub.preprint_doi
+        if pub.published_doi:
+            data["published_doi"] = pub.published_doi
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=pub.user_id,
+            work_type=pub.type,
+            title=pub.title,
+            year=year_int,
+            doi=pub.doi,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+
+        # Copy authors with role flag conversion
+        authors = sorted(pub.authors, key=lambda a: a.author_order)
+        for a in authors:
+            wa = models.WorkAuthor(
+                work_id=work.id,
+                author_name=a.author_name,
+                author_order=a.author_order,
+                student=a.student,
+            )
+            db.add(wa)
+        db.flush()
+
+        # Convert pub-level role markers to per-author flags
+        if authors:
+            work_authors = sorted(
+                db.query(models.WorkAuthor).filter_by(work_id=work.id).all(),
+                key=lambda a: a.author_order,
+            )
+            if pub.corr and work_authors:
+                work_authors[0].corresponding = True
+            if pub.cofirsts and pub.cofirsts > 0:
+                for wa in work_authors[:pub.cofirsts]:
+                    wa.cofirst = True
+            if pub.coseniors and pub.coseniors > 0:
+                for wa in work_authors[-pub.coseniors:]:
+                    wa.cosenior = True
+
+        # Map section keys for publications
+        section_key = f"publications_{pub.type}"
+        id_remap[(section_key, pub.id)] = work.id
+
+    # --- 2. Patents ---
+    for patent in db.query(models.Patent).all():
+        data = {}
+        if patent.number:
+            data["identifier"] = patent.number
+        if patent.status:
+            data["status"] = patent.status
+
+        work = models.Work(
+            user_id=patent.user_id,
+            work_type="patents",
+            title=patent.name,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        for a in (patent.authors or []):
+            db.add(models.WorkAuthor(
+                work_id=work.id,
+                author_name=a.author_name,
+                author_order=a.author_order,
+            ))
+        id_remap[("patents", patent.id)] = work.id
+
+    # --- 3. Seminars ---
+    for sem in db.query(models.Seminar).all():
+        year_int, year_raw = _parse_year_int(sem.date)
+        month_int = _parse_month(sem.date)
+        data = {}
+        if sem.org:
+            data["institution"] = sem.org
+        if sem.event:
+            data["conference"] = sem.event
+        if sem.location:
+            data["location"] = sem.location
+        if year_raw:
+            data["date_raw"] = year_raw
+
+        work = models.Work(
+            user_id=sem.user_id,
+            work_type="seminars",
+            title=sem.title,
+            year=year_int,
+            month=month_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        id_remap[("seminars", sem.id)] = work.id
+
+    # --- 4. Software (MiscSection) ---
+    for ms in db.query(models.MiscSection).filter_by(section="software").all():
+        ms_data = ms.data or {}
+        year_int, year_raw = _parse_year_int(ms_data.get("year"))
+        data = {}
+        if ms_data.get("publisher"):
+            data["publisher"] = ms_data["publisher"]
+        if ms_data.get("url"):
+            data["url"] = ms_data["url"]
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=ms.user_id,
+            work_type="software",
+            title=ms_data.get("title"),
+            year=year_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+
+        # Parse comma-separated authors string → WorkAuthor rows
+        authors_str = ms_data.get("authors", "")
+        if authors_str:
+            for i, name in enumerate(a.strip() for a in authors_str.split(",") if a.strip()):
+                db.add(models.WorkAuthor(
+                    work_id=work.id,
+                    author_name=name,
+                    author_order=i,
+                ))
+        id_remap[("software", ms.id)] = work.id
+
+    # --- 5. Dissertation (MiscSection) ---
+    for ms in db.query(models.MiscSection).filter_by(section="dissertation").all():
+        ms_data = ms.data or {}
+        year_int, year_raw = _parse_year_int(ms_data.get("year"))
+        data = {}
+        if ms_data.get("institution"):
+            data["institution"] = ms_data["institution"]
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=ms.user_id,
+            work_type="dissertation",
+            title=ms_data.get("title"),
+            year=year_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        id_remap[("dissertation", ms.id)] = work.id
+
+    db.flush()
+
+    # --- 6. Remap CVInstanceItem IDs ---
+    if id_remap:
+        all_items = db.query(models.CVInstanceItem).all()
+        for item in all_items:
+            section = item.section
+            section_key = section.section_key
+            new_id = id_remap.get((section_key, item.item_id))
+            if new_id is not None:
+                item.item_id = new_id
+
+    db.commit()
+    log.info("Works migration complete: %d works created, %d IDs remapped",
+             db.query(models.Work).count(), len(id_remap))
 
 
 # ---------------------------------------------------------------------------
