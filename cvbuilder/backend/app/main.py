@@ -51,6 +51,7 @@ def startup():
 
 
 # Tables that need a user_id column added via migration
+# NOTE: Old typed tables kept for migration compatibility (_migrate_works_data, _migrate_cv_items_data)
 _USER_ID_TABLES = [
     "profile", "education", "experience", "consulting", "memberships",
     "panels", "patents", "symposia", "classes", "grants", "awards",

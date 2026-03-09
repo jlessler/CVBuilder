@@ -10,33 +10,8 @@ def _parse_year(v: Any) -> int:
     return int(m.group()) if m else 0
 
 
-def _misc_date_key(e) -> int:
-    """Extract a sortable year from a MiscSection's data JSON blob."""
-    data = getattr(e, "data", None) or {}
-    for field in ("date", "year", "years", "dates", "term"):
-        val = data.get(field)
-        if val:
-            parsed = _parse_year(val)
-            if parsed:
-                return parsed
-    return 0
-
-
 # Maps SQLAlchemy model class name → callable that returns a sortable integer
 SECTION_SORT_KEY = {
-    "Education":   lambda e: e.year or 0,
-    "Experience":  lambda e: _parse_year(e.years_start),
-    "Consulting":  lambda e: _parse_year(e.years),
-    "Membership":  lambda e: _parse_year(e.years),
-    "Panel":       lambda e: _parse_year(e.date),
-    "Symposium":   lambda e: _parse_year(e.date),
-    "Class":       lambda e: e.year or 0,
-    "Grant":       lambda e: _parse_year(e.years_start),
-    "Award":       lambda e: _parse_year(e.year or e.date),
-    "Press":       lambda e: _parse_year(e.date),
-    "Trainee":     lambda e: _parse_year(e.years_start),
-    "Committee":   lambda e: _parse_year(e.dates),
-    "MiscSection": lambda e: _misc_date_key(e),
     "Work":        lambda w: (w.year or 0, w.month or 0, w.day or 0),
     "CVItem":      lambda e: e.sort_date or 0,
 }

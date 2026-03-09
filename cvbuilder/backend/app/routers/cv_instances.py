@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user, get_current_user_from_token_qs, get_optional_current_user
-from app.services.sort import sort_items
 
 router = APIRouter(prefix="/api/cv-instances", tags=["cv-instances"])
 
