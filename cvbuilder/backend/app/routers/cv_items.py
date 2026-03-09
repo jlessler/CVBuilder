@@ -19,7 +19,11 @@ def list_items(
     items = (
         db.query(models.CVItem)
         .filter_by(user_id=current_user.id, section=section)
-        .order_by(models.CVItem.sort_order, models.CVItem.id)
+        .order_by(
+            models.CVItem.sort_date.desc().nullslast(),
+            models.CVItem.sort_order,
+            models.CVItem.id,
+        )
         .all()
     )
     return items

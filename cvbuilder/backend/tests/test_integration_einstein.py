@@ -40,56 +40,56 @@ class TestImportCV:
 
     def test_education(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/education").json()
+        items = client.get("/api/cv/education").json()
         assert len(items) == 2
-        degrees = {i["degree"] for i in items}
+        degrees = {i["data"]["degree"] for i in items}
         assert degrees == {"PhD", "Diploma"}
-        phd = next(i for i in items if i["degree"] == "PhD")
-        assert phd["year"] == 1905
-        assert phd["school"] == "University of Zurich"
+        phd = next(i for i in items if i["data"]["degree"] == "PhD")
+        assert phd["data"]["year"] == 1905
+        assert phd["data"]["school"] == "University of Zurich"
 
     # -- Experience -------------------------------------------------------
 
     def test_experience(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/experience").json()
+        items = client.get("/api/cv/experience").json()
         assert len(items) == 6
-        ias = next(i for i in items if "Institute for Advanced Study" in i["employer"])
-        assert ias["years_start"] == "1933"
-        assert ias["years_end"] == "1955"
-        patent_office = next(i for i in items if "Patent Office" in i["employer"])
-        assert patent_office["title"] == "Technical Expert, Class III"
+        ias = next(i for i in items if "Institute for Advanced Study" in i["data"]["employer"])
+        assert ias["data"]["years_start"] == "1933"
+        assert ias["data"]["years_end"] == "1955"
+        patent_office = next(i for i in items if "Patent Office" in i["data"]["employer"])
+        assert patent_office["data"]["title"] == "Technical Expert, Class III"
 
     # -- Awards -----------------------------------------------------------
 
     def test_awards(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/awards").json()
+        items = client.get("/api/cv/awards").json()
         assert len(items) == 5
-        names = {i["name"] for i in items}
+        names = {i["data"]["name"] for i in items}
         assert "Nobel Prize in Physics" in names
         assert "Copley Medal" in names
-        nobel = next(i for i in items if "Nobel" in i["name"])
-        assert nobel["org"] == "Royal Swedish Academy of Sciences"
+        nobel = next(i for i in items if "Nobel" in i["data"]["name"])
+        assert nobel["data"]["org"] == "Royal Swedish Academy of Sciences"
 
     # -- Memberships ------------------------------------------------------
 
     def test_memberships(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/memberships").json()
+        items = client.get("/api/cv/memberships").json()
         assert len(items) == 4
-        orgs = {i["org"] for i in items}
+        orgs = {i["data"]["org"] for i in items}
         assert "Royal Society (Foreign Member)" in orgs
 
     # -- Panels (advisory + grant review) ---------------------------------
 
     def test_panels(self, client, db_session):
         self._import(db_session)
-        advisory = client.get("/api/panels?panel_type=advisory").json()
-        grant_rev = client.get("/api/panels?panel_type=grant_review").json()
+        advisory = client.get("/api/cv/panels_advisory").json()
+        grant_rev = client.get("/api/cv/panels_grantreview").json()
         assert len(advisory) == 2
         assert len(grant_rev) == 1
-        assert any("Emergency Committee" in p["panel"] for p in advisory)
+        assert any("Emergency Committee" in p["data"]["panel"] for p in advisory)
 
     # -- Patents ----------------------------------------------------------
 
@@ -109,47 +109,47 @@ class TestImportCV:
 
     def test_symposia(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/symposia").json()
+        items = client.get("/api/cv/symposia").json()
         assert len(items) == 2
-        assert any("Solvay" in i["meeting"] for i in items)
+        assert any("Solvay" in i["data"]["meeting"] for i in items)
 
     # -- Teaching ---------------------------------------------------------
 
     def test_classes(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/classes").json()
+        items = client.get("/api/cv/classes").json()
         assert len(items) == 3
-        stat_mech = next(i for i in items if "Statistical" in (i["class_name"] or ""))
-        assert stat_mech["year"] == 1936
-        assert stat_mech["school"] == "Institute for Advanced Study"
+        stat_mech = next(i for i in items if "Statistical" in (i["data"].get("class_name") or ""))
+        assert stat_mech["data"]["year"] == 1936
+        assert stat_mech["data"]["school"] == "Institute for Advanced Study"
 
     # -- Grants -----------------------------------------------------------
 
     def test_grants(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/grants").json()
+        items = client.get("/api/cv/grants").json()
         assert len(items) == 3  # 1 active + 2 completed
-        statuses = {i["status"] for i in items}
+        statuses = {i["data"]["status"] for i in items}
         assert statuses == {"active", "completed"}
-        uft = next(i for i in items if "Unified" in (i["title"] or "") and i["status"] == "completed")
-        assert uft["agency"] == "Institute for Advanced Study"
-        assert uft["years_start"] == "1933"
-        active = [i for i in items if i["status"] == "active"]
+        uft = next(i for i in items if "Unified" in (i["data"].get("title") or "") and i["data"]["status"] == "completed")
+        assert uft["data"]["agency"] == "Institute for Advanced Study"
+        assert uft["data"]["years_start"] == "1933"
+        active = [i for i in items if i["data"]["status"] == "active"]
         assert len(active) == 1
-        assert "Rockefeller" in active[0]["agency"]
+        assert "Rockefeller" in active[0]["data"]["agency"]
 
     # -- Trainees ---------------------------------------------------------
 
     def test_trainees(self, client, db_session):
         self._import(db_session)
-        advisees = client.get("/api/trainees?trainee_type=advisee").json()
-        postdocs = client.get("/api/trainees?trainee_type=postdoc").json()
+        advisees = client.get("/api/cv/trainees_advisees").json()
+        postdocs = client.get("/api/cv/trainees_postdocs").json()
         assert len(advisees) == 2
         assert len(postdocs) == 3
-        rosen = next(t for t in advisees if "Rosen" in t["name"])
-        assert "EPR" in rosen["thesis"]
-        infeld = next(t for t in postdocs if "Infeld" in t["name"])
-        assert "Warsaw" in infeld["current_position"]
+        rosen = next(t for t in advisees if "Rosen" in t["data"]["name"])
+        assert "EPR" in rosen["data"]["thesis"]
+        infeld = next(t for t in postdocs if "Infeld" in t["data"]["name"])
+        assert "Warsaw" in infeld["data"]["current_position"]
 
     # -- Seminars ---------------------------------------------------------
 
@@ -163,35 +163,33 @@ class TestImportCV:
 
     def test_committees(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/committees").json()
+        items = client.get("/api/cv/committees").json()
         assert len(items) == 2
-        assert any("League of Nations" in (i["org"] or "") for i in items)
+        assert any("League of Nations" in (i["data"].get("org") or "") for i in items)
 
     # -- Misc sections ----------------------------------------------------
 
     def test_editorial(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/editorial").json()
-        # editor(1) + assocedit(2) + otheredit(2) = 5
-        assert len(items) == 5
-        journals = [i["data"]["journal"] for i in items]
-        assert "Annalen der Physik" in journals
+        items = client.get("/api/cv/editor").json()
+        assert len(items) == 1
+        assert items[0]["data"]["journal"] == "Annalen der Physik"
 
     def test_assocedit(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/assocedit").json()
+        items = client.get("/api/cv/assocedit").json()
         assert len(items) == 2
         assert any("Zeitschrift" in i["data"]["journal"] for i in items)
 
     def test_otheredit(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/otheredit").json()
+        items = client.get("/api/cv/otheredit").json()
         assert len(items) == 2
         assert any("Physical Review" in i["data"]["journal"] for i in items)
 
     def test_peerrev(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/peerrev").json()
+        items = client.get("/api/cv/peerrev").json()
         assert len(items) == 3
 
     def test_software(self, client, db_session):
@@ -203,45 +201,45 @@ class TestImportCV:
 
     def test_otherservice(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/otherservice").json()
+        items = client.get("/api/cv/otherservice").json()
         assert len(items) == 2
         assert any("colloquium" in i["data"]["description"] for i in items)
 
     def test_policypres(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/policypres").json()
+        items = client.get("/api/cv/policypres").json()
         assert len(items) == 2
         assert any("Atomic energy" in i["data"]["title"] for i in items)
 
     def test_policycons(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/policycons").json()
+        items = client.get("/api/cv/policycons").json()
         assert len(items) == 2
         assert any("Manhattan" in i["data"]["title"] for i in items)
 
     def test_otherpractice(self, client, db_session):
         """policyother in YAML maps to otherpractice in the DB."""
         self._import(db_session)
-        items = client.get("/api/misc/otherpractice").json()
+        items = client.get("/api/cv/otherpractice").json()
         assert len(items) == 2
         assert any("Russell-Einstein" in i["data"]["title"] for i in items)
 
     def test_departmental_orals(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/departmentalOrals").json()
+        items = client.get("/api/cv/departmentalOrals").json()
         assert len(items) == 2
         names = [i["data"]["name"] for i in items]
         assert "Valentine Bargmann" in names
 
     def test_final_defense(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/finaldefense").json()
+        items = client.get("/api/cv/finaldefense").json()
         assert len(items) == 3
         assert any(i["data"].get("ischair") for i in items)
 
     def test_schoolwide_orals(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/schoolwideOrals").json()
+        items = client.get("/api/cv/schoolwideOrals").json()
         assert len(items) == 2
         assert any("Wheeler" in i["data"]["name"] for i in items)
 
@@ -255,7 +253,7 @@ class TestImportCV:
 
     def test_chaired_sessions(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/chairedsessions").json()
+        items = client.get("/api/cv/chairedsessions").json()
         assert len(items) == 1
         assert "Quantum" in items[0]["data"]["title"]
 
@@ -263,18 +261,18 @@ class TestImportCV:
 
     def test_press(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/press").json()
+        items = client.get("/api/cv/press").json()
         assert len(items) == 3  # 2 outlets for eclipse + 1 for Roosevelt letter
-        outlets = {i["outlet"] for i in items}
+        outlets = {i["data"]["outlet"] for i in items}
         assert "The New York Times" in outlets
 
     # -- Consulting -------------------------------------------------------
 
     def test_consulting(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/consulting").json()
+        items = client.get("/api/cv/consulting").json()
         assert len(items) == 1
-        assert "Scientific Advisor" in items[0]["title"]
+        assert "Scientific Advisor" in items[0]["data"]["title"]
 
 
 # ── YAML import for publications ────────────────────────────────────────

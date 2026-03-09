@@ -91,11 +91,8 @@ def _delete_works_by_type(session, user_id, work_type):
 
 def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     """Populate profile + CV section tables from CV.yml."""
-    from app.models import (
-        Address, Award, Class, Committee, Consulting, Education, Experience,
-        Grant, Membership, MiscSection, Panel, Work, WorkAuthor,
-        Press, Profile, Symposium, Trainee
-    )
+    from app.models import Address, CVItem, Work, WorkAuthor, Profile
+    from app.services.sort import compute_sort_date
 
     # CV.yml may have a trailing '---', producing multiple documents; take first non-None
     docs = list(yaml.safe_load_all(Path(cv_path).read_text(encoding="utf-8")))
@@ -124,88 +121,86 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
 
     session.flush()
 
+    def _add_cv_item(section, item_data, sort_order):
+        session.add(CVItem(
+            user_id=user_id, section=section, data=item_data,
+            sort_order=sort_order,
+            sort_date=compute_sort_date(section, item_data),
+        ))
+
+    def _delete_cv_items(section):
+        session.query(CVItem).filter_by(user_id=user_id, section=section).delete()
+
     # ------------------------------------------------------------------
     # Education
     # ------------------------------------------------------------------
-    session.query(Education).filter_by(user_id=user_id).delete()
+    _delete_cv_items("education")
     for i, item in enumerate(data.get("education", [])):
-        session.add(Education(
-            degree=_clean(item.get("degree", "")),
-            year=item.get("year"),
-            subject=_clean(item.get("subject", "")),
-            school=_clean(item.get("school", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("education", {
+            "degree": _clean(item.get("degree", "")),
+            "year": item.get("year"),
+            "subject": _clean(item.get("subject", "")),
+            "school": _clean(item.get("school", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Experience
     # ------------------------------------------------------------------
-    session.query(Experience).filter_by(user_id=user_id).delete()
+    _delete_cv_items("experience")
     for i, item in enumerate(data.get("experience", [])):
         yrs = str(item.get("years", ""))
         start, end = _parse_years(yrs)
-        session.add(Experience(
-            title=_clean(item.get("title", "")),
-            years_start=start,
-            years_end=end,
-            employer=_clean(item.get("employer", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("experience", {
+            "title": _clean(item.get("title", "")),
+            "years_start": start, "years_end": end,
+            "employer": _clean(item.get("employer", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Consulting
     # ------------------------------------------------------------------
-    session.query(Consulting).filter_by(user_id=user_id).delete()
+    _delete_cv_items("consulting")
     for i, item in enumerate(data.get("consulting", [])):
-        session.add(Consulting(
-            title=_clean(item.get("title", "")),
-            years=str(item.get("years", "")),
-            employer=_clean(item.get("employer", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("consulting", {
+            "title": _clean(item.get("title", "")),
+            "years": str(item.get("years", "")),
+            "employer": _clean(item.get("employer", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Memberships
     # ------------------------------------------------------------------
-    session.query(Membership).filter_by(user_id=user_id).delete()
+    _delete_cv_items("memberships")
     for i, item in enumerate(data.get("membership", [])):
-        session.add(Membership(
-            org=_clean(item.get("org", "")),
-            years=str(item.get("years", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("memberships", {
+            "org": _clean(item.get("org", "")),
+            "years": str(item.get("years", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Panels (advisory + grant review)
     # ------------------------------------------------------------------
-    session.query(Panel).filter_by(user_id=user_id).delete()
+    _delete_cv_items("panels_advisory")
+    _delete_cv_items("panels_grantreview")
     for i, item in enumerate(data.get("panel", [])):
-        session.add(Panel(
-            panel=_clean(item.get("panel", "")),
-            org=_clean(item.get("org", "")),
-            role=_clean(item.get("role", "")),
-            date=str(item.get("date", "")),
-            panel_id=item.get("id", ""),
-            type="advisory",
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("panels_advisory", {
+            "panel": _clean(item.get("panel", "")),
+            "org": _clean(item.get("org", "")),
+            "role": _clean(item.get("role", "")),
+            "date": str(item.get("date", "")),
+            "panel_id": item.get("id", ""),
+            "type": "advisory",
+        }, i)
     offset = len(data.get("panel", []))
     for i, item in enumerate(data.get("grantrev", [])):
-        session.add(Panel(
-            panel=_clean(item.get("panel", "")),
-            org=_clean(item.get("org", "")),
-            role=_clean(item.get("role", "")),
-            date=str(item.get("date", "")),
-            panel_id=item.get("id", ""),
-            type="grant_review",
-            sort_order=offset + i,
-            user_id=user_id,
-        ))
+        _add_cv_item("panels_grantreview", {
+            "panel": _clean(item.get("panel", "")),
+            "org": _clean(item.get("org", "")),
+            "role": _clean(item.get("role", "")),
+            "date": str(item.get("date", "")),
+            "panel_id": item.get("id", ""),
+            "type": "grant_review",
+        }, offset + i)
 
     # ------------------------------------------------------------------
     # Patents (stored as Work with work_type='patents')
@@ -233,148 +228,119 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     # ------------------------------------------------------------------
     # Symposia
     # ------------------------------------------------------------------
-    session.query(Symposium).filter_by(user_id=user_id).delete()
+    _delete_cv_items("symposia")
     for i, item in enumerate(data.get("symposium", [])):
-        session.add(Symposium(
-            title=_clean(item.get("title", "")),
-            meeting=_clean(item.get("meeting", "")),
-            date=str(item.get("date", "")),
-            role=_clean(item.get("role", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("symposia", {
+            "title": _clean(item.get("title", "")),
+            "meeting": _clean(item.get("meeting", "")),
+            "date": str(item.get("date", "")),
+            "role": _clean(item.get("role", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Classes (teaching)
     # ------------------------------------------------------------------
-    session.query(Class).filter_by(user_id=user_id).delete()
+    _delete_cv_items("classes")
     for i, item in enumerate(data.get("classes", [])):
         in3 = item.get("inthreeyear", False)
-        session.add(Class(
-            class_name=_clean(item.get("class", "")),
-            year=item.get("year"),
-            role=_clean(item.get("role", "")),
-            school=_clean(item.get("school", "")),
-            students=str(item.get("students", "") or ""),
-            lectures=str(item.get("lectures", "") or ""),
-            in_three_year=bool(in3),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("classes", {
+            "class_name": _clean(item.get("class", "")),
+            "year": item.get("year"),
+            "role": _clean(item.get("role", "")),
+            "school": _clean(item.get("school", "")),
+            "students": str(item.get("students", "") or ""),
+            "lectures": str(item.get("lectures", "") or ""),
+            "in_three_year": bool(in3),
+        }, i)
 
     # ------------------------------------------------------------------
     # Grants — activegrants + completedgrants
     # ------------------------------------------------------------------
-    session.query(Grant).filter_by(user_id=user_id).delete()
+    _delete_cv_items("grants")
     sort_i = 0
     for item in data.get("activegrants", []):
         dates = str(item.get("dates", ""))
         start, end = _parse_dates(dates)
         title = _clean(item.get("title", "") or item.get("org", ""))
-        session.add(Grant(
-            title=title,
-            agency=_clean(item.get("org", "")),
-            pi=_clean(item.get("PI", "")),
-            amount=str(item.get("amount", "")),
-            years_start=start,
-            years_end=end,
-            role=_clean(item.get("role", "")),
-            id_number=str(item.get("number", "")),
-            description=_clean(item.get("description", "")),
-            grant_type=_clean(item.get("type", "")),
-            pcteffort=item.get("pcteffort"),
-            status="active",
-            sort_order=sort_i,
-            user_id=user_id,
-        ))
+        _add_cv_item("grants", {
+            "title": title, "agency": _clean(item.get("org", "")),
+            "pi": _clean(item.get("PI", "")), "amount": str(item.get("amount", "")),
+            "years_start": start, "years_end": end,
+            "role": _clean(item.get("role", "")), "id_number": str(item.get("number", "")),
+            "description": _clean(item.get("description", "")),
+            "grant_type": _clean(item.get("type", "")),
+            "pcteffort": item.get("pcteffort"), "status": "active",
+        }, sort_i)
         sort_i += 1
     for item in data.get("completedgrants", []):
         dates = str(item.get("dates", ""))
         start, end = _parse_dates(dates)
         title = _clean(item.get("title", "") or item.get("org", ""))
-        session.add(Grant(
-            title=title,
-            agency=_clean(item.get("org", "")),
-            pi=_clean(item.get("PI", "")),
-            amount=str(item.get("amount", "")),
-            years_start=start,
-            years_end=end,
-            role=_clean(item.get("role", "")),
-            id_number=str(item.get("number", "")),
-            description=_clean(item.get("description", "")),
-            grant_type=_clean(item.get("type", "")),
-            pcteffort=item.get("pcteffort"),
-            status="completed",
-            sort_order=sort_i,
-            user_id=user_id,
-        ))
+        _add_cv_item("grants", {
+            "title": title, "agency": _clean(item.get("org", "")),
+            "pi": _clean(item.get("PI", "")), "amount": str(item.get("amount", "")),
+            "years_start": start, "years_end": end,
+            "role": _clean(item.get("role", "")), "id_number": str(item.get("number", "")),
+            "description": _clean(item.get("description", "")),
+            "grant_type": _clean(item.get("type", "")),
+            "pcteffort": item.get("pcteffort"), "status": "completed",
+        }, sort_i)
         sort_i += 1
 
     # ------------------------------------------------------------------
     # Awards / Honors
     # ------------------------------------------------------------------
-    session.query(Award).filter_by(user_id=user_id).delete()
+    _delete_cv_items("awards")
     for i, item in enumerate(data.get("honor", [])):
-        session.add(Award(
-            name=_clean(item.get("name", "")),
-            year=str(item.get("year", "")),
-            org=_clean(item.get("grantee", "")),
-            date=str(item.get("date", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("awards", {
+            "name": _clean(item.get("name", "")),
+            "year": str(item.get("year", "")),
+            "org": _clean(item.get("grantee", "")),
+            "date": str(item.get("date", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Press / Media
     # ------------------------------------------------------------------
-    session.query(Press).filter_by(user_id=user_id).delete()
+    _delete_cv_items("press")
     sort_i = 0
     for item in data.get("media", []):
         topic = _clean(item.get("topic", ""))
         date = str(item.get("date", ""))
         for outlet in item.get("outlets", []):
-            session.add(Press(
-                outlet=_clean(outlet),
-                topic=topic,
-                date=date,
-                sort_order=sort_i,
-                user_id=user_id,
-            ))
+            _add_cv_item("press", {
+                "outlet": _clean(outlet), "topic": topic, "date": date,
+            }, sort_i)
             sort_i += 1
 
     # ------------------------------------------------------------------
     # Trainees (advisees + postdocs)
     # ------------------------------------------------------------------
-    session.query(Trainee).filter_by(user_id=user_id).delete()
+    _delete_cv_items("trainees_advisees")
+    _delete_cv_items("trainees_postdocs")
     for i, item in enumerate(data.get("advisees", [])):
         dates = str(item.get("dates", ""))
         start, end = _parse_dates(dates)
-        session.add(Trainee(
-            name=_clean(item.get("name", "")),
-            degree=item.get("degree", ""),
-            years_start=start,
-            years_end=end,
-            type=item.get("type", "advisor"),
-            school=_clean(item.get("school", "")),
-            thesis=_clean(item.get("thesis", "")),
-            current_position=_clean(item.get("wherenow", "")),
-            trainee_type="advisee",
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("trainees_advisees", {
+            "name": _clean(item.get("name", "")),
+            "degree": item.get("degree", ""),
+            "years_start": start, "years_end": end,
+            "type": item.get("type", "advisor"),
+            "school": _clean(item.get("school", "")),
+            "thesis": _clean(item.get("thesis", "")),
+            "current_position": _clean(item.get("wherenow", "")),
+            "trainee_type": "advisee",
+        }, i)
     offset = len(data.get("advisees", []))
     for i, item in enumerate(data.get("postdocs", [])):
         dates = str(item.get("dates", ""))
         start, end = _parse_dates(dates)
-        session.add(Trainee(
-            name=_clean(item.get("name", "")),
-            years_start=start,
-            years_end=end,
-            current_position=_clean(item.get("wherenow", "")),
-            trainee_type="postdoc",
-            sort_order=offset + i,
-            user_id=user_id,
-        ))
+        _add_cv_item("trainees_postdocs", {
+            "name": _clean(item.get("name", "")),
+            "years_start": start, "years_end": end,
+            "current_position": _clean(item.get("wherenow", "")),
+            "trainee_type": "postdoc",
+        }, offset + i)
 
     # ------------------------------------------------------------------
     # Seminars (stored as Work with work_type='seminars')
@@ -408,22 +374,19 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     # ------------------------------------------------------------------
     # Committees
     # ------------------------------------------------------------------
-    session.query(Committee).filter_by(user_id=user_id).delete()
+    _delete_cv_items("committees")
     for i, item in enumerate(data.get("committees", [])):
-        session.add(Committee(
-            committee=_clean(item.get("committee", "")),
-            org=_clean(item.get("org", "")),
-            role=_clean(item.get("role", "")),
-            dates=str(item.get("dates", "")),
-            sort_order=i,
-            user_id=user_id,
-        ))
+        _add_cv_item("committees", {
+            "committee": _clean(item.get("committee", "")),
+            "org": _clean(item.get("org", "")),
+            "role": _clean(item.get("role", "")),
+            "dates": str(item.get("dates", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Misc sections (editor, peerrev, policypres, etc.)
     # Software and dissertation are now stored as Work.
     # ------------------------------------------------------------------
-    session.query(MiscSection).filter_by(user_id=user_id).delete()
     misc_keys = [
         "editor", "assocedit", "otheredit", "peerrev",
         "policypres", "policycons",
@@ -431,24 +394,27 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         "schoolwideOrals", "departmentalOrals", "finaldefense",
     ]
     for key in misc_keys:
+        _delete_cv_items(key)
         items = data.get(key, [])
         if isinstance(items, list):
             for i, item in enumerate(items):
                 payload = item if isinstance(item, dict) else {"value": item}
-                session.add(MiscSection(section=key, data=payload, sort_order=i, user_id=user_id))
+                _add_cv_item(key, payload, i)
 
     # chairedsessions: remap YAML keys year/conference → date/meeting
+    _delete_cv_items("chairedsessions")
     for i, item in enumerate(data.get("chairedsessions", [])):
-        session.add(MiscSection(section="chairedsessions", sort_order=i, user_id=user_id, data={
+        _add_cv_item("chairedsessions", {
             "title": _clean(item.get("title", "")),
             "date": str(item.get("year", "")),
             "meeting": _clean(item.get("conference", "")),
-        }))
+        }, i)
 
     # policyother → stored as "otherpractice"
+    _delete_cv_items("otherpractice")
     for i, item in enumerate(data.get("policyother", [])):
         payload = item if isinstance(item, dict) else {"value": item}
-        session.add(MiscSection(section="otherpractice", data=payload, sort_order=i, user_id=user_id))
+        _add_cv_item("otherpractice", payload, i)
 
     # Software (stored as Work with work_type='software')
     _delete_works_by_type(session, user_id, "software")

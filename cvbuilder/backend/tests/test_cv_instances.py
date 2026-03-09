@@ -41,8 +41,9 @@ def _make_instance(client, template_id, **overrides):
 
 
 def _add_education(client, degree="PhD", year=2020, school="MIT"):
-    resp = client.post("/api/education", json={
-        "degree": degree, "year": year, "school": school,
+    resp = client.post("/api/cv", json={
+        "section": "education",
+        "data": {"degree": degree, "year": year, "school": school},
     })
     assert resp.status_code == 200
     return resp.json()

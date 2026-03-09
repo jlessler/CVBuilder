@@ -44,6 +44,7 @@ def startup():
     try:
         _ensure_default_user(db)
         _migrate_works_data(db)
+        _migrate_cv_items_data(db)
         _seed_templates(db, user_id=1)
     finally:
         db.close()
@@ -399,6 +400,200 @@ def _migrate_works_data(db):
              db.query(models.Work).count(), len(id_remap))
 
 
+def _migrate_cv_items_data(db):
+    """One-time migration: copy typed section models and remaining MiscSections
+    into the unified cv_items table. Idempotent — skips if cv_items already has rows."""
+    import re, logging
+    from sqlalchemy import text
+    from app.services.sort import compute_sort_date
+
+    log = logging.getLogger("cvbuilder.migrate")
+
+    # Idempotency guard
+    if db.query(models.CVItem).count() > 0:
+        return
+
+    # Check if any source data exists
+    source_count = sum(
+        db.query(m).count() for m in [
+            models.Education, models.Experience, models.Consulting, models.Membership,
+            models.Panel, models.Symposium, models.Class, models.Grant,
+            models.Award, models.Press, models.Trainee, models.Committee,
+        ]
+    )
+    misc_count = db.query(models.MiscSection).filter(
+        models.MiscSection.section.notin_(["software", "dissertation"])
+    ).count()
+    if source_count + misc_count == 0:
+        return
+
+    log.info("Migrating %d typed + %d misc rows to cv_items", source_count, misc_count)
+
+    id_remap: dict[tuple[str, int], int] = {}
+
+    def _add_item(section, data, sort_order, user_id, old_section_key=None, old_id=None):
+        item = models.CVItem(
+            user_id=user_id, section=section, data=data,
+            sort_order=sort_order,
+            sort_date=compute_sort_date(section, data),
+        )
+        db.add(item)
+        db.flush()
+        if old_section_key and old_id:
+            id_remap[(old_section_key, old_id)] = item.id
+        return item
+
+    # --- Education ---
+    for e in db.query(models.Education).all():
+        data = {}
+        if e.degree: data["degree"] = e.degree
+        if e.year is not None: data["year"] = e.year
+        if e.subject: data["subject"] = e.subject
+        if e.school: data["school"] = e.school
+        _add_item("education", data, e.sort_order, e.user_id, "education", e.id)
+
+    # --- Experience ---
+    for e in db.query(models.Experience).all():
+        data = {}
+        if e.title: data["title"] = e.title
+        if e.years_start: data["years_start"] = e.years_start
+        if e.years_end: data["years_end"] = e.years_end
+        if e.employer: data["employer"] = e.employer
+        _add_item("experience", data, e.sort_order, e.user_id, "experience", e.id)
+
+    # --- Consulting ---
+    for e in db.query(models.Consulting).all():
+        data = {}
+        if e.title: data["title"] = e.title
+        if e.years: data["years"] = e.years
+        if e.employer: data["employer"] = e.employer
+        _add_item("consulting", data, e.sort_order, e.user_id, "consulting", e.id)
+
+    # --- Memberships ---
+    for e in db.query(models.Membership).all():
+        data = {}
+        if e.org: data["org"] = e.org
+        if e.years: data["years"] = e.years
+        _add_item("memberships", data, e.sort_order, e.user_id, "memberships", e.id)
+
+    # --- Panels (split by type) ---
+    for p in db.query(models.Panel).all():
+        section = "panels_advisory" if p.type == "advisory" else "panels_grantreview"
+        data = {"type": p.type}
+        if p.panel: data["panel"] = p.panel
+        if p.org: data["org"] = p.org
+        if p.role: data["role"] = p.role
+        if p.date: data["date"] = p.date
+        if p.panel_id: data["panel_id"] = p.panel_id
+        _add_item(section, data, p.sort_order, p.user_id, section, p.id)
+
+    # --- Symposia ---
+    for s in db.query(models.Symposium).all():
+        data = {}
+        if s.title: data["title"] = s.title
+        if s.meeting: data["meeting"] = s.meeting
+        if s.date: data["date"] = s.date
+        if s.role: data["role"] = s.role
+        _add_item("symposia", data, s.sort_order, s.user_id, "symposia", s.id)
+
+    # --- Classes ---
+    for c in db.query(models.Class).all():
+        data = {}
+        if c.class_name: data["class_name"] = c.class_name
+        if c.year is not None: data["year"] = c.year
+        if c.role: data["role"] = c.role
+        if c.school: data["school"] = c.school
+        if c.students: data["students"] = c.students
+        if c.lectures: data["lectures"] = c.lectures
+        if c.in_three_year: data["in_three_year"] = True
+        _add_item("classes", data, c.sort_order, c.user_id, "classes", c.id)
+
+    # --- Grants ---
+    for g in db.query(models.Grant).all():
+        data = {}
+        if g.title: data["title"] = g.title
+        if g.agency: data["agency"] = g.agency
+        if g.pi: data["pi"] = g.pi
+        if g.amount: data["amount"] = g.amount
+        if g.years_start: data["years_start"] = g.years_start
+        if g.years_end: data["years_end"] = g.years_end
+        if g.role: data["role"] = g.role
+        if g.id_number: data["id_number"] = g.id_number
+        if g.description: data["description"] = g.description
+        if g.grant_type: data["grant_type"] = g.grant_type
+        if g.pcteffort is not None: data["pcteffort"] = g.pcteffort
+        if g.status: data["status"] = g.status
+        _add_item("grants", data, g.sort_order, g.user_id, "grants", g.id)
+
+    # --- Awards ---
+    for a in db.query(models.Award).all():
+        data = {}
+        if a.name: data["name"] = a.name
+        if a.year: data["year"] = a.year
+        if a.org: data["org"] = a.org
+        if a.date: data["date"] = a.date
+        _add_item("awards", data, a.sort_order, a.user_id, "awards", a.id)
+
+    # --- Press ---
+    for p in db.query(models.Press).all():
+        data = {}
+        if p.outlet: data["outlet"] = p.outlet
+        if p.title: data["title"] = p.title
+        if p.date: data["date"] = p.date
+        if p.url: data["url"] = p.url
+        if p.topic: data["topic"] = p.topic
+        _add_item("press", data, p.sort_order, p.user_id, "press", p.id)
+
+    # --- Trainees (split by trainee_type) ---
+    for t in db.query(models.Trainee).all():
+        section = "trainees_advisees" if t.trainee_type == "advisee" else "trainees_postdocs"
+        data = {"trainee_type": t.trainee_type}
+        if t.name: data["name"] = t.name
+        if t.degree: data["degree"] = t.degree
+        if t.years_start: data["years_start"] = t.years_start
+        if t.years_end: data["years_end"] = t.years_end
+        if t.type: data["type"] = t.type
+        if t.school: data["school"] = t.school
+        if t.thesis: data["thesis"] = t.thesis
+        if t.current_position: data["current_position"] = t.current_position
+        _add_item(section, data, t.sort_order, t.user_id, section, t.id)
+
+    # --- Committees ---
+    for c in db.query(models.Committee).all():
+        data = {}
+        if c.committee: data["committee"] = c.committee
+        if c.org: data["org"] = c.org
+        if c.role: data["role"] = c.role
+        if c.dates: data["dates"] = c.dates
+        _add_item("committees", data, c.sort_order, c.user_id, "committees", c.id)
+
+    # --- MiscSections (skip software/dissertation, already in Works) ---
+    for ms in db.query(models.MiscSection).filter(
+        models.MiscSection.section.notin_(["software", "dissertation"])
+    ).all():
+        # Map misc section names to appropriate section keys
+        _add_item(ms.section, ms.data or {}, ms.sort_order, ms.user_id, ms.section, ms.id)
+
+    db.flush()
+
+    # --- Remap CVInstanceItem IDs ---
+    if id_remap:
+        all_items = db.query(models.CVInstanceItem).all()
+        for item in all_items:
+            section = item.section
+            section_key = section.section_key
+            # Skip Work-based sections (already remapped in works migration)
+            if section_key in ("patents", "seminars", "software", "dissertation") or section_key.startswith("publications_"):
+                continue
+            new_id = id_remap.get((section_key, item.item_id))
+            if new_id is not None:
+                item.item_id = new_id
+
+    db.commit()
+    log.info("CVItem migration complete: %d items created, %d IDs remapped",
+             db.query(models.CVItem).count(), len(id_remap))
+
+
 # ---------------------------------------------------------------------------
 # Section heading labels used by all templates
 # ---------------------------------------------------------------------------
@@ -574,28 +769,30 @@ def dashboard(
             models.Work.work_type == t,
         ).count()
 
-    trainee_rows = (
-        db.query(models.Trainee.trainee_type, func.count(models.Trainee.id))
-        .filter(models.Trainee.user_id == uid)
-        .group_by(models.Trainee.trainee_type)
-        .all()
-    )
-    active_grant_rows = (
-        db.query(models.Grant.role, func.count(models.Grant.id))
-        .filter(
-            models.Grant.user_id == uid,
-            models.Grant.status == "active",
-            models.Grant.role.isnot(None),
-            models.Grant.role != "",
-        )
-        .group_by(models.Grant.role)
-        .order_by(func.count(models.Grant.id).desc())
-        .all()
-    )
-    active_grants = db.query(models.Grant).filter(
-        models.Grant.user_id == uid,
-        models.Grant.status == "active",
-    ).count()
+    # Trainee breakdown from CVItem
+    from sqlalchemy import cast, String
+    trainee_items = db.query(models.CVItem).filter(
+        models.CVItem.user_id == uid,
+        models.CVItem.section.in_(["trainees_advisees", "trainees_postdocs"]),
+    ).all()
+    trainee_type_counts: dict[str, int] = {}
+    for t in trainee_items:
+        tt = (t.data or {}).get("trainee_type", t.section.replace("trainees_", ""))
+        trainee_type_counts[tt] = trainee_type_counts.get(tt, 0) + 1
+    trainee_rows = list(trainee_type_counts.items())
+
+    # Grant breakdown from CVItem
+    grant_items = db.query(models.CVItem).filter_by(user_id=uid, section="grants").all()
+    active_grant_roles: dict[str, int] = {}
+    active_grants = 0
+    for g in grant_items:
+        gd = g.data or {}
+        if gd.get("status") == "active":
+            active_grants += 1
+            role = gd.get("role", "")
+            if role:
+                active_grant_roles[role] = active_grant_roles.get(role, 0) + 1
+    active_grant_rows = sorted(active_grant_roles.items(), key=lambda x: -x[1])
 
     return schemas.DashboardStats(
         total_publications=total,
@@ -605,8 +802,8 @@ def dashboard(
         letters=count_type("letters"),
         scimeetings=count_type("scimeetings"),
         editorials=count_type("editorials"),
-        trainees=db.query(models.Trainee).filter_by(user_id=uid).count(),
-        grants=db.query(models.Grant).filter_by(user_id=uid).count(),
+        trainees=len(trainee_items),
+        grants=len(grant_items),
         active_grants=active_grants,
         profile_complete=bool(profile and profile.name),
         trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_rows],

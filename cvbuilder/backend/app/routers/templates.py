@@ -17,14 +17,20 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
     profile = db.query(models.Profile).filter_by(user_id=user_id).first()
     rev = sort_direction == "desc"
 
-    def _user_query(model_class):
-        return db.query(model_class).filter_by(user_id=user_id).all()
+    def _cv_query(section):
+        return sort_items(
+            db.query(models.CVItem).filter_by(user_id=user_id, section=section).all(),
+            models.CVItem, reverse=rev,
+        )
 
-    def _misc_query(section_key):
-        return db.query(models.MiscSection).filter(
-            models.MiscSection.user_id == user_id,
-            models.MiscSection.section == section_key,
-        ).all()
+    def _cv_query_multi(sections):
+        return sort_items(
+            db.query(models.CVItem).filter(
+                models.CVItem.user_id == user_id,
+                models.CVItem.section.in_(sections),
+            ).all(),
+            models.CVItem, reverse=rev,
+        )
 
     def _works_query(work_type):
         return db.query(models.Work).filter_by(user_id=user_id, work_type=work_type).all()
@@ -33,38 +39,32 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
 
     return {
         "profile": profile,
-        "education": sort_items(_user_query(models.Education), models.Education, reverse=rev),
-        "experience": sort_items(_user_query(models.Experience), models.Experience, reverse=rev),
-        "consulting": sort_items(_user_query(models.Consulting), models.Consulting, reverse=rev),
-        "memberships": sort_items(_user_query(models.Membership), models.Membership, reverse=rev),
-        "panels": sort_items(_user_query(models.Panel), models.Panel, reverse=rev),
+        "education": _cv_query("education"),
+        "experience": _cv_query("experience"),
+        "consulting": _cv_query("consulting"),
+        "memberships": _cv_query("memberships"),
+        "panels": _cv_query_multi(["panels_advisory", "panels_grantreview"]),
         "patents": sort_items(_works_query("patents"), models.Work, reverse=rev),
-        "symposia": sort_items(_user_query(models.Symposium), models.Symposium, reverse=rev),
-        "classes": sort_items(_user_query(models.Class), models.Class, reverse=rev),
-        "grants": sort_items(_user_query(models.Grant), models.Grant, reverse=rev),
-        "awards": sort_items(_user_query(models.Award), models.Award, reverse=rev),
-        "press": sort_items(_user_query(models.Press), models.Press, reverse=rev),
-        "trainees": sort_items(_user_query(models.Trainee), models.Trainee, reverse=rev),
+        "symposia": _cv_query("symposia"),
+        "classes": _cv_query("classes"),
+        "grants": _cv_query("grants"),
+        "awards": _cv_query("awards"),
+        "press": _cv_query("press"),
+        "trainees": _cv_query_multi(["trainees_advisees", "trainees_postdocs"]),
         "seminars": sort_items(_works_query("seminars"), models.Work, reverse=rev),
-        "committees": sort_items(_user_query(models.Committee), models.Committee, reverse=rev),
-        "editorial": sort_items(
-            db.query(models.MiscSection).filter(
-                models.MiscSection.user_id == user_id,
-                models.MiscSection.section.in_(["editor", "assocedit", "otheredit"]),
-            ).all(),
-            models.MiscSection, reverse=rev,
-        ),
-        "peerrev": sort_items(_misc_query("peerrev"), models.MiscSection, reverse=rev),
+        "committees": _cv_query("committees"),
+        "editorial": _cv_query_multi(["editor", "assocedit", "otheredit"]),
+        "peerrev": _cv_query("peerrev"),
         "software": sort_items(_works_query("software"), models.Work, reverse=rev),
-        "policypres": sort_items(_misc_query("policypres"), models.MiscSection, reverse=rev),
-        "policycons": sort_items(_misc_query("policycons"), models.MiscSection, reverse=rev),
-        "otherservice": sort_items(_misc_query("otherservice"), models.MiscSection, reverse=rev),
+        "policypres": _cv_query("policypres"),
+        "policycons": _cv_query("policycons"),
+        "otherservice": _cv_query("otherservice"),
         "dissertation": sort_items(_works_query("dissertation"), models.Work, reverse=rev),
-        "chairedsessions": sort_items(_misc_query("chairedsessions"), models.MiscSection, reverse=rev),
-        "otherpractice": sort_items(_misc_query("otherpractice"), models.MiscSection, reverse=rev),
-        "departmentalOrals": sort_items(_misc_query("departmentalOrals"), models.MiscSection, reverse=rev),
-        "finaldefense": sort_items(_misc_query("finaldefense"), models.MiscSection, reverse=rev),
-        "schoolwideOrals": sort_items(_misc_query("schoolwideOrals"), models.MiscSection, reverse=rev),
+        "chairedsessions": _cv_query("chairedsessions"),
+        "otherpractice": _cv_query("otherpractice"),
+        "departmentalOrals": _cv_query("departmentalOrals"),
+        "finaldefense": _cv_query("finaldefense"),
+        "schoolwideOrals": _cv_query("schoolwideOrals"),
         "publications": sort_items(
             db.query(models.Work).filter(
                 models.Work.user_id == user_id,

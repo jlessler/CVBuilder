@@ -1,26 +1,26 @@
-"""Tests for MiscSection CRUD and editorial aggregation."""
+"""Tests for CVItem CRUD (formerly MiscSection)."""
 
 
-def test_create_and_list_misc(client):
-    resp = client.post("/api/misc", json={
-        "section": "software",
-        "data": {"name": "EpiTools", "url": "https://example.com"},
+def test_create_and_list_cvitem(client):
+    resp = client.post("/api/cv", json={
+        "section": "peerrev",
+        "data": {"value": "Nature Reviews"},
     })
     assert resp.status_code == 200
     body = resp.json()
-    assert body["section"] == "software"
-    assert body["data"]["name"] == "EpiTools"
+    assert body["section"] == "peerrev"
+    assert body["data"]["value"] == "Nature Reviews"
 
-    items = client.get("/api/misc/software").json()
+    items = client.get("/api/cv/peerrev").json()
     assert len(items) == 1
 
 
-def test_update_misc(client):
-    created = client.post("/api/misc", json={
+def test_update_cvitem(client):
+    created = client.post("/api/cv", json={
         "section": "peerrev",
         "data": {"journal": "Nature"},
     }).json()
-    resp = client.put(f"/api/misc/{created['id']}", json={
+    resp = client.put(f"/api/cv/{created['id']}", json={
         "section": "peerrev",
         "data": {"journal": "Science"},
     })
@@ -28,41 +28,48 @@ def test_update_misc(client):
     assert resp.json()["data"]["journal"] == "Science"
 
 
-def test_delete_misc(client):
-    created = client.post("/api/misc", json={
-        "section": "software",
-        "data": {"name": "Temp"},
+def test_delete_cvitem(client):
+    created = client.post("/api/cv", json={
+        "section": "otherservice",
+        "data": {"value": "Temp"},
     }).json()
-    resp = client.delete(f"/api/misc/{created['id']}")
+    resp = client.delete(f"/api/cv/{created['id']}")
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
 
-def test_editorial_aggregation(client):
-    """GET /api/misc/editorial returns editor + assocedit + otheredit combined."""
-    client.post("/api/misc", json={
+def test_editorial_sections(client):
+    """Editorial items are stored as individual CVItems queryable by section."""
+    client.post("/api/cv", json={
         "section": "editor", "data": {"journal": "Lancet"},
     })
-    client.post("/api/misc", json={
+    client.post("/api/cv", json={
         "section": "assocedit", "data": {"journal": "BMJ"},
     })
-    client.post("/api/misc", json={
+    client.post("/api/cv", json={
         "section": "otheredit", "data": {"journal": "NEJM"},
     })
-    # Also add a non-editorial misc to confirm it's excluded
-    client.post("/api/misc", json={
-        "section": "software", "data": {"name": "Noise"},
+    # Also add a non-editorial CVItem to confirm it's excluded
+    client.post("/api/cv", json={
+        "section": "peerrev", "data": {"value": "Noise"},
     })
 
-    items = client.get("/api/misc/editorial").json()
-    assert len(items) == 3
-    sections = {i["section"] for i in items}
-    assert sections == {"editor", "assocedit", "otheredit"}
+    editors = client.get("/api/cv/editor").json()
+    assert len(editors) == 1
+    assert editors[0]["data"]["journal"] == "Lancet"
+
+    assoc = client.get("/api/cv/assocedit").json()
+    assert len(assoc) == 1
+    assert assoc[0]["data"]["journal"] == "BMJ"
+
+    other = client.get("/api/cv/otheredit").json()
+    assert len(other) == 1
+    assert other[0]["data"]["journal"] == "NEJM"
 
 
-def test_list_misc_by_section(client):
-    client.post("/api/misc", json={"section": "policycons", "data": {"org": "WHO"}})
-    client.post("/api/misc", json={"section": "policypres", "data": {"title": "Talk"}})
-    items = client.get("/api/misc/policycons").json()
+def test_list_cvitem_by_section(client):
+    client.post("/api/cv", json={"section": "policycons", "data": {"org": "WHO"}})
+    client.post("/api/cv", json={"section": "policypres", "data": {"title": "Talk"}})
+    items = client.get("/api/cv/policycons").json()
     assert len(items) == 1
     assert items[0]["data"]["org"] == "WHO"
