@@ -17,19 +17,27 @@ def test_create_publication(client):
     assert len(body["authors"]) == 1
 
 
-def test_get_publication_by_id(client, sample_publication):
-    pid = sample_publication["id"]
+def test_get_publication_by_id(client):
+    create = client.post("/api/publications", json={
+        "type": "papers", "title": "Fetch Me", "year": "2024",
+        "authors": [{"author_name": "Doe J", "author_order": 0}],
+    })
+    pid = create.json()["id"]
     resp = client.get(f"/api/publications/{pid}")
     assert resp.status_code == 200
-    assert resp.json()["title"] == sample_publication["title"]
+    assert resp.json()["title"] == "Fetch Me"
 
 
 def test_get_publication_404(client):
     assert client.get("/api/publications/9999").status_code == 404
 
 
-def test_update_publication(client, sample_publication):
-    pid = sample_publication["id"]
+def test_update_publication(client):
+    create = client.post("/api/publications", json={
+        "type": "papers", "title": "Original", "year": "2023",
+        "authors": [{"author_name": "Doe J", "author_order": 0}],
+    })
+    pid = create.json()["id"]
     resp = client.put(f"/api/publications/{pid}", json={
         "type": "papers",
         "title": "Updated Title",
@@ -50,8 +58,12 @@ def test_update_publication_404(client):
     assert resp.status_code == 404
 
 
-def test_delete_publication(client, sample_publication):
-    pid = sample_publication["id"]
+def test_delete_publication(client):
+    create = client.post("/api/publications", json={
+        "type": "papers", "title": "Delete Me", "year": "2023",
+        "authors": [],
+    })
+    pid = create.json()["id"]
     resp = client.delete(f"/api/publications/{pid}")
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
@@ -63,9 +75,16 @@ def test_delete_publication_404(client):
 
 # ── Author preservation when authors=null ────────────────────────────────
 
-def test_authors_preserved_when_null(client, sample_publication):
+def test_authors_preserved_when_null(client):
     """If authors is omitted in update, existing authors should remain."""
-    pid = sample_publication["id"]
+    create = client.post("/api/publications", json={
+        "type": "papers", "title": "Keep Authors", "year": "2023",
+        "authors": [
+            {"author_name": "A", "author_order": 0},
+            {"author_name": "B", "author_order": 1},
+        ],
+    })
+    pid = create.json()["id"]
     resp = client.put(f"/api/publications/{pid}", json={
         "type": "papers",
         "title": "Same Authors",
@@ -73,7 +92,7 @@ def test_authors_preserved_when_null(client, sample_publication):
         # authors intentionally omitted
     })
     assert resp.status_code == 200
-    assert len(resp.json()["authors"]) == len(sample_publication["authors"])
+    assert len(resp.json()["authors"]) == 2
 
 
 # ── Filters ──────────────────────────────────────────────────────────────

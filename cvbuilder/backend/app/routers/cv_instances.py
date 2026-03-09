@@ -22,7 +22,7 @@ SECTION_KEY_MAP: dict[str, tuple[type, dict]] = {
     "memberships":              (models.Membership, {}),
     "panels_advisory":          (models.Panel, {"type": "advisory"}),
     "panels_grantreview":       (models.Panel, {"type": "grant_review"}),
-    "patents":                  (models.Patent, {}),
+    "patents":                  (models.Work, {"work_type": "patents"}),
     "symposia":                 (models.Symposium, {}),
     "committees":               (models.Committee, {}),
     "classes":                  (models.Class, {}),
@@ -31,20 +31,20 @@ SECTION_KEY_MAP: dict[str, tuple[type, dict]] = {
     "press":                    (models.Press, {}),
     "trainees_advisees":        (models.Trainee, {"trainee_type": "advisee"}),
     "trainees_postdocs":        (models.Trainee, {"trainee_type": "postdoc"}),
-    "seminars":                 (models.Seminar, {}),
-    "publications_papers":      (models.Publication, {"type": "papers"}),
-    "publications_preprints":   (models.Publication, {"type": "preprints"}),
-    "publications_chapters":    (models.Publication, {"type": "chapters"}),
-    "publications_letters":     (models.Publication, {"type": "letters"}),
-    "publications_scimeetings": (models.Publication, {"type": "scimeetings"}),
-    "publications_editorials":  (models.Publication, {"type": "editorials"}),
+    "seminars":                 (models.Work, {"work_type": "seminars"}),
+    "publications_papers":      (models.Work, {"work_type": "papers"}),
+    "publications_preprints":   (models.Work, {"work_type": "preprints"}),
+    "publications_chapters":    (models.Work, {"work_type": "chapters"}),
+    "publications_letters":     (models.Work, {"work_type": "letters"}),
+    "publications_scimeetings": (models.Work, {"work_type": "scimeetings"}),
+    "publications_editorials":  (models.Work, {"work_type": "editorials"}),
     "editorial":                (models.MiscSection, {"_in": {"section": ["editor", "assocedit", "otheredit"]}}),
     "peerrev":                  (models.MiscSection, {"section": "peerrev"}),
-    "software":                 (models.MiscSection, {"section": "software"}),
+    "software":                 (models.Work, {"work_type": "software"}),
     "policypres":               (models.MiscSection, {"section": "policypres"}),
     "policycons":               (models.MiscSection, {"section": "policycons"}),
     "otherservice":             (models.MiscSection, {"section": "otherservice"}),
-    "dissertation":             (models.MiscSection, {"section": "dissertation"}),
+    "dissertation":             (models.Work, {"work_type": "dissertation"}),
     "chairedsessions":          (models.MiscSection, {"section": "chairedsessions"}),
     "otherpractice":            (models.MiscSection, {"section": "otherpractice"}),
     "departmentalOrals":        (models.MiscSection, {"section": "departmentalOrals"}),
@@ -71,7 +71,7 @@ def _query_section_items(db: Session, user_id: int, section_key: str):
 
 def _item_label(item, section_key: str) -> str:
     """Generate a human-readable label for an item."""
-    if isinstance(item, models.Publication):
+    if isinstance(item, models.Work):
         authors = ", ".join(a.author_name for a in (item.authors or [])[:3])
         suffix = " et al." if len(item.authors or []) > 3 else ""
         year = f" ({item.year})" if item.year else ""
@@ -398,7 +398,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
             pub_type = _PUB_TYPE_MAP[key]
             cv_data["publications"] = [
                 p for p in cv_data["publications"]
-                if p.type != pub_type or p.id in item_ids
+                if p.work_type != pub_type or p.id in item_ids
             ]
         elif key in _CV_DATA_KEY_MAP:
             data_key = _CV_DATA_KEY_MAP[key]

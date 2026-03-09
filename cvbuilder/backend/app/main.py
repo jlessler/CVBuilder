@@ -562,12 +562,16 @@ def dashboard(
 ):
     uid = current_user.id
     profile = db.query(models.Profile).filter_by(user_id=uid).first()
-    total = db.query(models.Publication).filter_by(user_id=uid).count()
+    _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
+    total = db.query(models.Work).filter(
+        models.Work.user_id == uid,
+        models.Work.work_type.in_(_PUB_TYPES),
+    ).count()
 
     def count_type(t):
-        return db.query(models.Publication).filter(
-            models.Publication.user_id == uid,
-            models.Publication.type == t,
+        return db.query(models.Work).filter(
+            models.Work.user_id == uid,
+            models.Work.work_type == t,
         ).count()
 
     trainee_rows = (

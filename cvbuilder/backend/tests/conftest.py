@@ -106,12 +106,12 @@ def sample_profile(client):
 
 @pytest.fixture()
 def sample_publication(client):
-    """Create a minimal publication and return the response JSON."""
-    resp = client.post("/api/publications", json={
-        "type": "papers",
+    """Create a minimal publication (as a Work) and return the response JSON."""
+    resp = client.post("/api/works", json={
+        "work_type": "papers",
         "title": "A Great Paper",
-        "year": "2024",
-        "journal": "Nature",
+        "year": 2024,
+        "data": {"journal": "Nature"},
         "authors": [
             {"author_name": "Doe J", "author_order": 0},
             {"author_name": "Smith A", "author_order": 1},

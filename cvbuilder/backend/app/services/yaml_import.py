@@ -46,12 +46,55 @@ def _parse_dates(dates_str: str) -> tuple[str, str]:
     return (start, end)
 
 
+def _parse_year_int(val):
+    """Extract 4-digit year from string/int → (year_int, raw_or_None)."""
+    if val is None:
+        return None, None
+    if isinstance(val, int):
+        return val, None
+    s = str(val).strip()
+    if not s:
+        return None, None
+    m = re.search(r'\d{4}', s)
+    if m:
+        year_int = int(m.group())
+        return (year_int, None) if s == m.group() else (year_int, s)
+    return None, s
+
+
+def _parse_month_from_date(date_str):
+    """Try to extract month number from a date string."""
+    if not date_str:
+        return None
+    _months = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12,
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+        'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+    lower = str(date_str).lower()
+    for name, num in _months.items():
+        if name in lower:
+            return num
+    return None
+
+
+def _delete_works_by_type(session, user_id, work_type):
+    """Delete all Work + WorkAuthor rows of a given type for a user."""
+    from app.models import Work, WorkAuthor
+    work_ids = [w.id for w in session.query(Work).filter_by(user_id=user_id, work_type=work_type).all()]
+    if work_ids:
+        session.query(WorkAuthor).filter(WorkAuthor.work_id.in_(work_ids)).delete(synchronize_session=False)
+    session.query(Work).filter_by(user_id=user_id, work_type=work_type).delete()
+
+
 def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     """Populate profile + CV section tables from CV.yml."""
     from app.models import (
         Address, Award, Class, Committee, Consulting, Education, Experience,
-        Grant, Membership, MiscSection, Panel, Patent, PatentAuthor,
-        Press, Profile, Seminar, Symposium, Trainee
+        Grant, Membership, MiscSection, Panel, Work, WorkAuthor,
+        Press, Profile, Symposium, Trainee
     )
 
     # CV.yml may have a trailing '---', producing multiple documents; take first non-None
@@ -165,25 +208,27 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         ))
 
     # ------------------------------------------------------------------
-    # Patents
+    # Patents (stored as Work with work_type='patents')
     # ------------------------------------------------------------------
-    # Delete patent authors for this user's patents first
-    user_patent_ids = [p.id for p in session.query(Patent).filter_by(user_id=user_id).all()]
-    if user_patent_ids:
-        session.query(PatentAuthor).filter(PatentAuthor.patent_id.in_(user_patent_ids)).delete(synchronize_session=False)
-    session.query(Patent).filter_by(user_id=user_id).delete()
+    _delete_works_by_type(session, user_id, "patents")
     for i, item in enumerate(data.get("patent", [])):
-        patent = Patent(
-            name=_clean(item.get("name", "")),
-            number=str(item.get("number", "")),
-            status=item.get("status", ""),
-            sort_order=i,
+        work_data = {}
+        num = str(item.get("number", ""))
+        if num:
+            work_data["identifier"] = num
+        status = item.get("status", "")
+        if status:
+            work_data["status"] = status
+        work = Work(
+            work_type="patents",
+            title=_clean(item.get("name", "")),
+            data=work_data,
             user_id=user_id,
         )
-        session.add(patent)
+        session.add(work)
         session.flush()
         for j, author in enumerate(item.get("authors", [])):
-            session.add(PatentAuthor(patent_id=patent.id, author_name=_clean(author), author_order=j))
+            session.add(WorkAuthor(work_id=work.id, author_name=_clean(author), author_order=j))
 
     # ------------------------------------------------------------------
     # Symposia
@@ -332,17 +377,31 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         ))
 
     # ------------------------------------------------------------------
-    # Seminars (invited talks)
+    # Seminars (stored as Work with work_type='seminars')
     # ------------------------------------------------------------------
-    session.query(Seminar).filter_by(user_id=user_id).delete()
+    _delete_works_by_type(session, user_id, "seminars")
     for i, item in enumerate(data.get("seminars", [])):
-        session.add(Seminar(
+        date_str = str(item.get("date", ""))
+        year_int, year_raw = _parse_year_int(date_str)
+        month_int = _parse_month_from_date(date_str)
+        work_data = {}
+        org = _clean(item.get("org", ""))
+        if org:
+            work_data["institution"] = org
+        event = _clean(item.get("event", ""))
+        if event:
+            work_data["conference"] = event
+        loc = _clean(item.get("loc", ""))
+        if loc:
+            work_data["location"] = loc
+        if year_raw:
+            work_data["date_raw"] = year_raw
+        session.add(Work(
+            work_type="seminars",
             title=_clean(item.get("title", "")),
-            org=_clean(item.get("org", "")),
-            date=str(item.get("date", "")),
-            location=_clean(item.get("loc", "")),
-            event=_clean(item.get("event", "")),
-            sort_order=i,
+            year=year_int,
+            month=month_int,
+            data=work_data,
             user_id=user_id,
         ))
 
@@ -361,12 +420,13 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         ))
 
     # ------------------------------------------------------------------
-    # Misc sections (editor, peerrev, software, policypres, etc.)
+    # Misc sections (editor, peerrev, policypres, etc.)
+    # Software and dissertation are now stored as Work.
     # ------------------------------------------------------------------
     session.query(MiscSection).filter_by(user_id=user_id).delete()
     misc_keys = [
         "editor", "assocedit", "otheredit", "peerrev",
-        "software", "policypres", "policycons",
+        "policypres", "policycons",
         "otherservice",
         "schoolwideOrals", "departmentalOrals", "finaldefense",
     ]
@@ -390,33 +450,69 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         payload = item if isinstance(item, dict) else {"value": item}
         session.add(MiscSection(section="otherpractice", data=payload, sort_order=i, user_id=user_id))
 
-    # dissertation: single dict, not a list
+    # Software (stored as Work with work_type='software')
+    _delete_works_by_type(session, user_id, "software")
+    for i, item in enumerate(data.get("software", [])):
+        if not isinstance(item, dict):
+            continue
+        year_int, year_raw = _parse_year_int(item.get("year"))
+        work_data = {}
+        if item.get("publisher"):
+            work_data["publisher"] = _clean(item["publisher"])
+        if item.get("url"):
+            work_data["url"] = item["url"]
+        if year_raw:
+            work_data["year_raw"] = year_raw
+        work = Work(
+            work_type="software",
+            title=_clean(item.get("title", "")),
+            year=year_int,
+            data=work_data,
+            user_id=user_id,
+        )
+        session.add(work)
+        session.flush()
+        authors_str = item.get("authors", "")
+        if isinstance(authors_str, str) and authors_str:
+            for j, name in enumerate(a.strip() for a in authors_str.split(",") if a.strip()):
+                session.add(WorkAuthor(work_id=work.id, author_name=_clean(name), author_order=j))
+
+    # Dissertation (stored as Work with work_type='dissertation')
+    _delete_works_by_type(session, user_id, "dissertation")
     diss = data.get("dissertation")
     if isinstance(diss, dict):
-        session.add(MiscSection(section="dissertation", sort_order=0, user_id=user_id, data={
-            "year": str(diss.get("year", "")),
-            "title": _clean(diss.get("title", "")),
-            "institution": _clean(
-                (diss.get("department", "") + ", " + diss.get("institution", "")).strip(", ")
-            ),
-        }))
+        year_int, year_raw = _parse_year_int(diss.get("year"))
+        work_data = {}
+        institution = _clean(
+            (diss.get("department", "") + ", " + diss.get("institution", "")).strip(", ")
+        )
+        if institution:
+            work_data["institution"] = institution
+        if year_raw:
+            work_data["year_raw"] = year_raw
+        session.add(Work(
+            work_type="dissertation",
+            title=_clean(diss.get("title", "")),
+            year=year_int,
+            data=work_data,
+            user_id=user_id,
+        ))
 
     session.commit()
     print(f"[yaml_import] CV.yml imported successfully.")
 
 
 def import_refs_yaml(refs_path: str, session, user_id: int = 1) -> None:
-    """Populate publications tables from refs.yml."""
-    from app.models import Publication, PubAuthor
+    """Populate works table from refs.yml (publications)."""
+    from app.models import Work, WorkAuthor
 
     docs = list(yaml.safe_load_all(Path(refs_path).read_text(encoding="utf-8")))
     data = next((d for d in docs if d is not None), {})
 
-    # Delete only this user's pub authors and publications
-    user_pub_ids = [p.id for p in session.query(Publication).filter_by(user_id=user_id).all()]
-    if user_pub_ids:
-        session.query(PubAuthor).filter(PubAuthor.pub_id.in_(user_pub_ids)).delete(synchronize_session=False)
-    session.query(Publication).filter_by(user_id=user_id).delete()
+    # Delete only this user's publication-type works and their authors
+    _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
+    for pt in _PUB_TYPES:
+        _delete_works_by_type(session, user_id, pt)
 
     # Map YAML keys to DB type names (papersNoPeer → editorials)
     pub_type_map = {
@@ -441,38 +537,79 @@ def import_refs_yaml(refs_path: str, session, user_id: int = 1) -> None:
             cofirsts = int(item.get("cofirsts", 0) or 0)
             coseniors = int(item.get("coseniors", 0) or 0)
 
-            pub = Publication(
-                type=pub_type,
+            year_int, year_raw = _parse_year_int(item.get("year"))
+            work_data = {}
+            journal = _clean(item.get("journal", "") or "")
+            if journal:
+                work_data["journal"] = journal
+            volume = str(item.get("volume", "") or "")
+            if volume:
+                work_data["volume"] = volume
+            issue = str(item.get("issue", "") or "")
+            if issue:
+                work_data["issue"] = issue
+            pages = str(item.get("pages", "") or "")
+            if pages:
+                work_data["pages"] = pages
+            if select_flag:
+                work_data["select_flag"] = True
+            conference = _clean(item.get("conference", "") or "")
+            if conference:
+                work_data["conference"] = conference
+            pres_type = item.get("pres_type", "")
+            if pres_type:
+                work_data["pres_type"] = pres_type
+            publisher = _clean(item.get("publisher", "") or "")
+            if publisher:
+                work_data["publisher"] = publisher
+            preprint_doi = str(item.get("preprint_doi", "") or "") or None
+            if preprint_doi:
+                work_data["preprint_doi"] = preprint_doi
+            published_doi = str(item.get("published_doi", "") or "") or None
+            if published_doi:
+                work_data["published_doi"] = published_doi
+            if year_raw:
+                work_data["year_raw"] = year_raw
+
+            doi = str(item.get("doi", "") or "")
+
+            work = Work(
+                work_type=pub_type,
                 title=_clean(item.get("title", "")),
-                year=str(item.get("year", "") or ""),
-                journal=_clean(item.get("journal", "") or ""),
-                volume=str(item.get("volume", "") or ""),
-                issue=str(item.get("issue", "") or ""),
-                pages=str(item.get("pages", "") or ""),
-                doi=str(item.get("doi", "") or ""),
-                corr=corr_val,
-                cofirsts=cofirsts,
-                coseniors=coseniors,
-                select_flag=select_flag,
-                conference=_clean(item.get("conference", "") or ""),
-                pres_type=item.get("pres_type", ""),
-                publisher=_clean(item.get("publisher", "") or ""),
-                preprint_doi=str(item.get("preprint_doi", "") or "") or None,
-                published_doi=str(item.get("published_doi", "") or "") or None,
+                year=year_int,
+                doi=doi or None,
+                data=work_data,
                 user_id=user_id,
             )
-            session.add(pub)
+            session.add(work)
             session.flush()
+
             for j, author in enumerate(authors_raw):
                 raw = str(author)
-                # Detect student-author marker from original LaTeX format ($^*$)
                 student = bool(re.search(r'\$\^[\*\{]', raw))
-                session.add(PubAuthor(
-                    pub_id=pub.id,
+                wa = WorkAuthor(
+                    work_id=work.id,
                     author_name=_clean(raw),
                     author_order=j,
                     student=student,
-                ))
+                )
+                session.add(wa)
+            session.flush()
+
+            # Convert pub-level role markers to per-author flags
+            if authors_raw:
+                work_authors = sorted(
+                    session.query(WorkAuthor).filter_by(work_id=work.id).all(),
+                    key=lambda a: a.author_order,
+                )
+                if corr_val and work_authors:
+                    work_authors[0].corresponding = True
+                if cofirsts > 0:
+                    for wa in work_authors[:cofirsts]:
+                        wa.cofirst = True
+                if coseniors > 0:
+                    for wa in work_authors[-coseniors:]:
+                        wa.cosenior = True
 
     session.commit()
     print(f"[yaml_import] refs.yml imported successfully.")

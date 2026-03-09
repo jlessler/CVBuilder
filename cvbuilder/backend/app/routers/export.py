@@ -60,9 +60,9 @@ def export_yaml(
         for r in db.query(models.Panel).filter_by(user_id=uid).filter(models.Panel.type == "grant_review").order_by(models.Panel.sort_order).all()
     ]
     cv_data["patent"] = []
-    for p in db.query(models.Patent).filter_by(user_id=uid).order_by(models.Patent.sort_order).all():
+    for p in db.query(models.Work).filter_by(user_id=uid, work_type="patents").order_by(models.Work.id).all():
         cv_data["patent"].append({
-            "name": p.name, "number": p.number, "status": p.status,
+            "name": p.title, "number": p.identifier, "status": p.status,
             "authors": [a.author_name for a in p.authors],
         })
     cv_data["symposium"] = model_list(models.Symposium, ["title", "meeting", "date", "role"])
@@ -76,38 +76,52 @@ def export_yaml(
     cv_data["honor"] = model_list(models.Award, ["name", "date"],
         lambda r: {"grantee": r.org})
 
-    # Publications
+    # Publications (from works table)
     pub_data: dict = {"myname": profile.name if profile else ""}
-    for pub_type in ["papers", "preprints", "papersNoPeer", "chapters", "letters", "scimeetings"]:
-        pubs = db.query(models.Publication).filter(
-            models.Publication.user_id == uid,
-            models.Publication.type == pub_type,
-        ).order_by(models.Publication.year.desc()).all()
-        pub_data[pub_type] = []
-        for p in pubs:
+    # Map DB work_type → YAML key (editorials → papersNoPeer for YAML compat)
+    _WORK_TYPE_TO_YAML = {
+        "papers": "papers", "preprints": "preprints", "chapters": "chapters",
+        "letters": "letters", "scimeetings": "scimeetings", "editorials": "papersNoPeer",
+    }
+    for work_type, yaml_key in _WORK_TYPE_TO_YAML.items():
+        works = db.query(models.Work).filter(
+            models.Work.user_id == uid,
+            models.Work.work_type == work_type,
+        ).order_by(models.Work.year.desc()).all()
+        pub_data[yaml_key] = []
+        for w in works:
+            d = w.data or {}
+            # Reconstruct year string for YAML (prefer year_raw, else integer year)
+            year_val = d.get("year_raw") or (str(w.year) if w.year else "")
             entry = {
-                "authors": [a.author_name for a in p.authors],
-                "title": p.title,
-                "year": p.year,
-                "journal": p.journal,
+                "authors": [a.author_name for a in w.authors],
+                "title": w.title,
+                "year": year_val,
+                "journal": d.get("journal", ""),
             }
-            for f in ["volume", "issue", "pages", "doi"]:
-                v = getattr(p, f)
+            for f in ["volume", "issue", "pages"]:
+                v = d.get(f)
                 if v:
                     entry[f] = v
-            if p.corr:
+            if w.doi:
+                entry["doi"] = w.doi
+            # Reconstruct corr/cofirsts/coseniors from per-author flags
+            authors = sorted(w.authors, key=lambda a: a.author_order)
+            if any(a.corresponding for a in authors):
                 entry["corr"] = True
-            if p.select_flag:
+            cofirsts = sum(1 for a in authors if a.cofirst)
+            if cofirsts:
+                entry["cofirsts"] = cofirsts
+            coseniors = sum(1 for a in authors if a.cosenior)
+            if coseniors:
+                entry["coseniors"] = coseniors
+            if d.get("select_flag"):
                 entry["select"] = "1"
-            if p.cofirsts:
-                entry["cofirsts"] = p.cofirsts
-            if p.coseniors:
-                entry["coseniors"] = p.coseniors
-            if p.preprint_doi:
-                entry["preprint_doi"] = p.preprint_doi
-            if p.published_doi:
-                entry["published_doi"] = p.published_doi
-            pub_data[pub_type].append(entry)
+            if d.get("preprint_doi"):
+                entry["preprint_doi"] = d["preprint_doi"]
+            if d.get("published_doi"):
+                entry["published_doi"] = d["published_doi"]
+            pub_data[yaml_key].append(entry)
 
     combined = {"cv": cv_data, "refs": pub_data}
     yaml_str = yaml.dump(combined, allow_unicode=True, sort_keys=False, default_flow_style=False)

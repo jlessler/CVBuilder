@@ -26,6 +26,11 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
             models.MiscSection.section == section_key,
         ).all()
 
+    def _works_query(work_type):
+        return db.query(models.Work).filter_by(user_id=user_id, work_type=work_type).all()
+
+    _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
+
     return {
         "profile": profile,
         "education": sort_items(_user_query(models.Education), models.Education, reverse=rev),
@@ -33,14 +38,14 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
         "consulting": sort_items(_user_query(models.Consulting), models.Consulting, reverse=rev),
         "memberships": sort_items(_user_query(models.Membership), models.Membership, reverse=rev),
         "panels": sort_items(_user_query(models.Panel), models.Panel, reverse=rev),
-        "patents": sort_items(_user_query(models.Patent), models.Patent, reverse=rev),
+        "patents": sort_items(_works_query("patents"), models.Work, reverse=rev),
         "symposia": sort_items(_user_query(models.Symposium), models.Symposium, reverse=rev),
         "classes": sort_items(_user_query(models.Class), models.Class, reverse=rev),
         "grants": sort_items(_user_query(models.Grant), models.Grant, reverse=rev),
         "awards": sort_items(_user_query(models.Award), models.Award, reverse=rev),
         "press": sort_items(_user_query(models.Press), models.Press, reverse=rev),
         "trainees": sort_items(_user_query(models.Trainee), models.Trainee, reverse=rev),
-        "seminars": sort_items(_user_query(models.Seminar), models.Seminar, reverse=rev),
+        "seminars": sort_items(_works_query("seminars"), models.Work, reverse=rev),
         "committees": sort_items(_user_query(models.Committee), models.Committee, reverse=rev),
         "editorial": sort_items(
             db.query(models.MiscSection).filter(
@@ -50,19 +55,22 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
             models.MiscSection, reverse=rev,
         ),
         "peerrev": sort_items(_misc_query("peerrev"), models.MiscSection, reverse=rev),
-        "software": sort_items(_misc_query("software"), models.MiscSection, reverse=rev),
+        "software": sort_items(_works_query("software"), models.Work, reverse=rev),
         "policypres": sort_items(_misc_query("policypres"), models.MiscSection, reverse=rev),
         "policycons": sort_items(_misc_query("policycons"), models.MiscSection, reverse=rev),
         "otherservice": sort_items(_misc_query("otherservice"), models.MiscSection, reverse=rev),
-        "dissertation": sort_items(_misc_query("dissertation"), models.MiscSection, reverse=rev),
+        "dissertation": sort_items(_works_query("dissertation"), models.Work, reverse=rev),
         "chairedsessions": sort_items(_misc_query("chairedsessions"), models.MiscSection, reverse=rev),
         "otherpractice": sort_items(_misc_query("otherpractice"), models.MiscSection, reverse=rev),
         "departmentalOrals": sort_items(_misc_query("departmentalOrals"), models.MiscSection, reverse=rev),
         "finaldefense": sort_items(_misc_query("finaldefense"), models.MiscSection, reverse=rev),
         "schoolwideOrals": sort_items(_misc_query("schoolwideOrals"), models.MiscSection, reverse=rev),
         "publications": sort_items(
-            db.query(models.Publication).filter_by(user_id=user_id).all(),
-            models.Publication, reverse=rev,
+            db.query(models.Work).filter(
+                models.Work.user_id == user_id,
+                models.Work.work_type.in_(_PUB_TYPES),
+            ).all(),
+            models.Work, reverse=rev,
         ),
     }
 

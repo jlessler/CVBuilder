@@ -192,10 +192,10 @@ class TestPublicationParity:
     def test_publication_counts_match(self, client, db_session):
         """The new pipeline should have the same number of publications."""
         _setup_new_pipeline(client, db_session)
-        papers = client.get("/api/publications?type=papers").json()
-        chapters = client.get("/api/publications?type=chapters").json()
-        letters = client.get("/api/publications?type=letters").json()
-        meetings = client.get("/api/publications?type=scimeetings").json()
+        papers = client.get("/api/works?type=papers").json()
+        chapters = client.get("/api/works?type=chapters").json()
+        letters = client.get("/api/works?type=letters").json()
+        meetings = client.get("/api/works?type=scimeetings").json()
 
         # Must match old pipeline's refvars.tex counts
         assert len(papers) == 10     # \npeer{10}

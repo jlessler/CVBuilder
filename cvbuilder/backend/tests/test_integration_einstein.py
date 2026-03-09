@@ -95,11 +95,11 @@ class TestImportCV:
 
     def test_patents(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/patents").json()
+        items = client.get("/api/works?type=patents").json()
         assert len(items) == 1
         p = items[0]
-        assert "Einstein-Szilard" in p["name"] or "Refrigerator" in p["name"]
-        assert p["number"] == "US1781541"
+        assert "Einstein-Szilard" in p["title"] or "Refrigerator" in p["title"]
+        assert p["data"]["identifier"] == "US1781541"
         assert len(p["authors"]) == 2
         author_names = [a["author_name"] for a in p["authors"]]
         assert "Einstein A" in author_names
@@ -155,7 +155,7 @@ class TestImportCV:
 
     def test_seminars(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/seminars").json()
+        items = client.get("/api/works?type=seminars").json()
         assert len(items) == 3
         assert any("Electrodynamics" in (i["title"] or "") for i in items)
 
@@ -196,9 +196,9 @@ class TestImportCV:
 
     def test_software(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/software").json()
+        items = client.get("/api/works?type=software").json()
         assert len(items) == 2
-        titles = [i["data"]["title"] for i in items]
+        titles = [i["title"] for i in items]
         assert "Unified Field Equation Solver" in titles
 
     def test_otherservice(self, client, db_session):
@@ -247,11 +247,11 @@ class TestImportCV:
 
     def test_dissertation(self, client, db_session):
         self._import(db_session)
-        items = client.get("/api/misc/dissertation").json()
+        items = client.get("/api/works?type=dissertation").json()
         assert len(items) == 1
-        d = items[0]["data"]
+        d = items[0]
         assert "Molecular Dimensions" in d["title"]
-        assert "1905" in str(d.get("year", ""))
+        assert d["year"] == 1905
 
     def test_chaired_sessions(self, client, db_session):
         self._import(db_session)
@@ -280,61 +280,68 @@ class TestImportCV:
 # ── YAML import for publications ────────────────────────────────────────
 
 class TestImportRefs:
-    """Import einstein_refs.yml and verify publications via API."""
+    """Import einstein_refs.yml and verify works via API."""
 
     def _import(self, db_session):
         import_refs_yaml(str(FIXTURES / "einstein_refs.yml"), db_session)
 
     def test_paper_count(self, client, db_session):
         self._import(db_session)
-        papers = client.get("/api/publications?type=papers").json()
+        papers = client.get("/api/works?type=papers").json()
         assert len(papers) == 10
 
     def test_chapters(self, client, db_session):
         self._import(db_session)
-        chapters = client.get("/api/publications?type=chapters").json()
+        chapters = client.get("/api/works?type=chapters").json()
         assert len(chapters) == 2
         assert any("Meaning of Relativity" in c["title"] for c in chapters)
 
     def test_letters(self, client, db_session):
         self._import(db_session)
-        letters = client.get("/api/publications?type=letters").json()
+        letters = client.get("/api/works?type=letters").json()
         assert len(letters) == 2
 
     def test_scimeetings(self, client, db_session):
         self._import(db_session)
-        meetings = client.get("/api/publications?type=scimeetings").json()
+        meetings = client.get("/api/works?type=scimeetings").json()
         assert len(meetings) == 3
 
     def test_select_flag(self, client, db_session):
         self._import(db_session)
-        selected = client.get("/api/publications?select_only=true").json()
+        # select_flag is in data JSON, not a top-level filter on works endpoint
+        all_works = client.get("/api/works?type=papers").json()
+        selected = [w for w in all_works if (w.get("data") or {}).get("select_flag")]
+        # Also check chapters/letters/etc
+        for wt in ["chapters", "letters", "scimeetings"]:
+            works = client.get(f"/api/works?type={wt}").json()
+            selected.extend(w for w in works if (w.get("data") or {}).get("select_flag"))
         assert len(selected) == 6
         titles = {p["title"] for p in selected}
         assert any("Quantum-Mechanical" in t for t in titles)
 
     def test_authors_preserved(self, client, db_session):
         self._import(db_session)
-        pubs = client.get("/api/publications?type=papers").json()
+        pubs = client.get("/api/works?type=papers").json()
         epr = next(p for p in pubs if "Quantum-Mechanical" in p["title"])
         names = [a["author_name"] for a in epr["authors"]]
         assert names == ["Einstein A", "Podolsky B", "Rosen N"]
 
     def test_doi_preserved(self, client, db_session):
         self._import(db_session)
-        pubs = client.get("/api/publications?type=papers").json()
+        pubs = client.get("/api/works?type=papers").json()
         epr = next(p for p in pubs if "Quantum-Mechanical" in p["title"])
         assert epr["doi"] == "10.1103/PhysRev.47.777"
 
     def test_corr_flag(self, client, db_session):
         self._import(db_session)
-        pubs = client.get("/api/publications?type=papers").json()
+        pubs = client.get("/api/works?type=papers").json()
         sr = next(p for p in pubs if "Elektrodynamik" in p["title"])
-        assert sr["corr"] is True
+        # corr is now per-author: first author should have corresponding=True
+        assert any(a["corresponding"] for a in sr["authors"])
 
     def test_keyword_search(self, client, db_session):
         self._import(db_session)
-        results = client.get("/api/publications?keyword=relativity").json()
+        results = client.get("/api/works?keyword=relativity").json()
         assert len(results) >= 1
 
 
