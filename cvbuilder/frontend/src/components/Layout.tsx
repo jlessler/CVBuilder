@@ -9,7 +9,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/sections', label: 'CV Sections', icon: GraduationCap },
-  { to: '/publications', label: 'Publications', icon: BookOpen },
+  { to: '/publications', label: 'Scholarly Works', icon: BookOpen },
   { to: '/cvs', label: 'CVs', icon: Files },
   { to: '/export', label: 'Import/Export', icon: Download },
   { to: '/templates', label: 'Templates', icon: Layout },
