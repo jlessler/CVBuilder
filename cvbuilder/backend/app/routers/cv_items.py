@@ -16,17 +16,17 @@ def list_items(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    items = (
-        db.query(models.CVItem)
-        .filter_by(user_id=current_user.id, section=section)
-        .order_by(
-            models.CVItem.sort_date.desc().nullslast(),
-            models.CVItem.sort_order,
-            models.CVItem.id,
-        )
-        .all()
-    )
-    return items
+    sections = [s.strip() for s in section.split(",")]
+    q = db.query(models.CVItem).filter(models.CVItem.user_id == current_user.id)
+    if len(sections) == 1:
+        q = q.filter(models.CVItem.section == sections[0])
+    else:
+        q = q.filter(models.CVItem.section.in_(sections))
+    return q.order_by(
+        models.CVItem.sort_date.desc().nullslast(),
+        models.CVItem.sort_order,
+        models.CVItem.id,
+    ).all()
 
 
 @router.post("", response_model=schemas.CVItemOut)

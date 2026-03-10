@@ -5,67 +5,58 @@ import { Button, Card, Input, Modal, PageHeader, Spinner } from '../components/u
 import { Plus, Trash2, Edit2 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
-// Tab configuration
+// Tab configuration — all sections are CVItems stored in data JSON blobs
 // ---------------------------------------------------------------------------
 
 type SectionKey =
   | 'education' | 'experience' | 'consulting' | 'memberships'
   | 'grants' | 'awards' | 'classes' | 'symposia'
   | 'panels_advisory' | 'panels_grantreview'
-  | 'patents' | 'trainees_advisees' | 'trainees_postdocs'
-  | 'press' | 'seminars' | 'committees'
+  | 'trainees_advisees' | 'trainees_postdocs'
+  | 'press' | 'committees'
   | 'misc_editor' | 'misc_peerrev' | 'misc_policypres' | 'misc_policycons'
-  | 'misc_software' | 'misc_otherservice'
-  | 'misc_dissertation' | 'misc_chairedsessions' | 'misc_otherpractice'
+  | 'misc_otherservice'
+  | 'misc_chairedsessions' | 'misc_otherpractice'
 
 interface TabDef {
   key: SectionKey
   label: string
   group: string
-  endpoint: string           // API path (without leading slash) used for GET
-  queryParams?: string       // appended as ?key=val
-  defaultValues?: Record<string, string | number>
-  readOnly?: boolean         // misc sections shown read-only
-  dataFields?: string[]      // when set, form flattens item.data into top-level keys
-  sectionValue?: string      // the `section` string sent in MiscSection POST/PUT body
-  subtypeField?: string      // form field whose value is used as the MiscSection.section
+  section: string           // DB section key(s) for GET — comma-separated for multi-section
+  createSection?: string    // section to use on create (if different from `section`)
+  subtypeField?: string     // form field whose value overrides section on create
 }
 
 const TABS: TabDef[] = [
   // --- Experience & positions ---
-  { key: 'education',           label: 'Education',        group: 'Education and Experience', endpoint: 'education' },
-  { key: 'experience',          label: 'Experience',       group: 'Education and Experience', endpoint: 'experience' },
-  { key: 'consulting',          label: 'Consulting',       group: 'Education and Experience', endpoint: 'consulting' },
-  { key: 'awards',              label: 'Awards',           group: 'Education and Experience', endpoint: 'awards' },
+  { key: 'education',           label: 'Education',        group: 'Education and Experience', section: 'education' },
+  { key: 'experience',          label: 'Experience',       group: 'Education and Experience', section: 'experience' },
+  { key: 'consulting',          label: 'Consulting',       group: 'Education and Experience', section: 'consulting' },
+  { key: 'awards',              label: 'Awards',           group: 'Education and Experience', section: 'awards' },
   // --- Teaching & trainees ---
-  { key: 'classes',             label: 'Classes',          group: 'Teaching',   endpoint: 'classes' },
-  { key: 'trainees_advisees',   label: 'Advisees',         group: 'Teaching',   endpoint: 'trainees', queryParams: 'trainee_type=advisee', defaultValues: { trainee_type: 'advisee' } },
-  { key: 'trainees_postdocs',   label: 'Postdocs',         group: 'Teaching',   endpoint: 'trainees', queryParams: 'trainee_type=postdoc', defaultValues: { trainee_type: 'postdoc' } },
+  { key: 'classes',             label: 'Classes',          group: 'Teaching',   section: 'classes' },
+  { key: 'trainees_advisees',   label: 'Advisees',         group: 'Teaching',   section: 'trainees_advisees' },
+  { key: 'trainees_postdocs',   label: 'Postdocs',         group: 'Teaching',   section: 'trainees_postdocs' },
   // --- Grants ---
-  { key: 'grants',              label: 'Grants',           group: 'Grants',     endpoint: 'grants' },
+  { key: 'grants',              label: 'Grants',           group: 'Grants',     section: 'grants' },
   // --- Service ---
-  { key: 'panels_advisory',     label: 'Advisory Panels',  group: 'Service',    endpoint: 'panels', queryParams: 'panel_type=advisory', defaultValues: { type: 'advisory' } },
-  { key: 'panels_grantreview',  label: 'Grant Review',     group: 'Service',    endpoint: 'panels', queryParams: 'panel_type=grant_review', defaultValues: { type: 'grant_review' } },
-  { key: 'symposia',            label: 'Symposia',         group: 'Service',    endpoint: 'symposia' },
-  { key: 'committees',          label: 'Committees',       group: 'Service',    endpoint: 'committees' },
-  { key: 'memberships',         label: 'Memberships',      group: 'Service',    endpoint: 'memberships' },
-  { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    endpoint: 'misc/editorial',    dataFields: ['journal', 'term', 'role'], subtypeField: 'subtype' },
-  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    endpoint: 'misc/peerrev',      dataFields: ['value'],            sectionValue: 'peerrev' },
-  { key: 'misc_otherservice',   label: 'Other Service',    group: 'Service',    endpoint: 'misc/otherservice', dataFields: ['description', 'department', 'dates'], sectionValue: 'otherservice' },
-  // --- Scholarly Output ---
-  { key: 'misc_dissertation',    label: 'Dissertation',        group: 'Scholarly Output', endpoint: 'misc/dissertation',    dataFields: ['year', 'title', 'institution'],               sectionValue: 'dissertation' },
-  { key: 'patents',             label: 'Patents',              group: 'Scholarly Output', endpoint: 'patents' },
-  { key: 'seminars',            label: 'Seminars',             group: 'Scholarly Output', endpoint: 'seminars' },
-  { key: 'misc_software',     label: 'Software',               group: 'Scholarly Output', endpoint: 'misc/software',     dataFields: ['title', 'year', 'publisher', 'url', 'authors'], sectionValue: 'software' },
-  // --- Misc (editable) ---
-  { key: 'misc_policypres',   label: 'Policy Pres.',    group: 'Misc', endpoint: 'misc/policypres',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policypres' },
-  { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', endpoint: 'misc/policycons',   dataFields: ['title', 'org', 'date', 'description'], sectionValue: 'policycons' },
-  { key: 'press',             label: 'Press / Media',    group: 'Misc', endpoint: 'press' },
-  { key: 'misc_chairedsessions', label: 'Chaired Sessions',    group: 'Service', endpoint: 'misc/chairedsessions', dataFields: ['date', 'title', 'meeting'],                 sectionValue: 'chairedsessions' },
-  { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', endpoint: 'misc/otherpractice',   dataFields: ['years', 'title', 'description'],              sectionValue: 'otherpractice' },
+  { key: 'panels_advisory',     label: 'Advisory Panels',  group: 'Service',    section: 'panels_advisory' },
+  { key: 'panels_grantreview',  label: 'Grant Review',     group: 'Service',    section: 'panels_grantreview' },
+  { key: 'symposia',            label: 'Symposia',         group: 'Service',    section: 'symposia' },
+  { key: 'committees',          label: 'Committees',       group: 'Service',    section: 'committees' },
+  { key: 'memberships',         label: 'Memberships',      group: 'Service',    section: 'memberships' },
+  { key: 'misc_editor',         label: 'Editorial',        group: 'Service',    section: 'editor,assocedit,otheredit,editorial', subtypeField: 'subtype' },
+  { key: 'misc_peerrev',        label: 'Peer Review',      group: 'Service',    section: 'peerrev', createSection: 'peerrev' },
+  { key: 'misc_otherservice',   label: 'Other Service',    group: 'Service',    section: 'otherservice', createSection: 'otherservice' },
+  // --- Misc ---
+  { key: 'misc_policypres',   label: 'Policy Pres.',    group: 'Misc', section: 'policypres', createSection: 'policypres' },
+  { key: 'misc_policycons',   label: 'Policy Consult.', group: 'Misc', section: 'policycons', createSection: 'policycons' },
+  { key: 'press',             label: 'Press / Media',    group: 'Misc', section: 'press' },
+  { key: 'misc_chairedsessions', label: 'Chaired Sessions',    group: 'Service', section: 'chairedsessions', createSection: 'chairedsessions' },
+  { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', section: 'otherpractice', createSection: 'otherpractice' },
 ]
 
-const GROUPS = ['Education and Experience', 'Teaching', 'Scholarly Output', 'Grants', 'Service', 'Misc']
+const GROUPS = ['Education and Experience', 'Teaching', 'Grants', 'Service', 'Misc']
 
 // ---------------------------------------------------------------------------
 // Field definitions per section
@@ -143,11 +134,6 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'date', label: 'Date' },
     { key: 'panel_id', label: 'Review ID' },
   ],
-  patents: [
-    { key: 'name', label: 'Patent Name' },
-    { key: 'number', label: 'Patent Number' },
-    { key: 'status', label: 'Status' },
-  ],
   trainees_advisees: [
     { key: 'name', label: 'Name' },
     { key: 'degree', label: 'Degree' },
@@ -169,13 +155,6 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'outlet', label: 'Outlet / Publication' },
     { key: 'date', label: 'Date' },
     { key: 'url', label: 'URL' },
-  ],
-  seminars: [
-    { key: 'title', label: 'Title' },
-    { key: 'org', label: 'Host Institution / Organization' },
-    { key: 'date', label: 'Date' },
-    { key: 'location', label: 'Location' },
-    { key: 'event', label: 'Event / Seminar Series' },
   ],
   committees: [
     { key: 'committee', label: 'Committee Name' },
@@ -208,22 +187,10 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'date', label: 'Date / Period' },
     { key: 'description', label: 'Description', textarea: true },
   ],
-  misc_software: [
-    { key: 'title', label: 'Software Name' },
-    { key: 'year', label: 'Year', type: 'number' },
-    { key: 'publisher', label: 'Publisher / Host' },
-    { key: 'url', label: 'URL' },
-    { key: 'authors', label: 'Authors (comma-separated)', textarea: true },
-  ],
   misc_otherservice: [
     { key: 'description', label: 'Description' },
     { key: 'department', label: 'Department / Context' },
     { key: 'dates', label: 'Dates' },
-  ],
-  misc_dissertation: [
-    { key: 'year', label: 'Year', type: 'number' },
-    { key: 'title', label: 'Title', textarea: true },
-    { key: 'institution', label: 'Institution / Department' },
   ],
   misc_chairedsessions: [
     { key: 'date', label: 'Year / Date' },
@@ -239,11 +206,10 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
 
 function blankForm(tab: TabDef): Record<string, string | number> {
   const fields = FIELDS[tab.key] ?? []
-  const base = Object.fromEntries(fields.map(f => [
+  return Object.fromEntries(fields.map(f => [
     f.key,
     f.options ? f.options[0].value : f.type === 'number' ? 0 : '',
   ]))
-  return { ...base, ...(tab.defaultValues ?? {}) }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,21 +217,17 @@ function blankForm(tab: TabDef): Record<string, string | number> {
 // ---------------------------------------------------------------------------
 
 function ItemRow({
-  item, onEdit, onDelete, readOnly,
+  item, onEdit, onDelete,
 }: {
   item: Record<string, unknown>
   onEdit: () => void
   onDelete: () => void
-  readOnly?: boolean
 }) {
+  // item.data is flattened into top-level by the query, so we can access fields directly
   const title = (
     item.name || item.title || item.class_name || item.degree ||
-    item.panel || item.committee || item.org ||
-    (item.data && (item.data as Record<string, unknown>).journal) ||
-    (item.data && (item.data as Record<string, unknown>).title) ||
-    (item.data && (item.data as Record<string, unknown>).value) ||
-    (item.data && (item.data as Record<string, unknown>).description) ||
-    ''
+    item.panel || item.committee || item.org || item.journal ||
+    item.value || item.description || ''
   ) as string
 
   const SECTION_LABELS: Record<string, string> = {
@@ -274,19 +236,13 @@ function ItemRow({
   const sub = (
     item.employer || item.agency || item.school || item.meeting ||
     item.org || item.outlet || item.topic ||
-    (item.data && (item.data as Record<string, unknown>).org) ||
-    (item.data && (item.data as Record<string, unknown>).department) ||
-    (item.data && (item.data as Record<string, unknown>).publisher) ||
-    (item.data && (item.data as Record<string, unknown>).role) ||
+    item.department || item.publisher || item.role ||
     (item.section && SECTION_LABELS[item.section as string]) ||
     ''
   ) as string
 
   const date = (
     item.dates || item.years || item.year || item.date ||
-    (item.data && (item.data as Record<string, unknown>).date) ||
-    (item.data && (item.data as Record<string, unknown>).dates) ||
-    (item.data && (item.data as Record<string, unknown>).year) ||
     `${item.years_start || ''}${item.years_end ? `–${item.years_end}` : ''}`
   ) as string
 
@@ -297,12 +253,10 @@ function ItemRow({
         {sub && <p className="text-xs text-gray-500 truncate">{sub}</p>}
         {date && <p className="text-xs text-gray-400">{date}</p>}
       </div>
-      {!readOnly && (
-        <div className="flex items-center gap-1 ml-3">
-          <Button variant="ghost" size="sm" onClick={onEdit}><Edit2 size={14} /></Button>
-          <Button variant="ghost" size="sm" onClick={onDelete}><Trash2 size={14} className="text-red-500" /></Button>
-        </div>
-      )}
+      <div className="flex items-center gap-1 ml-3">
+        <Button variant="ghost" size="sm" onClick={onEdit}><Edit2 size={14} /></Button>
+        <Button variant="ghost" size="sm" onClick={onDelete}><Trash2 size={14} className="text-red-500" /></Button>
+      </div>
     </div>
   )
 }
@@ -319,45 +273,46 @@ export function Sections() {
   const [form, setForm] = useState<Record<string, string | number>>({})
 
   const currentTab = TABS.find(t => t.key === tab)!
-  const url = currentTab.queryParams
-    ? `/${currentTab.endpoint}?${currentTab.queryParams}`
-    : `/${currentTab.endpoint}`
+  const url = `/cv/${currentTab.section}`
 
   const { data = [], isLoading } = useQuery<Record<string, unknown>[]>({
     queryKey: [tab],
-    queryFn: () => api.get(url).then(r => r.data),
+    queryFn: () => api.get(url).then(r =>
+      // Flatten item.data into top-level for display compatibility
+      r.data.map((item: Record<string, unknown>) => ({
+        ...item,
+        ...((item.data as Record<string, unknown>) || {}),
+      }))
+    ),
   })
 
-  function buildMiscPayload(d: Record<string, string | number>) {
-    const section = currentTab.subtypeField
-      ? String(d[currentTab.subtypeField] || currentTab.sectionValue || '')
-      : (currentTab.sectionValue ?? '')
-    const dataKeys = (currentTab.dataFields ?? []).filter(k => k !== currentTab.subtypeField)
-    const dataObj = Object.fromEntries(dataKeys.map(k => [k, d[k] ?? '']))
-    return { section, data: dataObj }
+  function getCreateSection(d: Record<string, string | number>): string {
+    if (currentTab.subtypeField) {
+      return String(d[currentTab.subtypeField] || currentTab.createSection || currentTab.section.split(',')[0])
+    }
+    return currentTab.createSection || currentTab.section
+  }
+
+  function buildData(d: Record<string, string | number>): Record<string, unknown> {
+    const fields = FIELDS[tab] ?? []
+    const fieldKeys = fields.map(f => f.key).filter(k => k !== currentTab.subtypeField)
+    return Object.fromEntries(fieldKeys.map(k => [k, d[k] ?? '']).filter(([, v]) => v !== ''))
   }
 
   const createMut = useMutation({
     mutationFn: (d: Record<string, string | number>) =>
-      currentTab.dataFields
-        ? api.post('/misc', buildMiscPayload(d))
-        : api.post(`/${currentTab.endpoint}`, { ...d, ...(currentTab.defaultValues ?? {}) }),
+      api.post('/cv', { section: getCreateSection(d), data: buildData(d) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: [tab] }); closeModal() },
   })
 
   const updateMut = useMutation({
     mutationFn: (d: Record<string, string | number>) =>
-      currentTab.dataFields
-        ? api.put(`/misc/${d.id}`, buildMiscPayload(d))
-        : api.put(`/${currentTab.endpoint}/${d.id}`, d),
+      api.put(`/cv/${d.id}`, { data: buildData(d) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: [tab] }); closeModal() },
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) =>
-      currentTab.dataFields
-        ? api.delete(`/misc/${id}`)
-        : api.delete(`/${currentTab.endpoint}/${id}`),
+    mutationFn: (id: number) => api.delete(`/cv/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: [tab] }),
   })
 
@@ -367,13 +322,22 @@ export function Sections() {
   }
 
   function openEdit(item: Record<string, unknown>) {
-    if (currentTab.dataFields && item.data) {
-      const nested = item.data as Record<string, unknown>
-      const extra = currentTab.subtypeField ? { [currentTab.subtypeField]: item.section } : {}
-      setForm({ id: item.id as number, ...nested, ...extra } as Record<string, string | number>)
-    } else {
-      setForm(item as Record<string, string | number>)
+    // For editorial, map section back to the subtype field
+    const extra: Record<string, unknown> = {}
+    if (currentTab.subtypeField && item.section) {
+      extra[currentTab.subtypeField] = item.section
     }
+    // Data fields are already flattened into top-level by the query
+    const fields = FIELDS[tab] ?? []
+    const fieldKeys = fields.map(f => f.key)
+    const formData: Record<string, string | number> = { id: item.id as number }
+    for (const k of fieldKeys) {
+      if (item[k] !== undefined && item[k] !== null) {
+        formData[k] = item[k] as string | number
+      }
+    }
+    Object.assign(formData, extra)
+    setForm(formData)
     setModal({ open: true, item })
   }
 
@@ -395,9 +359,7 @@ export function Sections() {
         title="CV Sections"
         subtitle="Manage all CV sections"
         actions={
-          !currentTab.readOnly
-            ? <Button onClick={openCreate}><Plus size={16} /> Add Entry</Button>
-            : undefined
+          <Button onClick={openCreate}><Plus size={16} /> Add Entry</Button>
         }
       />
 
@@ -435,17 +397,11 @@ export function Sections() {
 
       {isLoading ? <Spinner /> : (
         <Card>
-          {currentTab.readOnly && (
-            <p className="px-5 pt-3 text-xs text-gray-400 italic">
-              These entries are imported from your YAML. Re-run import to refresh.
-            </p>
-          )}
           <div className="divide-y divide-gray-100">
             {(data as Record<string, unknown>[]).map((item) => (
               <ItemRow
                 key={item.id as number}
                 item={item}
-                readOnly={currentTab.readOnly}
                 onEdit={() => openEdit(item)}
                 onDelete={() => {
                   if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
@@ -454,7 +410,7 @@ export function Sections() {
             ))}
             {data.length === 0 && (
               <div className="py-12 text-center text-gray-400 text-sm">
-                No entries yet.{currentTab.readOnly ? ' Re-run YAML import to populate.' : ' Click "Add Entry" to add one.'}
+                No entries yet. Click "Add Entry" to add one.
               </div>
             )}
           </div>
