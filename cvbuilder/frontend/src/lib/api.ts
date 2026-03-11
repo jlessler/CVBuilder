@@ -224,33 +224,26 @@ export interface Trainee {
   sort_order: number
 }
 
-export interface PubAuthor {
+export interface WorkAuthor {
   id: number
   author_name: string
   author_order: number
   student: boolean
+  corresponding: boolean
+  cofirst: boolean
+  cosenior: boolean
 }
 
-export interface Publication {
+export interface Work {
   id: number
-  type: string
+  work_type: string
   title: string | null
-  year: string | null
-  journal: string | null
-  volume: string | null
-  issue: string | null
-  pages: string | null
+  year: number | null
+  month: number | null
+  day: number | null
   doi: string | null
-  corr: boolean
-  cofirsts: number
-  coseniors: number
-  select_flag: boolean
-  conference: string | null
-  pres_type: string | null
-  publisher: string | null
-  preprint_doi: string | null
-  published_doi: string | null
-  authors: PubAuthor[]
+  data: Record<string, unknown>
+  authors: WorkAuthor[]
 }
 
 export interface TemplateSection {

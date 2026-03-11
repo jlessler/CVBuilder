@@ -41,19 +41,20 @@ def _make_instance(client, template_id, **overrides):
 
 
 def _add_education(client, degree="PhD", year=2020, school="MIT"):
-    resp = client.post("/api/education", json={
-        "degree": degree, "year": year, "school": school,
+    resp = client.post("/api/cv", json={
+        "section": "education",
+        "data": {"degree": degree, "year": year, "school": school},
     })
     assert resp.status_code == 200
     return resp.json()
 
 
 def _add_publication(client, title="Test Paper", year="2024", pub_type="papers"):
-    resp = client.post("/api/publications", json={
-        "type": pub_type,
+    resp = client.post("/api/works", json={
+        "work_type": pub_type,
         "title": title,
-        "year": year,
-        "journal": "Test Journal",
+        "year": int(year) if year.isdigit() else None,
+        "data": {"journal": "Test Journal"},
         "authors": [
             {"author_name": "Doe J", "author_order": 0},
         ],

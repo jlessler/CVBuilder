@@ -2,37 +2,172 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Publication, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
+import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
 import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2 } from 'lucide-react'
 
-type AuthorRow = { author_name: string; student: boolean }
+type AuthorRow = {
+  author_name: string
+  student: boolean
+  corresponding: boolean
+  cofirst: boolean
+  cosenior: boolean
+}
 
-const PUB_TYPES = [
+const WORK_TYPES = [
   { value: 'papers', label: 'Papers' },
   { value: 'preprints', label: 'Preprints' },
   { value: 'chapters', label: 'Chapters' },
   { value: 'letters', label: 'Letters' },
   { value: 'scimeetings', label: 'Scientific Meetings' },
   { value: 'editorials', label: 'Non-Peer-Reviewed / Editorials' },
+  { value: 'patents', label: 'Patents' },
+  { value: 'seminars', label: 'Seminars' },
+  { value: 'software', label: 'Software' },
+  { value: 'dissertation', label: 'Dissertation' },
 ]
 
 const TYPE_COLOR: Record<string, string> = {
   papers: 'blue', preprints: 'cyan', chapters: 'purple',
   letters: 'orange', scimeetings: 'green', editorials: 'gray',
+  patents: 'yellow', seminars: 'pink', software: 'indigo', dissertation: 'red',
 }
 
 const SOURCE_COLOR: Record<string, string> = {
   pubmed: 'green', crossref: 'blue', orcid: 'orange', semanticscholar: 'purple',
 }
 
-function blankPub(): Omit<Publication, 'id' | 'authors'> & { authorRows: AuthorRow[] } {
+// Work types that have journal/volume/issue/pages fields
+const PUBLICATION_TYPES = new Set(['papers', 'preprints', 'chapters', 'letters', 'scimeetings', 'editorials'])
+// Work types that support cross-ref DOIs
+const CROSSREF_TYPES = new Set(['papers', 'preprints', 'chapters', 'letters'])
+
+interface WorkForm {
+  work_type: string
+  title: string
+  year: string
+  doi: string
+  // data fields (flattened for editing)
+  journal: string
+  volume: string
+  issue: string
+  pages: string
+  select_flag: boolean
+  preprint_doi: string
+  published_doi: string
+  // patent fields
+  identifier: string
+  status: string
+  // seminar fields
+  institution: string
+  conference: string
+  location: string
+  // software fields
+  publisher: string
+  url: string
+  // authors
+  authorRows: AuthorRow[]
+}
+
+function blankWork(): WorkForm {
   return {
-    type: 'papers', title: '', year: '', journal: '', volume: '', issue: '',
-    pages: '', doi: '', corr: false, cofirsts: 0, coseniors: 0, select_flag: false,
-    conference: '', pres_type: '', publisher: '',
-    preprint_doi: '', published_doi: '',
-    authorRows: [{ author_name: '', student: false }],
+    work_type: 'papers', title: '', year: '', doi: '',
+    journal: '', volume: '', issue: '', pages: '',
+    select_flag: false, preprint_doi: '', published_doi: '',
+    identifier: '', status: '',
+    institution: '', conference: '', location: '',
+    publisher: '', url: '',
+    authorRows: [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }],
+  }
+}
+
+function workToForm(work: Work): WorkForm {
+  const d = work.data || {}
+  return {
+    work_type: work.work_type,
+    title: work.title || '',
+    year: work.year != null ? String(work.year) : '',
+    doi: work.doi || '',
+    journal: (d.journal as string) || '',
+    volume: (d.volume as string) || '',
+    issue: (d.issue as string) || '',
+    pages: (d.pages as string) || '',
+    select_flag: !!d.select_flag,
+    preprint_doi: (d.preprint_doi as string) || '',
+    published_doi: (d.published_doi as string) || '',
+    identifier: (d.identifier as string) || '',
+    status: (d.status as string) || '',
+    institution: (d.institution as string) || '',
+    conference: (d.conference as string) || '',
+    location: (d.location as string) || '',
+    publisher: (d.publisher as string) || '',
+    url: (d.url as string) || '',
+    authorRows: work.authors.length
+      ? work.authors.map(a => ({
+          author_name: a.author_name,
+          student: a.student,
+          corresponding: a.corresponding,
+          cofirst: a.cofirst,
+          cosenior: a.cosenior,
+        }))
+      : [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }],
+  }
+}
+
+function formToPayload(form: WorkForm) {
+  const data: Record<string, unknown> = {}
+  const wt = form.work_type
+
+  if (PUBLICATION_TYPES.has(wt)) {
+    if (form.journal) data.journal = form.journal
+    if (form.volume) data.volume = form.volume
+    if (form.issue) data.issue = form.issue
+    if (form.pages) data.pages = form.pages
+  }
+  if (form.select_flag) data.select_flag = true
+  if (CROSSREF_TYPES.has(wt) || wt === 'preprints') {
+    if (form.preprint_doi) data.preprint_doi = form.preprint_doi
+    if (form.published_doi) data.published_doi = form.published_doi
+  }
+  if (wt === 'patents') {
+    if (form.identifier) data.identifier = form.identifier
+    if (form.status) data.status = form.status
+  }
+  if (wt === 'seminars') {
+    if (form.institution) data.institution = form.institution
+    if (form.conference) data.conference = form.conference
+    if (form.location) data.location = form.location
+  }
+  if (wt === 'software') {
+    if (form.publisher) data.publisher = form.publisher
+    if (form.url) data.url = form.url
+  }
+  if (wt === 'dissertation') {
+    if (form.institution) data.institution = form.institution
+  }
+  if (wt === 'scimeetings') {
+    if (form.conference) data.conference = form.conference
+    if (form.institution) data.institution = form.institution
+  }
+
+  const authors = form.authorRows
+    .filter(r => r.author_name.trim())
+    .map((r, i) => ({
+      author_name: r.author_name.trim(),
+      author_order: i,
+      student: r.student,
+      corresponding: r.corresponding,
+      cofirst: r.cofirst,
+      cosenior: r.cosenior,
+    }))
+
+  return {
+    work_type: wt,
+    title: form.title || null,
+    year: parseInt(form.year) || null,
+    doi: form.doi || null,
+    data: Object.keys(data).length > 0 ? data : null,
+    authors,
   }
 }
 
@@ -45,9 +180,9 @@ export function Publications() {
     else setSearchParams({}, { replace: true })
   }
   const [keyword, setKeyword] = useState('')
-  const [editing, setEditing] = useState<Publication | null>(null)
+  const [editing, setEditing] = useState<Work | null>(null)
   const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState(blankPub())
+  const [form, setForm] = useState(blankWork())
   const [doiInput, setDoiInput] = useState('')
   const [doiLoading, setDoiLoading] = useState(false)
 
@@ -94,7 +229,7 @@ export function Publications() {
     return true
   }
 
-  function renderAuthors(authors: Publication['authors'], max = 5) {
+  function renderAuthors(authors: WorkAuthor[], max = 5) {
     const visible = authors.slice(0, max)
     return (
       <>
@@ -102,7 +237,8 @@ export function Publications() {
           <span key={a.id}>
             {i > 0 && ', '}
             {matchesSelf(a.author_name) ? <strong>{a.author_name}</strong> : a.author_name}
-            {a.student && <sup>†</sup>}
+            {a.student && <sup>&dagger;</sup>}
+            {a.corresponding && <sup>*</sup>}
           </span>
         ))}
         {authors.length > max && ` +${authors.length - max} more`}
@@ -125,54 +261,39 @@ export function Publications() {
     )
   }
 
-  const { data = [], isLoading } = useQuery<Publication[]>({
-    queryKey: ['publications', typeFilter, keyword],
-    queryFn: () => api.get('/publications', {
+  const { data = [], isLoading } = useQuery<Work[]>({
+    queryKey: ['works', typeFilter, keyword],
+    queryFn: () => api.get('/works', {
       params: { type: typeFilter || undefined, keyword: keyword || undefined, limit: 2000 }
     }).then(r => r.data),
   })
 
-  function toApiAuthors(rows: AuthorRow[]) {
-    return rows
-      .filter(r => r.author_name.trim())
-      .map((r, i) => ({ author_name: r.author_name.trim(), author_order: i, student: r.student }))
-  }
-
   const createMut = useMutation({
-    mutationFn: (d: typeof form) => api.post('/publications', {
-      ...d, authors: toApiAuthors(d.authorRows), authorRows: undefined,
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['publications'] }); setCreating(false); setForm(blankPub()) },
+    mutationFn: () => api.post('/works', formToPayload(form)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['works'] }); setCreating(false); setForm(blankWork()) },
   })
 
   const updateMut = useMutation({
-    mutationFn: (d: typeof form) => api.put(`/publications/${editing!.id}`, {
-      ...d, authors: toApiAuthors(d.authorRows), authorRows: undefined,
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['publications'] }); setEditing(null) },
+    mutationFn: () => api.put(`/works/${editing!.id}`, formToPayload(form)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['works'] }); setEditing(null) },
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => api.delete(`/publications/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['publications'] }),
+    mutationFn: (id: number) => api.delete(`/works/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['works'] }),
   })
 
-  function openCreate() { setForm(blankPub()); setCreating(true) }
-  function openEdit(pub: Publication) {
-    setEditing(pub)
-    setForm({
-      ...pub,
-      authorRows: pub.authors.length
-        ? pub.authors.map(a => ({ author_name: a.author_name, student: a.student }))
-        : [{ author_name: '', student: false }],
-    } as typeof form)
+  function openCreate() { setForm(blankWork()); setCreating(true) }
+  function openEdit(work: Work) {
+    setEditing(work)
+    setForm(workToForm(work))
   }
 
   async function lookupDoi() {
     if (!doiInput) return
     setDoiLoading(true)
     try {
-      const res = await api.post<DOILookupResponse>('/publications/doi-lookup', { doi: doiInput })
+      const res = await api.post<DOILookupResponse>('/works/doi-lookup', { doi: doiInput })
       const d = res.data
       setForm(f => ({
         ...f,
@@ -184,7 +305,7 @@ export function Publications() {
         pages: d.pages || f.pages,
         doi: d.doi || f.doi,
         authorRows: d.authors.length
-          ? d.authors.map(n => ({ author_name: n, student: false }))
+          ? d.authors.map(n => ({ author_name: n, student: false, corresponding: false, cofirst: false, cosenior: false }))
           : f.authorRows,
       }))
     } catch {
@@ -203,9 +324,8 @@ export function Publications() {
     setEditingCandidate(null)
     setCandidateForm(null)
     try {
-      const res = await api.get<SyncCheckResponse>('/publications/sync-check')
+      const res = await api.get<SyncCheckResponse>('/works/sync-check')
       setSyncResult(res.data)
-      // Pre-select only candidates without a fuzzy-match warning
       setSelectedIndices(new Set(
         res.data.candidates
           .map((c, i) => c.match_warning ? null : i)
@@ -224,8 +344,8 @@ export function Publications() {
     setAddingSelected(true)
     try {
       const pubs = Array.from(selectedIndices).map(i => syncResult.candidates[i])
-      await api.post('/publications/sync-add', { publications: pubs })
-      qc.invalidateQueries({ queryKey: ['publications'] })
+      await api.post('/works/sync-add', { publications: pubs })
+      qc.invalidateQueries({ queryKey: ['works'] })
       setSyncOpen(false)
     } catch {
       alert('Failed to add publications.')
@@ -261,7 +381,11 @@ export function Publications() {
     setCandidateForm(null)
   }
 
-  const PubForm = (
+  const wt = form.work_type
+  const showPubFields = PUBLICATION_TYPES.has(wt)
+  const showCrossref = CROSSREF_TYPES.has(wt)
+
+  const WorkForm = (
     <div className="space-y-4">
       {/* DOI lookup */}
       <div className="flex gap-2 p-3 bg-blue-50 rounded-lg">
@@ -279,16 +403,16 @@ export function Publications() {
       <div className="grid grid-cols-2 gap-4">
         <Select
           label="Type"
-          options={PUB_TYPES}
-          value={form.type}
-          onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+          options={WORK_TYPES}
+          value={form.work_type}
+          onChange={e => setForm(f => ({ ...f, work_type: e.target.value }))}
         />
-        <Input label="Year" value={form.year || ''} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} />
+        <Input label="Year" value={form.year} onChange={e => setForm(f => ({ ...f, year: e.target.value }))} />
       </div>
 
       <Textarea
         label="Title"
-        value={form.title || ''}
+        value={form.title}
         onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
         rows={2}
       />
@@ -297,7 +421,7 @@ export function Publications() {
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700">Authors</label>
-          <span className="text-xs text-gray-400">Check &dagger; to mark student/trainee authors</span>
+          <span className="text-xs text-gray-400">&dagger; student &nbsp; * corresponding &nbsp; 1 co-first &nbsp; S co-senior</span>
         </div>
         <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
           {form.authorRows.map((row, i) => (
@@ -313,18 +437,37 @@ export function Publications() {
                   return { ...f, authorRows: rows }
                 })}
               />
-              <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap flex-shrink-0 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={row.student}
+              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Student/trainee">
+                <input type="checkbox" checked={row.student} className="rounded"
                   onChange={e => setForm(f => {
-                    const rows = [...f.authorRows]
-                    rows[i] = { ...rows[i], student: e.target.checked }
+                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], student: e.target.checked }
                     return { ...f, authorRows: rows }
-                  })}
-                  className="rounded"
-                />
+                  })} />
                 <sup>&dagger;</sup>
+              </label>
+              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Corresponding">
+                <input type="checkbox" checked={row.corresponding} className="rounded"
+                  onChange={e => setForm(f => {
+                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], corresponding: e.target.checked }
+                    return { ...f, authorRows: rows }
+                  })} />
+                <span>*</span>
+              </label>
+              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-first author">
+                <input type="checkbox" checked={row.cofirst} className="rounded"
+                  onChange={e => setForm(f => {
+                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], cofirst: e.target.checked }
+                    return { ...f, authorRows: rows }
+                  })} />
+                <span>1</span>
+              </label>
+              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-senior author">
+                <input type="checkbox" checked={row.cosenior} className="rounded"
+                  onChange={e => setForm(f => {
+                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], cosenior: e.target.checked }
+                    return { ...f, authorRows: rows }
+                  })} />
+                <span>S</span>
               </label>
               <button
                 type="button"
@@ -342,31 +485,75 @@ export function Publications() {
         </div>
         <button
           type="button"
-          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false }] }))}
+          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }] }))}
           className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
         >
           <Plus size={12} /> Add author
         </button>
       </div>
 
-      <Input label="Journal / Conference" value={form.journal || ''} onChange={e => setForm(f => ({ ...f, journal: e.target.value }))} />
+      {/* Publication-type fields */}
+      {showPubFields && (
+        <>
+          <Input label="Journal / Conference" value={form.journal} onChange={e => setForm(f => ({ ...f, journal: e.target.value }))} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Volume" value={form.volume} onChange={e => setForm(f => ({ ...f, volume: e.target.value }))} />
+            <Input label="Issue" value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} />
+            <Input label="Pages" value={form.pages} onChange={e => setForm(f => ({ ...f, pages: e.target.value }))} />
+          </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-3 gap-3">
-        <Input label="Volume" value={form.volume || ''} onChange={e => setForm(f => ({ ...f, volume: e.target.value }))} />
-        <Input label="Issue" value={form.issue || ''} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} />
-        <Input label="Pages" value={form.pages || ''} onChange={e => setForm(f => ({ ...f, pages: e.target.value }))} />
-      </div>
+      {/* Patent fields */}
+      {wt === 'patents' && (
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Patent Number" value={form.identifier} onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))} />
+          <Input label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} />
+        </div>
+      )}
 
-      <Input label="DOI" value={form.doi || ''} onChange={e => setForm(f => ({ ...f, doi: e.target.value }))} />
+      {/* Seminar fields */}
+      {wt === 'seminars' && (
+        <>
+          <Input label="Institution" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Conference / Event" value={form.conference} onChange={e => setForm(f => ({ ...f, conference: e.target.value }))} />
+            <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+          </div>
+        </>
+      )}
 
-      {/* Cross-reference DOI — only the one that differs from the main DOI */}
-      {(form.type === 'preprints' || ['papers', 'chapters', 'letters'].includes(form.type)) && (
+      {/* Software fields */}
+      {wt === 'software' && (
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Publisher / Host" value={form.publisher} onChange={e => setForm(f => ({ ...f, publisher: e.target.value }))} />
+          <Input label="URL" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
+        </div>
+      )}
+
+      {/* Dissertation fields */}
+      {wt === 'dissertation' && (
+        <Input label="Institution" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} />
+      )}
+
+      {/* Scientific meeting extra fields */}
+      {wt === 'scimeetings' && (
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Conference" value={form.conference} onChange={e => setForm(f => ({ ...f, conference: e.target.value }))} />
+          <Input label="Institution" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} />
+        </div>
+      )}
+
+      <Input label="DOI" value={form.doi} onChange={e => setForm(f => ({ ...f, doi: e.target.value }))} />
+
+      {/* Cross-reference DOI */}
+      {showCrossref && (
         <div>
           <Input
-            label={form.type === 'preprints' ? 'Published DOI' : 'Preprint DOI'}
+            label={wt === 'preprints' ? 'Published DOI' : 'Preprint DOI'}
             placeholder="10.1234/..."
-            value={form.type === 'preprints' ? (form.published_doi || '') : (form.preprint_doi || '')}
-            onChange={e => setForm(f => form.type === 'preprints'
+            value={wt === 'preprints' ? form.published_doi : form.preprint_doi}
+            onChange={e => setForm(f => wt === 'preprints'
               ? { ...f, published_doi: e.target.value }
               : { ...f, preprint_doi: e.target.value }
             )}
@@ -377,17 +564,16 @@ export function Publications() {
             onClick={() => {
               const targetDoi = form.doi
               if (!targetDoi) { alert('Enter a DOI first to search for cross-references.'); return }
-              // Search for an existing pub whose DOI cross-references this one
-              const match = data.find(p => p.doi && (
-                p.preprint_doi === targetDoi || p.published_doi === targetDoi
+              const match = data.find(w => w.doi && (
+                (w.data?.preprint_doi as string) === targetDoi || (w.data?.published_doi as string) === targetDoi
               ))
               if (match) {
-                setForm(f => form.type === 'preprints'
+                setForm(f => wt === 'preprints'
                   ? { ...f, published_doi: match.doi || '' }
                   : { ...f, preprint_doi: match.doi || '' }
                 )
               } else {
-                alert('No matching publication found in your library.')
+                alert('No matching work found in your library.')
               }
             }}
           >
@@ -396,37 +582,46 @@ export function Publications() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
-        <Input label="Co-first authors" type="number" value={form.cofirsts} onChange={e => setForm(f => ({ ...f, cofirsts: parseInt(e.target.value) || 0 }))} />
-        <Input label="Co-senior authors" type="number" value={form.coseniors} onChange={e => setForm(f => ({ ...f, coseniors: parseInt(e.target.value) || 0 }))} />
-      </div>
-
-      <div className="flex gap-4">
-        <Checkbox label="Corresponding author" checked={form.corr} onChange={e => setForm(f => ({ ...f, corr: e.target.checked }))} />
-        <Checkbox label="Selected/highlighted" checked={form.select_flag} onChange={e => setForm(f => ({ ...f, select_flag: e.target.checked }))} />
-      </div>
+      <Checkbox label="Selected/highlighted" checked={form.select_flag} onChange={e => setForm(f => ({ ...f, select_flag: e.target.checked }))} />
 
       <div className="flex gap-2 justify-end pt-2 border-t">
         <Button variant="secondary" onClick={() => { setCreating(false); setEditing(null) }}>Cancel</Button>
         <Button
-          onClick={() => creating ? createMut.mutate(form) : updateMut.mutate(form)}
+          onClick={() => creating ? createMut.mutate() : updateMut.mutate()}
           loading={createMut.isPending || updateMut.isPending}
         >
-          {creating ? 'Add Publication' : 'Save Changes'}
+          {creating ? 'Add Work' : 'Save Changes'}
         </Button>
       </div>
     </div>
   )
 
+  // Helper to get subtitle for a work
+  function workSubtitle(work: Work): string {
+    const d = work.data || {}
+    if (PUBLICATION_TYPES.has(work.work_type)) {
+      const parts = [d.journal as string]
+      if (d.volume) parts.push(` ${d.volume}`)
+      if (d.issue) parts.push(`(${d.issue})`)
+      if (d.pages) parts.push(`: ${d.pages}`)
+      return parts.filter(Boolean).join('')
+    }
+    if (work.work_type === 'patents') return [(d.identifier as string), d.status && `(${d.status})`].filter(Boolean).join(' ')
+    if (work.work_type === 'seminars') return [(d.institution as string), d.conference && `– ${d.conference}`].filter(Boolean).join(' ')
+    if (work.work_type === 'software') return [(d.publisher as string), d.url as string].filter(Boolean).join(' · ')
+    if (work.work_type === 'dissertation') return (d.institution as string) || ''
+    return ''
+  }
+
   return (
     <div className="p-8">
       <PageHeader
-        title="Publications"
+        title="Scholarly Works"
         subtitle={`${data.length} total`}
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={handleFindNew}><RefreshCw size={15} /> Find New</Button>
-            <Button onClick={openCreate}><Plus size={16} /> Add Publication</Button>
+            <Button onClick={openCreate}><Plus size={16} /> Add Work</Button>
           </div>
         }
       />
@@ -437,17 +632,17 @@ export function Publications() {
           <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           <input
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Search title or journal..."
+            placeholder="Search title..."
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           <button
             onClick={() => setTypeFilter('')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!typeFilter ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
           >All</button>
-          {PUB_TYPES.map(pt => (
+          {WORK_TYPES.map(pt => (
             <button
               key={pt.value}
               onClick={() => setTypeFilter(pt.value)}
@@ -460,41 +655,39 @@ export function Publications() {
       {isLoading ? <Spinner /> : (
         <Card>
           <div className="divide-y divide-gray-100">
-            {data.map(pub => (
-              <div key={pub.id} className="px-5 py-4 hover:bg-gray-50 flex items-start justify-between gap-4">
+            {data.map(work => (
+              <div key={work.id} className="px-5 py-4 hover:bg-gray-50 flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge color={TYPE_COLOR[pub.type] || 'gray'}>{pub.type}</Badge>
-                    {pub.select_flag && <Badge color="yellow">Selected</Badge>}
-                    {pub.corr && <Badge color="green">Corr.</Badge>}
-                    <span className="text-xs text-gray-400">{pub.year}</span>
+                    <Badge color={TYPE_COLOR[work.work_type] || 'gray'}>{work.work_type}</Badge>
+                    {work.data?.select_flag && <Badge color="yellow">Selected</Badge>}
+                    {work.authors.some(a => a.corresponding) && <Badge color="green">Corr.</Badge>}
+                    {work.year && <span className="text-xs text-gray-400">{work.year}</span>}
                   </div>
-                  <p className="font-medium text-gray-900 text-sm truncate">{pub.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {renderAuthors(pub.authors)}
-                  </p>
-                  {pub.journal && (
-                    <p className="text-xs text-gray-400 mt-0.5 italic">{pub.journal}
-                      {pub.volume ? ` ${pub.volume}` : ''}
-                      {pub.issue ? `(${pub.issue})` : ''}
-                      {pub.pages ? `: ${pub.pages}` : ''}
+                  <p className="font-medium text-gray-900 text-sm truncate">{work.title}</p>
+                  {work.authors.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {renderAuthors(work.authors)}
                     </p>
                   )}
-                  {pub.doi && (
+                  {workSubtitle(work) && (
+                    <p className="text-xs text-gray-400 mt-0.5 italic">{workSubtitle(work)}</p>
+                  )}
+                  {work.doi && (
                     <a
-                      href={`https://doi.org/${pub.doi}`} target="_blank" rel="noreferrer"
+                      href={`https://doi.org/${work.doi}`} target="_blank" rel="noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-0.5"
                     >
-                      <ExternalLink size={10} /> doi:{pub.doi}
+                      <ExternalLink size={10} /> doi:{work.doi}
                     </a>
                   )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(pub)}>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(work)}>
                     <Edit2 size={14} />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => {
-                    if (confirm('Delete this publication?')) deleteMut.mutate(pub.id)
+                    if (confirm('Delete this work?')) deleteMut.mutate(work.id)
                   }}>
                     <Trash2 size={14} className="text-red-500" />
                   </Button>
@@ -503,18 +696,18 @@ export function Publications() {
             ))}
             {data.length === 0 && (
               <div className="py-16 text-center text-gray-400 text-sm">
-                No publications found.
+                No scholarly works found.
               </div>
             )}
           </div>
         </Card>
       )}
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Add Publication">
-        {PubForm}
+      <Modal open={creating} onClose={() => setCreating(false)} title="Add Scholarly Work">
+        {WorkForm}
       </Modal>
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Publication">
-        {PubForm}
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Scholarly Work">
+        {WorkForm}
       </Modal>
 
       {/* Find New Publications Modal */}
@@ -539,13 +732,11 @@ export function Publications() {
 
         {!syncLoading && syncResult && (
           <div className="space-y-4">
-            {/* Summary */}
             <div className="text-sm text-gray-600">
               Found <strong>{syncResult.candidates.length}</strong> new publication{syncResult.candidates.length !== 1 ? 's' : ''}{' '}
               {syncResult.searched.length > 0 && <>across <em>{syncResult.searched.join(', ')}</em></>}
             </div>
 
-            {/* Source errors */}
             {Object.keys(syncResult.errors).length > 0 && (
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 space-y-0.5">
                 {Object.entries(syncResult.errors).map(([src, msg]) => (
@@ -560,7 +751,6 @@ export function Publications() {
               </div>
             ) : (
               <>
-                {/* Select all / clear all */}
                 <div className="flex gap-3 text-xs">
                   <button
                     className="text-primary-600 hover:underline"
@@ -576,7 +766,6 @@ export function Publications() {
                   </button>
                 </div>
 
-                {/* Candidate list */}
                 <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
                   {syncResult.candidates.map((c, idx) => (
                     <div key={idx}>
@@ -646,7 +835,7 @@ export function Publications() {
                           <div className="grid grid-cols-2 gap-3">
                             <Select
                               label="Type"
-                              options={PUB_TYPES}
+                              options={WORK_TYPES}
                               value={candidateForm.pub_type}
                               onChange={e => setCandidateForm(f => f ? { ...f, pub_type: e.target.value } : f)}
                             />
@@ -716,7 +905,6 @@ export function Publications() {
               </>
             )}
 
-            {/* Footer */}
             <div className="flex items-center justify-between pt-2 border-t">
               <span className="text-xs text-gray-500">
                 {selectedIndices.size} of {syncResult.candidates.length} selected

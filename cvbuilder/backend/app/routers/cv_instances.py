@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user, get_current_user_from_token_qs, get_optional_current_user
-from app.services.sort import sort_items
 
 router = APIRouter(prefix="/api/cv-instances", tags=["cv-instances"])
 
@@ -16,40 +15,40 @@ router = APIRouter(prefix="/api/cv-instances", tags=["cv-instances"])
 # ---------------------------------------------------------------------------
 
 SECTION_KEY_MAP: dict[str, tuple[type, dict]] = {
-    "education":                (models.Education, {}),
-    "experience":               (models.Experience, {}),
-    "consulting":               (models.Consulting, {}),
-    "memberships":              (models.Membership, {}),
-    "panels_advisory":          (models.Panel, {"type": "advisory"}),
-    "panels_grantreview":       (models.Panel, {"type": "grant_review"}),
-    "patents":                  (models.Patent, {}),
-    "symposia":                 (models.Symposium, {}),
-    "committees":               (models.Committee, {}),
-    "classes":                  (models.Class, {}),
-    "grants":                   (models.Grant, {}),
-    "awards":                   (models.Award, {}),
-    "press":                    (models.Press, {}),
-    "trainees_advisees":        (models.Trainee, {"trainee_type": "advisee"}),
-    "trainees_postdocs":        (models.Trainee, {"trainee_type": "postdoc"}),
-    "seminars":                 (models.Seminar, {}),
-    "publications_papers":      (models.Publication, {"type": "papers"}),
-    "publications_preprints":   (models.Publication, {"type": "preprints"}),
-    "publications_chapters":    (models.Publication, {"type": "chapters"}),
-    "publications_letters":     (models.Publication, {"type": "letters"}),
-    "publications_scimeetings": (models.Publication, {"type": "scimeetings"}),
-    "publications_editorials":  (models.Publication, {"type": "editorials"}),
-    "editorial":                (models.MiscSection, {"_in": {"section": ["editor", "assocedit", "otheredit"]}}),
-    "peerrev":                  (models.MiscSection, {"section": "peerrev"}),
-    "software":                 (models.MiscSection, {"section": "software"}),
-    "policypres":               (models.MiscSection, {"section": "policypres"}),
-    "policycons":               (models.MiscSection, {"section": "policycons"}),
-    "otherservice":             (models.MiscSection, {"section": "otherservice"}),
-    "dissertation":             (models.MiscSection, {"section": "dissertation"}),
-    "chairedsessions":          (models.MiscSection, {"section": "chairedsessions"}),
-    "otherpractice":            (models.MiscSection, {"section": "otherpractice"}),
-    "departmentalOrals":        (models.MiscSection, {"section": "departmentalOrals"}),
-    "finaldefense":             (models.MiscSection, {"section": "finaldefense"}),
-    "schoolwideOrals":          (models.MiscSection, {"section": "schoolwideOrals"}),
+    "education":                (models.CVItem, {"section": "education"}),
+    "experience":               (models.CVItem, {"section": "experience"}),
+    "consulting":               (models.CVItem, {"section": "consulting"}),
+    "memberships":              (models.CVItem, {"section": "memberships"}),
+    "panels_advisory":          (models.CVItem, {"section": "panels_advisory"}),
+    "panels_grantreview":       (models.CVItem, {"section": "panels_grantreview"}),
+    "patents":                  (models.Work, {"work_type": "patents"}),
+    "symposia":                 (models.CVItem, {"section": "symposia"}),
+    "committees":               (models.CVItem, {"section": "committees"}),
+    "classes":                  (models.CVItem, {"section": "classes"}),
+    "grants":                   (models.CVItem, {"section": "grants"}),
+    "awards":                   (models.CVItem, {"section": "awards"}),
+    "press":                    (models.CVItem, {"section": "press"}),
+    "trainees_advisees":        (models.CVItem, {"section": "trainees_advisees"}),
+    "trainees_postdocs":        (models.CVItem, {"section": "trainees_postdocs"}),
+    "seminars":                 (models.Work, {"work_type": "seminars"}),
+    "publications_papers":      (models.Work, {"work_type": "papers"}),
+    "publications_preprints":   (models.Work, {"work_type": "preprints"}),
+    "publications_chapters":    (models.Work, {"work_type": "chapters"}),
+    "publications_letters":     (models.Work, {"work_type": "letters"}),
+    "publications_scimeetings": (models.Work, {"work_type": "scimeetings"}),
+    "publications_editorials":  (models.Work, {"work_type": "editorials"}),
+    "editorial":                (models.CVItem, {"_in": {"section": ["editor", "assocedit", "otheredit"]}}),
+    "peerrev":                  (models.CVItem, {"section": "peerrev"}),
+    "software":                 (models.Work, {"work_type": "software"}),
+    "policypres":               (models.CVItem, {"section": "policypres"}),
+    "policycons":               (models.CVItem, {"section": "policycons"}),
+    "otherservice":             (models.CVItem, {"section": "otherservice"}),
+    "dissertation":             (models.Work, {"work_type": "dissertation"}),
+    "chairedsessions":          (models.CVItem, {"section": "chairedsessions"}),
+    "otherpractice":            (models.CVItem, {"section": "otherpractice"}),
+    "departmentalOrals":        (models.CVItem, {"section": "departmentalOrals"}),
+    "finaldefense":             (models.CVItem, {"section": "finaldefense"}),
+    "schoolwideOrals":          (models.CVItem, {"section": "schoolwideOrals"}),
 }
 
 
@@ -71,24 +70,25 @@ def _query_section_items(db: Session, user_id: int, section_key: str):
 
 def _item_label(item, section_key: str) -> str:
     """Generate a human-readable label for an item."""
-    if isinstance(item, models.Publication):
+    if isinstance(item, models.Work):
         authors = ", ".join(a.author_name for a in (item.authors or [])[:3])
         suffix = " et al." if len(item.authors or []) > 3 else ""
         year = f" ({item.year})" if item.year else ""
         title = (item.title or "Untitled")[:80]
         return f"{authors}{suffix}{year} {title}"
-    if isinstance(item, models.MiscSection):
+    if isinstance(item, models.CVItem):
+        # Try common label fields via __getattr__ → data dict
+        for attr in ("name", "title", "committee", "org", "panel", "degree", "outlet", "class_name"):
+            val = getattr(item, attr, None)
+            if val:
+                extra = getattr(item, "year", None) or getattr(item, "date", None) or getattr(item, "years", None) or ""
+                if extra:
+                    return f"{val} ({extra})"
+                return str(val)
+        # Fallback: show first few data values
         data = item.data or {}
         parts = [str(v) for v in data.values() if v]
         return " — ".join(parts[:3]) if parts else f"Item #{item.id}"
-    # Generic: try common fields
-    for attr in ("name", "title", "committee", "org", "panel", "degree", "outlet"):
-        val = getattr(item, attr, None)
-        if val:
-            extra = getattr(item, "year", None) or getattr(item, "date", None) or getattr(item, "years", None) or ""
-            if extra:
-                return f"{val} ({extra})"
-            return str(val)
     return f"Item #{item.id}"
 
 
@@ -398,7 +398,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
             pub_type = _PUB_TYPE_MAP[key]
             cv_data["publications"] = [
                 p for p in cv_data["publications"]
-                if p.type != pub_type or p.id in item_ids
+                if p.work_type != pub_type or p.id in item_ids
             ]
         elif key in _CV_DATA_KEY_MAP:
             data_key = _CV_DATA_KEY_MAP[key]

@@ -86,8 +86,8 @@
       <div class="cv-entry">
         <div class="cv-entry-date">{{ p.status or '' }}</div>
         <div class="cv-entry-body">
-          <span class="cv-entry-title">{{ p.name or '' }}</span>
-          {% if p.number %} (No. {{ p.number }}){% endif %}
+          <span class="cv-entry-title">{{ p.title or '' }}</span>
+          {% if p.identifier %} (No. {{ p.identifier }}){% endif %}
           {% if p.authors %}
           <br><span class="cv-entry-detail">{{ p.authors | map(attribute='author_name') | join(', ') }}</span>
           {% endif %}
@@ -169,11 +169,11 @@
       <div class="cv-section-heading">{{ config.get('heading', 'Invited Seminars') }}</div>
       {% for s in cv.seminars %}
       <div class="cv-entry">
-        <div class="cv-entry-date">{{ s.date or '' }}</div>
+        <div class="cv-entry-date">{{ s.date_raw or s.year or '' }}</div>
         <div class="cv-entry-body">
           <span class="cv-entry-title">{{ s.title or '' }}</span>
-          {% if s.org %}<br><span class="cv-entry-org">{{ s.org }}</span>{% endif %}
-          {% if s.event %}, <em>{{ s.event }}</em>{% endif %}
+          {% if s.institution %}<br><span class="cv-entry-org">{{ s.institution }}</span>{% endif %}
+          {% if s.conference %}, <em>{{ s.conference }}</em>{% endif %}
           {% if s.location %}<span class="cv-entry-detail"> &mdash; {{ s.location }}</span>{% endif %}
         </div>
       </div>
@@ -253,12 +253,12 @@
       <div class="cv-section-heading">{{ config.get('heading', 'Software') }}</div>
       {% for s in cv.software %}
       <div class="cv-entry">
-        <div class="cv-entry-date">{{ s.data.get('year', '') }}</div>
+        <div class="cv-entry-date">{{ s.year or '' }}</div>
         <div class="cv-entry-body">
-          <span class="cv-entry-title">{{ s.data.get('title', '') }}</span>
-          {% if s.data.get('authors') %}<br><span class="cv-entry-detail">{% set auths = s.data.get('authors') %}{% if auths is string %}{{ auths }}{% else %}{{ auths | join(', ') }}{% endif %}</span>{% endif %}
-          {% if s.data.get('publisher') %}<br><span class="cv-entry-org">{{ s.data.get('publisher') }}</span>{% endif %}
-          {% if s.data.get('url') %}<br><a href="{{ s.data.get('url') }}">{{ s.data.get('url') }}</a>{% endif %}
+          <span class="cv-entry-title">{{ s.title or '' }}</span>
+          {% if s.authors %}<br><span class="cv-entry-detail">{{ s.authors | map(attribute='author_name') | join(', ') }}</span>{% endif %}
+          {% if s.publisher %}<br><span class="cv-entry-org">{{ s.publisher }}</span>{% endif %}
+          {% if s.url %}<br><a href="{{ s.url }}">{{ s.url }}</a>{% endif %}
         </div>
       </div>
       {% endfor %}
@@ -343,9 +343,9 @@
       {% for d in cv.dissertation %}
       <div class="cv-entry">
         <div class="cv-entry-body">
-          <span class="cv-entry-title">{{ d.data.get('title', '') }}</span>
-          {% if d.data.get('institution') %}<br><span class="cv-entry-org">{{ d.data.get('institution') }}</span>{% endif %}
-          {% if d.data.get('year') %}<span class="cv-entry-detail"> ({{ d.data.get('year') }})</span>{% endif %}
+          <span class="cv-entry-title">{{ d.title or '' }}</span>
+          {% if d.institution %}<br><span class="cv-entry-org">{{ d.institution }}</span>{% endif %}
+          {% if d.year %}<span class="cv-entry-detail"> ({{ d.year }})</span>{% endif %}
         </div>
       </div>
       {% endfor %}

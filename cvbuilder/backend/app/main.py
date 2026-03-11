@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import create_tables, get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.routers import auth, profile, publications, templates, export, cv_instances
+from app.routers import auth, profile, templates, export, cv_instances, works, cv_items
 
 app = FastAPI(
     title="CVBuilder API",
@@ -28,10 +28,11 @@ app.add_middleware(
 # Mount routers
 app.include_router(auth.router)
 app.include_router(profile.router)
-app.include_router(publications.router)
 app.include_router(templates.router)
 app.include_router(export.router)
 app.include_router(cv_instances.router)
+app.include_router(works.router)
+app.include_router(cv_items.router)
 
 
 @app.on_event("startup")
@@ -42,12 +43,15 @@ def startup():
     db = SessionLocal()
     try:
         _ensure_default_user(db)
+        _migrate_works_data(db)
+        _migrate_cv_items_data(db)
         _seed_templates(db, user_id=1)
     finally:
         db.close()
 
 
 # Tables that need a user_id column added via migration
+# NOTE: Old typed tables kept for migration compatibility (_migrate_works_data, _migrate_cv_items_data)
 _USER_ID_TABLES = [
     "profile", "education", "experience", "consulting", "memberships",
     "panels", "patents", "symposia", "classes", "grants", "awards",
@@ -70,6 +74,28 @@ def _run_migrations():
         "ALTER TABLE publications ADD COLUMN preprint_doi VARCHAR(500)",
         "ALTER TABLE publications ADD COLUMN published_doi VARCHAR(500)",
         "ALTER TABLE cv_instance_sections ADD COLUMN config_overrides TEXT",
+        # Ensure works/work_authors/cv_items tables have all columns
+        # (create_all() won't alter tables that already exist)
+        "ALTER TABLE works ADD COLUMN work_type VARCHAR(50)",
+        "ALTER TABLE works ADD COLUMN title TEXT",
+        "ALTER TABLE works ADD COLUMN year INTEGER",
+        "ALTER TABLE works ADD COLUMN month INTEGER",
+        "ALTER TABLE works ADD COLUMN day INTEGER",
+        "ALTER TABLE works ADD COLUMN doi VARCHAR(500)",
+        "ALTER TABLE works ADD COLUMN data TEXT",
+        "ALTER TABLE works ADD COLUMN user_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE work_authors ADD COLUMN author_name VARCHAR(300)",
+        "ALTER TABLE work_authors ADD COLUMN author_order INTEGER DEFAULT 0",
+        "ALTER TABLE work_authors ADD COLUMN student INTEGER DEFAULT 0",
+        "ALTER TABLE work_authors ADD COLUMN corresponding INTEGER DEFAULT 0",
+        "ALTER TABLE work_authors ADD COLUMN cofirst INTEGER DEFAULT 0",
+        "ALTER TABLE work_authors ADD COLUMN cosenior INTEGER DEFAULT 0",
+        "ALTER TABLE work_authors ADD COLUMN work_id INTEGER REFERENCES works(id)",
+        "ALTER TABLE cv_items ADD COLUMN section VARCHAR(100)",
+        "ALTER TABLE cv_items ADD COLUMN data TEXT",
+        "ALTER TABLE cv_items ADD COLUMN sort_order INTEGER DEFAULT 0",
+        "ALTER TABLE cv_items ADD COLUMN sort_date INTEGER",
+        "ALTER TABLE cv_items ADD COLUMN user_id INTEGER REFERENCES users(id)",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
@@ -143,6 +169,489 @@ def _ensure_default_user(db):
         except Exception:
             pass
     db.commit()
+
+
+def _migrate_works_data(db):
+    """Migration: copy publications, patents, seminars, and
+    software/dissertation MiscSections into the unified works table.
+    Per-user idempotent — only migrates users who have source data but no works."""
+    import re, json, logging
+    from sqlalchemy import text
+
+    log = logging.getLogger("cvbuilder.migrate")
+
+    # Build set of user IDs that have source data
+    source_uids = set()
+    for row in db.query(models.Publication.user_id).distinct():
+        source_uids.add(row[0])
+    for row in db.query(models.Patent.user_id).distinct():
+        source_uids.add(row[0])
+    for row in db.query(models.Seminar.user_id).distinct():
+        source_uids.add(row[0])
+    for row in db.query(models.MiscSection.user_id).filter(
+        models.MiscSection.section.in_(["software", "dissertation"])
+    ).distinct():
+        source_uids.add(row[0])
+
+    if not source_uids:
+        return
+
+    # Skip users who already have works (already migrated)
+    migrated_uids = set()
+    for row in db.query(models.Work.user_id).distinct():
+        migrated_uids.add(row[0])
+    uids_to_migrate = source_uids - migrated_uids
+    if not uids_to_migrate:
+        return
+
+    log.info("Migrating works data for %d user(s)", len(uids_to_migrate))
+
+    def _parse_year_int(val):
+        """Extract 4-digit year from string/int, return (year_int, raw_or_None)."""
+        if val is None:
+            return None, None
+        if isinstance(val, int):
+            return val, None
+        s = str(val).strip()
+        m = re.search(r'\d{4}', s)
+        if m:
+            year_int = int(m.group())
+            # If the string is just the year, no need for year_raw
+            if s == m.group():
+                return year_int, None
+            return year_int, s
+        # Non-numeric (e.g., "in press")
+        return None, s if s else None
+
+    def _parse_month(date_str):
+        """Try to extract month from a date string."""
+        if not date_str:
+            return None
+        months = {
+            'january': 1, 'february': 2, 'march': 3, 'april': 4,
+            'may': 5, 'june': 6, 'july': 7, 'august': 8,
+            'september': 9, 'october': 10, 'november': 11, 'december': 12,
+            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+            'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        }
+        lower = str(date_str).lower()
+        for name, num in months.items():
+            if name in lower:
+                return num
+        return None
+
+    # Build ID remapping: (section_key, old_id) → new_work_id
+    id_remap = {}
+
+    # --- 1. Publications ---
+    for pub in db.query(models.Publication).filter(
+        models.Publication.user_id.in_(uids_to_migrate)
+    ).all():
+        year_int, year_raw = _parse_year_int(pub.year)
+        data = {}
+        if pub.journal:
+            data["journal"] = pub.journal
+        if pub.volume:
+            data["volume"] = pub.volume
+        if pub.issue:
+            data["issue"] = pub.issue
+        if pub.pages:
+            data["pages"] = pub.pages
+        if pub.select_flag:
+            data["select_flag"] = True
+        if pub.conference:
+            data["conference"] = pub.conference
+        if pub.pres_type:
+            data["pres_type"] = pub.pres_type
+        if pub.publisher:
+            data["publisher"] = pub.publisher
+        if pub.preprint_doi:
+            data["preprint_doi"] = pub.preprint_doi
+        if pub.published_doi:
+            data["published_doi"] = pub.published_doi
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=pub.user_id,
+            work_type=pub.type,
+            title=pub.title,
+            year=year_int,
+            doi=pub.doi,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+
+        # Copy authors with role flag conversion
+        authors = sorted(pub.authors, key=lambda a: a.author_order)
+        for a in authors:
+            wa = models.WorkAuthor(
+                work_id=work.id,
+                author_name=a.author_name,
+                author_order=a.author_order,
+                student=a.student,
+            )
+            db.add(wa)
+        db.flush()
+
+        # Convert pub-level role markers to per-author flags
+        if authors:
+            work_authors = sorted(
+                db.query(models.WorkAuthor).filter_by(work_id=work.id).all(),
+                key=lambda a: a.author_order,
+            )
+            if pub.corr and work_authors:
+                work_authors[0].corresponding = True
+            if pub.cofirsts and pub.cofirsts > 0:
+                for wa in work_authors[:pub.cofirsts]:
+                    wa.cofirst = True
+            if pub.coseniors and pub.coseniors > 0:
+                for wa in work_authors[-pub.coseniors:]:
+                    wa.cosenior = True
+
+        # Map section keys for publications
+        section_key = f"publications_{pub.type}"
+        id_remap[(section_key, pub.id)] = work.id
+
+    # --- 2. Patents ---
+    for patent in db.query(models.Patent).filter(
+        models.Patent.user_id.in_(uids_to_migrate)
+    ).all():
+        data = {}
+        if patent.number:
+            data["identifier"] = patent.number
+        if patent.status:
+            data["status"] = patent.status
+
+        work = models.Work(
+            user_id=patent.user_id,
+            work_type="patents",
+            title=patent.name,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        for a in (patent.authors or []):
+            db.add(models.WorkAuthor(
+                work_id=work.id,
+                author_name=a.author_name,
+                author_order=a.author_order,
+            ))
+        id_remap[("patents", patent.id)] = work.id
+
+    # --- 3. Seminars ---
+    for sem in db.query(models.Seminar).filter(
+        models.Seminar.user_id.in_(uids_to_migrate)
+    ).all():
+        year_int, year_raw = _parse_year_int(sem.date)
+        month_int = _parse_month(sem.date)
+        data = {}
+        if sem.org:
+            data["institution"] = sem.org
+        if sem.event:
+            data["conference"] = sem.event
+        if sem.location:
+            data["location"] = sem.location
+        if year_raw:
+            data["date_raw"] = year_raw
+
+        work = models.Work(
+            user_id=sem.user_id,
+            work_type="seminars",
+            title=sem.title,
+            year=year_int,
+            month=month_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        id_remap[("seminars", sem.id)] = work.id
+
+    # --- 4. Software (MiscSection) ---
+    for ms in db.query(models.MiscSection).filter(
+        models.MiscSection.section == "software",
+        models.MiscSection.user_id.in_(uids_to_migrate),
+    ).all():
+        ms_data = ms.data or {}
+        year_int, year_raw = _parse_year_int(ms_data.get("year"))
+        data = {}
+        if ms_data.get("publisher"):
+            data["publisher"] = ms_data["publisher"]
+        if ms_data.get("url"):
+            data["url"] = ms_data["url"]
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=ms.user_id,
+            work_type="software",
+            title=ms_data.get("title"),
+            year=year_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+
+        # Parse authors (may be a list or comma-separated string)
+        authors_raw = ms_data.get("authors", "")
+        if isinstance(authors_raw, list):
+            author_names = [a.strip() for a in authors_raw if isinstance(a, str) and a.strip()]
+        elif isinstance(authors_raw, str) and authors_raw:
+            author_names = [a.strip() for a in authors_raw.split(",") if a.strip()]
+        else:
+            author_names = []
+        for i, name in enumerate(author_names):
+            db.add(models.WorkAuthor(
+                work_id=work.id,
+                author_name=name,
+                author_order=i,
+            ))
+        id_remap[("software", ms.id)] = work.id
+
+    # --- 5. Dissertation (MiscSection) ---
+    for ms in db.query(models.MiscSection).filter(
+        models.MiscSection.section == "dissertation",
+        models.MiscSection.user_id.in_(uids_to_migrate),
+    ).all():
+        ms_data = ms.data or {}
+        year_int, year_raw = _parse_year_int(ms_data.get("year"))
+        data = {}
+        if ms_data.get("institution"):
+            data["institution"] = ms_data["institution"]
+        if year_raw:
+            data["year_raw"] = year_raw
+
+        work = models.Work(
+            user_id=ms.user_id,
+            work_type="dissertation",
+            title=ms_data.get("title"),
+            year=year_int,
+            data=data,
+        )
+        db.add(work)
+        db.flush()
+        id_remap[("dissertation", ms.id)] = work.id
+
+    db.flush()
+
+    # --- 6. Remap CVInstanceItem IDs ---
+    if id_remap:
+        all_items = db.query(models.CVInstanceItem).all()
+        for item in all_items:
+            section = item.section
+            section_key = section.section_key
+            new_id = id_remap.get((section_key, item.item_id))
+            if new_id is not None:
+                item.item_id = new_id
+
+    db.commit()
+    log.info("Works migration complete: %d works created, %d IDs remapped",
+             db.query(models.Work).count(), len(id_remap))
+
+
+def _migrate_cv_items_data(db):
+    """Migration: copy typed section models and remaining MiscSections
+    into the unified cv_items table.
+    Per-user idempotent — only migrates users who have source data but no cv_items."""
+    import re, logging
+    from sqlalchemy import text
+    from app.services.sort import compute_sort_date
+
+    log = logging.getLogger("cvbuilder.migrate")
+
+    # Build set of user IDs that have source data
+    _typed_models = [
+        models.Education, models.Experience, models.Consulting, models.Membership,
+        models.Panel, models.Symposium, models.Class, models.Grant,
+        models.Award, models.Press, models.Trainee, models.Committee,
+    ]
+    source_uids = set()
+    for m in _typed_models:
+        for row in db.query(m.user_id).distinct():
+            source_uids.add(row[0])
+    for row in db.query(models.MiscSection.user_id).filter(
+        models.MiscSection.section.notin_(["software", "dissertation"])
+    ).distinct():
+        source_uids.add(row[0])
+
+    if not source_uids:
+        return
+
+    # Skip users who already have cv_items (already migrated)
+    migrated_uids = set()
+    for row in db.query(models.CVItem.user_id).distinct():
+        migrated_uids.add(row[0])
+    uids_to_migrate = source_uids - migrated_uids
+    if not uids_to_migrate:
+        return
+
+    log.info("Migrating cv_items data for %d user(s)", len(uids_to_migrate))
+
+    id_remap: dict[tuple[str, int], int] = {}
+
+    def _add_item(section, data, sort_order, user_id, old_section_key=None, old_id=None):
+        item = models.CVItem(
+            user_id=user_id, section=section, data=data,
+            sort_order=sort_order,
+            sort_date=compute_sort_date(section, data),
+        )
+        db.add(item)
+        db.flush()
+        if old_section_key and old_id:
+            id_remap[(old_section_key, old_id)] = item.id
+        return item
+
+    # --- Education ---
+    for e in db.query(models.Education).filter(models.Education.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if e.degree: data["degree"] = e.degree
+        if e.year is not None: data["year"] = e.year
+        if e.subject: data["subject"] = e.subject
+        if e.school: data["school"] = e.school
+        _add_item("education", data, e.sort_order, e.user_id, "education", e.id)
+
+    # --- Experience ---
+    for e in db.query(models.Experience).filter(models.Experience.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if e.title: data["title"] = e.title
+        if e.years_start: data["years_start"] = e.years_start
+        if e.years_end: data["years_end"] = e.years_end
+        if e.employer: data["employer"] = e.employer
+        _add_item("experience", data, e.sort_order, e.user_id, "experience", e.id)
+
+    # --- Consulting ---
+    for e in db.query(models.Consulting).filter(models.Consulting.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if e.title: data["title"] = e.title
+        if e.years: data["years"] = e.years
+        if e.employer: data["employer"] = e.employer
+        _add_item("consulting", data, e.sort_order, e.user_id, "consulting", e.id)
+
+    # --- Memberships ---
+    for e in db.query(models.Membership).filter(models.Membership.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if e.org: data["org"] = e.org
+        if e.years: data["years"] = e.years
+        _add_item("memberships", data, e.sort_order, e.user_id, "memberships", e.id)
+
+    # --- Panels (split by type) ---
+    for p in db.query(models.Panel).filter(models.Panel.user_id.in_(uids_to_migrate)).all():
+        section = "panels_advisory" if p.type == "advisory" else "panels_grantreview"
+        data = {"type": p.type}
+        if p.panel: data["panel"] = p.panel
+        if p.org: data["org"] = p.org
+        if p.role: data["role"] = p.role
+        if p.date: data["date"] = p.date
+        if p.panel_id: data["panel_id"] = p.panel_id
+        _add_item(section, data, p.sort_order, p.user_id, section, p.id)
+
+    # --- Symposia ---
+    for s in db.query(models.Symposium).filter(models.Symposium.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if s.title: data["title"] = s.title
+        if s.meeting: data["meeting"] = s.meeting
+        if s.date: data["date"] = s.date
+        if s.role: data["role"] = s.role
+        _add_item("symposia", data, s.sort_order, s.user_id, "symposia", s.id)
+
+    # --- Classes ---
+    for c in db.query(models.Class).filter(models.Class.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if c.class_name: data["class_name"] = c.class_name
+        if c.year is not None: data["year"] = c.year
+        if c.role: data["role"] = c.role
+        if c.school: data["school"] = c.school
+        if c.students: data["students"] = c.students
+        if c.lectures: data["lectures"] = c.lectures
+        if c.in_three_year: data["in_three_year"] = True
+        _add_item("classes", data, c.sort_order, c.user_id, "classes", c.id)
+
+    # --- Grants ---
+    for g in db.query(models.Grant).filter(models.Grant.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if g.title: data["title"] = g.title
+        if g.agency: data["agency"] = g.agency
+        if g.pi: data["pi"] = g.pi
+        if g.amount: data["amount"] = g.amount
+        if g.years_start: data["years_start"] = g.years_start
+        if g.years_end: data["years_end"] = g.years_end
+        if g.role: data["role"] = g.role
+        if g.id_number: data["id_number"] = g.id_number
+        if g.description: data["description"] = g.description
+        if g.grant_type: data["grant_type"] = g.grant_type
+        if g.pcteffort is not None: data["pcteffort"] = g.pcteffort
+        if g.status: data["status"] = g.status
+        _add_item("grants", data, g.sort_order, g.user_id, "grants", g.id)
+
+    # --- Awards ---
+    for a in db.query(models.Award).filter(models.Award.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if a.name: data["name"] = a.name
+        if a.year: data["year"] = a.year
+        if a.org: data["org"] = a.org
+        if a.date: data["date"] = a.date
+        _add_item("awards", data, a.sort_order, a.user_id, "awards", a.id)
+
+    # --- Press ---
+    for p in db.query(models.Press).filter(models.Press.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if p.outlet: data["outlet"] = p.outlet
+        if p.title: data["title"] = p.title
+        if p.date: data["date"] = p.date
+        if p.url: data["url"] = p.url
+        if p.topic: data["topic"] = p.topic
+        _add_item("press", data, p.sort_order, p.user_id, "press", p.id)
+
+    # --- Trainees (split by trainee_type) ---
+    for t in db.query(models.Trainee).filter(models.Trainee.user_id.in_(uids_to_migrate)).all():
+        section = "trainees_advisees" if t.trainee_type == "advisee" else "trainees_postdocs"
+        data = {"trainee_type": t.trainee_type}
+        if t.name: data["name"] = t.name
+        if t.degree: data["degree"] = t.degree
+        if t.years_start: data["years_start"] = t.years_start
+        if t.years_end: data["years_end"] = t.years_end
+        if t.type: data["type"] = t.type
+        if t.school: data["school"] = t.school
+        if t.thesis: data["thesis"] = t.thesis
+        if t.current_position: data["current_position"] = t.current_position
+        _add_item(section, data, t.sort_order, t.user_id, section, t.id)
+
+    # --- Committees ---
+    for c in db.query(models.Committee).filter(models.Committee.user_id.in_(uids_to_migrate)).all():
+        data = {}
+        if c.committee: data["committee"] = c.committee
+        if c.org: data["org"] = c.org
+        if c.role: data["role"] = c.role
+        if c.dates: data["dates"] = c.dates
+        _add_item("committees", data, c.sort_order, c.user_id, "committees", c.id)
+
+    # --- MiscSections (skip software/dissertation, already in Works) ---
+    for ms in db.query(models.MiscSection).filter(
+        models.MiscSection.section.notin_(["software", "dissertation"]),
+        models.MiscSection.user_id.in_(uids_to_migrate),
+    ).all():
+        # Map misc section names to appropriate section keys
+        _add_item(ms.section, ms.data or {}, ms.sort_order, ms.user_id, ms.section, ms.id)
+
+    db.flush()
+
+    # --- Remap CVInstanceItem IDs ---
+    if id_remap:
+        all_items = db.query(models.CVInstanceItem).all()
+        for item in all_items:
+            section = item.section
+            section_key = section.section_key
+            # Skip Work-based sections (already remapped in works migration)
+            if section_key in ("patents", "seminars", "software", "dissertation") or section_key.startswith("publications_"):
+                continue
+            new_id = id_remap.get((section_key, item.item_id))
+            if new_id is not None:
+                item.item_id = new_id
+
+    db.commit()
+    log.info("CVItem migration complete: %d items created, %d IDs remapped",
+             db.query(models.CVItem).count(), len(id_remap))
 
 
 # ---------------------------------------------------------------------------
@@ -308,36 +817,42 @@ def dashboard(
 ):
     uid = current_user.id
     profile = db.query(models.Profile).filter_by(user_id=uid).first()
-    total = db.query(models.Publication).filter_by(user_id=uid).count()
+    _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
+    total = db.query(models.Work).filter(
+        models.Work.user_id == uid,
+        models.Work.work_type.in_(_PUB_TYPES),
+    ).count()
 
     def count_type(t):
-        return db.query(models.Publication).filter(
-            models.Publication.user_id == uid,
-            models.Publication.type == t,
+        return db.query(models.Work).filter(
+            models.Work.user_id == uid,
+            models.Work.work_type == t,
         ).count()
 
-    trainee_rows = (
-        db.query(models.Trainee.trainee_type, func.count(models.Trainee.id))
-        .filter(models.Trainee.user_id == uid)
-        .group_by(models.Trainee.trainee_type)
-        .all()
-    )
-    active_grant_rows = (
-        db.query(models.Grant.role, func.count(models.Grant.id))
-        .filter(
-            models.Grant.user_id == uid,
-            models.Grant.status == "active",
-            models.Grant.role.isnot(None),
-            models.Grant.role != "",
-        )
-        .group_by(models.Grant.role)
-        .order_by(func.count(models.Grant.id).desc())
-        .all()
-    )
-    active_grants = db.query(models.Grant).filter(
-        models.Grant.user_id == uid,
-        models.Grant.status == "active",
-    ).count()
+    # Trainee breakdown from CVItem
+    from sqlalchemy import cast, String
+    trainee_items = db.query(models.CVItem).filter(
+        models.CVItem.user_id == uid,
+        models.CVItem.section.in_(["trainees_advisees", "trainees_postdocs"]),
+    ).all()
+    trainee_type_counts: dict[str, int] = {}
+    for t in trainee_items:
+        tt = (t.data or {}).get("trainee_type", t.section.replace("trainees_", ""))
+        trainee_type_counts[tt] = trainee_type_counts.get(tt, 0) + 1
+    trainee_rows = list(trainee_type_counts.items())
+
+    # Grant breakdown from CVItem
+    grant_items = db.query(models.CVItem).filter_by(user_id=uid, section="grants").all()
+    active_grant_roles: dict[str, int] = {}
+    active_grants = 0
+    for g in grant_items:
+        gd = g.data or {}
+        if gd.get("status") == "active":
+            active_grants += 1
+            role = gd.get("role", "")
+            if role:
+                active_grant_roles[role] = active_grant_roles.get(role, 0) + 1
+    active_grant_rows = sorted(active_grant_roles.items(), key=lambda x: -x[1])
 
     return schemas.DashboardStats(
         total_publications=total,
@@ -347,8 +862,8 @@ def dashboard(
         letters=count_type("letters"),
         scimeetings=count_type("scimeetings"),
         editorials=count_type("editorials"),
-        trainees=db.query(models.Trainee).filter_by(user_id=uid).count(),
-        grants=db.query(models.Grant).filter_by(user_id=uid).count(),
+        trainees=len(trainee_items),
+        grants=len(grant_items),
         active_grants=active_grants,
         profile_complete=bool(profile and profile.name),
         trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_rows],

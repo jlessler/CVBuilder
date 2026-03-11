@@ -24,14 +24,14 @@ def test_dashboard_empty_db(client):
 
 def test_dashboard_with_data(client, sample_profile, sample_publication):
     # Add a trainee
-    client.post("/api/trainees", json={
-        "name": "Student One", "trainee_type": "advisee",
-        "years_start": "2020",
+    client.post("/api/cv", json={
+        "section": "trainees_advisees",
+        "data": {"name": "Student One", "trainee_type": "advisee", "years_start": "2020"},
     })
     # Add an active grant
-    client.post("/api/grants", json={
-        "title": "Big Grant", "status": "active", "role": "PI",
-        "years_start": "2023",
+    client.post("/api/cv", json={
+        "section": "grants",
+        "data": {"title": "Big Grant", "status": "active", "role": "PI", "years_start": "2023"},
     })
 
     resp = client.get("/api/dashboard")

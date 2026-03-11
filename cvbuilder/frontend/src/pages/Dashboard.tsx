@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
-import type { DashboardStats, Publication, Trainee, Grant } from '../lib/api'
+import type { DashboardStats, Work } from '../lib/api'
 import { Spinner } from '../components/ui'
 import {
   BookOpen, Users, DollarSign, CheckCircle, AlertCircle,
@@ -20,10 +20,19 @@ const TRAINEE_LABELS: Record<string, string> = {
 
 type ExpandedPanel = 'papers' | 'trainees' | 'grants' | 'presentations' | null
 
-function buildYearCounts(pubs: Publication[]): [string, number][] {
+function buildYearCounts(works: Work[]): [string, number][] {
   const m: Record<string, number> = {}
-  for (const p of pubs) if (p.year) m[p.year] = (m[p.year] ?? 0) + 1
+  for (const w of works) if (w.year) m[String(w.year)] = (m[String(w.year)] ?? 0) + 1
   return Object.entries(m).sort(([a], [b]) => a.localeCompare(b))
+}
+
+// CVItem shape from /api/cv/{section}
+interface CVItem {
+  id: number
+  section: string
+  data: Record<string, unknown>
+  sort_date: number | null
+  sort_order: number
 }
 
 // ---------------------------------------------------------------------------
@@ -152,13 +161,13 @@ function PubPanel({ pubType, title }: { pubType: string; title: string }) {
   const navigate = useNavigate()
   const barClass = pubType === 'papers' ? 'bg-blue-500' : 'bg-orange-500'
 
-  const { data: pubs = [], isLoading } = useQuery<Publication[]>({
-    queryKey: ['dashboard-pubs', pubType],
-    queryFn: () => api.get('/publications', { params: { type: pubType, limit: 2000 } }).then(r => r.data),
+  const { data: works = [], isLoading } = useQuery<Work[]>({
+    queryKey: ['dashboard-works', pubType],
+    queryFn: () => api.get('/works', { params: { type: pubType, limit: 2000 } }).then(r => r.data),
   })
 
-  const yearEntries = buildYearCounts(pubs)
-  const recent = pubs.slice(0, 6)
+  const yearEntries = buildYearCounts(works)
+  const recent = works.slice(0, 6)
 
   return (
     <Panel
@@ -178,23 +187,23 @@ function PubPanel({ pubType, title }: { pubType: string; title: string }) {
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Most Recent</p>
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {recent.map(pub => (
-                <div key={pub.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                  <p className="text-sm font-medium text-gray-900 leading-snug line-clamp-2">{pub.title}</p>
-                  {pub.authors.length > 0 && (
+              {recent.map(work => (
+                <div key={work.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                  <p className="text-sm font-medium text-gray-900 leading-snug line-clamp-2">{work.title}</p>
+                  {work.authors.length > 0 && (
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {pub.authors.slice(0, 4).map(a => a.author_name).join(', ')}
-                      {pub.authors.length > 4 && ` +${pub.authors.length - 4} more`}
+                      {work.authors.slice(0, 4).map(a => a.author_name).join(', ')}
+                      {work.authors.length > 4 && ` +${work.authors.length - 4} more`}
                     </p>
                   )}
-                  {pub.journal && (
+                  {work.data?.journal && (
                     <p className="text-xs text-gray-400 mt-0.5 italic">
-                      {pub.journal}{pub.year ? ` (${pub.year})` : ''}
+                      {work.data.journal as string}{work.year ? ` (${work.year})` : ''}
                     </p>
                   )}
                 </div>
               ))}
-              {pubs.length === 0 && <p className="text-sm text-gray-400">None yet.</p>}
+              {works.length === 0 && <p className="text-sm text-gray-400">None yet.</p>}
             </div>
           </div>
         </div>
@@ -211,14 +220,14 @@ function TraineesPanel({ breakdown, total }: {
   breakdown: DashboardStats['trainee_breakdown']; total: number
 }) {
   const navigate = useNavigate()
-  const { data: trainees = [], isLoading } = useQuery<Trainee[]>({
+  const { data: trainees = [], isLoading } = useQuery<CVItem[]>({
     queryKey: ['trainees-dashboard'],
-    queryFn: () => api.get('/trainees').then(r => r.data),
+    queryFn: () => api.get('/cv/trainees_advisees,trainees_postdocs').then(r => r.data),
   })
 
   const sorted = [...trainees].sort((a, b) => {
-    const ya = parseInt(a.years_start ?? '0') || 0
-    const yb = parseInt(b.years_start ?? '0') || 0
+    const ya = parseInt(String(a.data?.years_start ?? '0')) || 0
+    const yb = parseInt(String(b.data?.years_start ?? '0')) || 0
     return yb - ya
   })
 
@@ -252,18 +261,21 @@ function TraineesPanel({ breakdown, total }: {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sorted.map(t => (
-                    <tr key={t.id} className="hover:bg-gray-50">
-                      <td className="py-1.5 px-3 font-medium text-gray-900">{t.name ?? '—'}</td>
-                      <td className="py-1.5 px-3 text-gray-600">{TRAINEE_LABELS[t.trainee_type] ?? t.trainee_type}</td>
-                      <td className="py-1.5 px-3 text-gray-600">{t.degree ?? '—'}</td>
-                      <td className="py-1.5 px-3 text-gray-500 whitespace-nowrap">
-                        {t.years_start ?? ''}
-                        {t.years_end ? `–${t.years_end}` : t.years_start ? '–present' : ''}
-                      </td>
-                      <td className="py-1.5 px-3 text-gray-600">{t.school ?? '—'}</td>
-                    </tr>
-                  ))}
+                  {sorted.map(t => {
+                    const d = t.data || {}
+                    return (
+                      <tr key={t.id} className="hover:bg-gray-50">
+                        <td className="py-1.5 px-3 font-medium text-gray-900">{(d.name as string) ?? '—'}</td>
+                        <td className="py-1.5 px-3 text-gray-600">{TRAINEE_LABELS[d.trainee_type as string] ?? (d.trainee_type as string) ?? '—'}</td>
+                        <td className="py-1.5 px-3 text-gray-600">{(d.degree as string) ?? '—'}</td>
+                        <td className="py-1.5 px-3 text-gray-500 whitespace-nowrap">
+                          {(d.years_start as string) ?? ''}
+                          {d.years_end ? `–${d.years_end}` : d.years_start ? '–present' : ''}
+                        </td>
+                        <td className="py-1.5 px-3 text-gray-600">{(d.school as string) ?? '—'}</td>
+                      </tr>
+                    )
+                  })}
                   {sorted.length === 0 && (
                     <tr><td colSpan={5} className="py-8 text-center text-gray-400 text-sm">No trainees yet.</td></tr>
                   )}
@@ -285,12 +297,12 @@ function GrantsPanel({ breakdown, activeCount, totalCount }: {
   breakdown: DashboardStats['active_grant_breakdown']; activeCount: number; totalCount: number
 }) {
   const navigate = useNavigate()
-  const { data: allGrants = [], isLoading } = useQuery<Grant[]>({
+  const { data: allGrants = [], isLoading } = useQuery<CVItem[]>({
     queryKey: ['grants-dashboard'],
-    queryFn: () => api.get('/grants').then(r => r.data),
+    queryFn: () => api.get('/cv/grants').then(r => r.data),
   })
 
-  const active = allGrants.filter(g => g.status === 'active')
+  const active = allGrants.filter(g => (g.data?.status as string) === 'active')
 
   const breakdownRows = breakdown.map(({ role, count }) => ({ label: role, value: count }))
 
@@ -319,19 +331,22 @@ function GrantsPanel({ breakdown, activeCount, totalCount }: {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {active.map(g => (
-                    <tr key={g.id} className="hover:bg-gray-50">
-                      <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
-                        <span className="line-clamp-2">{g.title ?? '—'}</span>
-                      </td>
-                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.agency ?? '—'}</td>
-                      <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.role ?? '—'}</td>
-                      <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
-                        {g.years_start ?? ''}
-                        {g.years_end ? `–${g.years_end}` : g.years_start ? '–present' : ''}
-                      </td>
-                    </tr>
-                  ))}
+                  {active.map(g => {
+                    const d = g.data || {}
+                    return (
+                      <tr key={g.id} className="hover:bg-gray-50">
+                        <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
+                          <span className="line-clamp-2">{(d.title as string) ?? '—'}</span>
+                        </td>
+                        <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{(d.agency as string) ?? '—'}</td>
+                        <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{(d.role as string) ?? '—'}</td>
+                        <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
+                          {(d.years_start as string) ?? ''}
+                          {d.years_end ? `–${d.years_end}` : d.years_start ? '–present' : ''}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {active.length === 0 && (
                     <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No active grants.</td></tr>
                   )}
