@@ -174,10 +174,9 @@ function formToPayload(form: WorkForm) {
 export function Publications() {
   const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const typeFilter = searchParams.get('type') || ''
+  const typeFilter = searchParams.get('type') ?? 'papers'
   function setTypeFilter(type: string) {
-    if (type) setSearchParams({ type }, { replace: true })
-    else setSearchParams({}, { replace: true })
+    setSearchParams(type ? { type } : { type: 'all' }, { replace: true })
   }
   const [keyword, setKeyword] = useState('')
   const [editing, setEditing] = useState<Work | null>(null)
@@ -264,7 +263,7 @@ export function Publications() {
   const { data = [], isLoading } = useQuery<Work[]>({
     queryKey: ['works', typeFilter, keyword],
     queryFn: () => api.get('/works', {
-      params: { type: typeFilter || undefined, keyword: keyword || undefined, limit: 2000 }
+      params: { type: (typeFilter && typeFilter !== 'all') ? typeFilter : undefined, keyword: keyword || undefined, limit: 2000 }
     }).then(r => r.data),
   })
 
@@ -638,10 +637,6 @@ export function Publications() {
       {/* Filters */}
       <div className="flex gap-3 mb-6">
         <div className="flex gap-1 flex-wrap">
-          <button
-            onClick={() => setTypeFilter('')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!typeFilter ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-          >All</button>
           {WORK_TYPES.map(pt => (
             <button
               key={pt.value}
@@ -649,6 +644,10 @@ export function Publications() {
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === pt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
             >{pt.label}</button>
           ))}
+          <button
+            onClick={() => setTypeFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+          >All</button>
         </div>
       </div>
 
