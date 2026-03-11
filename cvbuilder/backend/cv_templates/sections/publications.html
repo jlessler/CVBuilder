@@ -5,16 +5,16 @@
 {% endif %}
 {% if pubs %}
 {% set profile_name = (cv.profile.name or '') if cv.profile else '' %}
-{% set ns = namespace(has_students=false, has_corr=false) %}
+{% set ns = namespace(has_students=false, has_corr=false, has_cofirst=false, has_cosenior=false) %}
 {% for p in pubs %}
-  {% for a in p.authors %}{% if a.corresponding %}{% set ns.has_corr = true %}{% endif %}{% if a.student %}{% set ns.has_students = true %}{% endif %}{% endfor %}
+  {% for a in p.authors %}{% if a.corresponding %}{% set ns.has_corr = true %}{% endif %}{% if a.student %}{% set ns.has_students = true %}{% endif %}{% if a.cofirst %}{% set ns.has_cofirst = true %}{% endif %}{% if a.cosenior %}{% set ns.has_cosenior = true %}{% endif %}{% endfor %}
 {% endfor %}
 <div class="cv-section">
   <div class="cv-section-heading">{{ config.get('heading', pub_type | title) }} <span class="pub-count">({{ pubs | length }} total)</span></div>
   {% for p in pubs %}
   <div class="pub-entry">
     <span class="pub-number">{{ loop.index }}.</span>
-    {% for a in p.authors %}{% if not loop.first %}, {% endif %}{{ a.author_name | bold_self(profile_name) | safe }}{% if a.student %}<sup>&dagger;</sup>{% endif %}{% endfor %}{% if p.authors | selectattr('corresponding') | list %}<sup>*</sup>{% endif %}.
+    {% for a in p.authors %}{% if not loop.first %}, {% endif %}{{ a.author_name | bold_self(profile_name) | safe }}{% if a.student %}<sup>&dagger;</sup>{% endif %}{% if a.cofirst %}<sup>&#8225;</sup>{% endif %}{% if a.cosenior %}<sup>&sect;</sup>{% endif %}{% endfor %}{% if p.authors | selectattr('corresponding') | list %}<sup>*</sup>{% endif %}.
     {% if p.title %}&ldquo;<span class="pub-title">{{ p.title }}</span>.&rdquo;{% endif %}
     {% if pub_type == 'scimeetings' %}
       {% if p.conference %}<em>{{ p.conference }}</em>{% endif %}
@@ -34,10 +34,12 @@
     {% if p.select_flag %} <span class="pub-select-flag">&#9733;</span>{% endif %}
   </div>
   {% endfor %}
-  {% if ns.has_students or ns.has_corr %}
+  {% if ns.has_students or ns.has_corr or ns.has_cofirst or ns.has_cosenior %}
   <div class="pub-footnote">
     {% if ns.has_students %}<sup>&dagger;</sup> Student/trainee author&nbsp;&nbsp;{% endif %}
-    {% if ns.has_corr %}<sup>*</sup> Corresponding author{% endif %}
+    {% if ns.has_corr %}<sup>*</sup> Corresponding author&nbsp;&nbsp;{% endif %}
+    {% if ns.has_cofirst %}<sup>&#8225;</sup> Co-first author&nbsp;&nbsp;{% endif %}
+    {% if ns.has_cosenior %}<sup>&sect;</sup> Co-senior author{% endif %}
   </div>
   {% endif %}
 </div>
