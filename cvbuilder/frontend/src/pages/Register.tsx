@@ -30,7 +30,12 @@ export function Register() {
       await register(email, password, fullName || undefined)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed')
+      const detail = err.response?.data?.detail
+      if (Array.isArray(detail)) {
+        setError(detail.map((e: any) => e.msg).join('; '))
+      } else {
+        setError(detail || 'Registration failed')
+      }
     } finally {
       setLoading(false)
     }
