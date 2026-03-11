@@ -1,6 +1,7 @@
 """Works CRUD + DOI lookup endpoints (unified scholarly outputs)."""
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -81,7 +82,14 @@ def list_works(
         q = q.filter(models.Work.data["select_flag"].as_boolean() == True)
     if keyword:
         kw = f"%{keyword}%"
-        q = q.filter(models.Work.title.ilike(kw))
+        q = q.filter(
+            or_(
+                models.Work.title.ilike(kw),
+                models.Work.doi.ilike(kw),
+                models.Work.data.ilike(kw),
+                models.Work.authors.any(models.WorkAuthor.author_name.ilike(kw)),
+            )
+        )
     return q.order_by(models.Work.year.desc(), models.Work.id.desc()).offset(skip).limit(limit).all()
 
 

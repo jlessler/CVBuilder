@@ -619,7 +619,16 @@ export function Publications() {
         title="Scholarly Works"
         subtitle={`${data.length} total`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+              <input
+                className="w-64 pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Search..."
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+              />
+            </div>
             <Button variant="secondary" onClick={handleFindNew}><RefreshCw size={15} /> Find New</Button>
             <Button onClick={openCreate}><Plus size={16} /> Add Work</Button>
           </div>
@@ -628,15 +637,6 @@ export function Publications() {
 
       {/* Filters */}
       <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-          <input
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Search title..."
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-          />
-        </div>
         <div className="flex gap-1 flex-wrap">
           <button
             onClick={() => setTypeFilter('')}
