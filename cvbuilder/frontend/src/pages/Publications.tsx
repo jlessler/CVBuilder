@@ -282,10 +282,11 @@ export function Publications() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['works'] }),
   })
 
-  function openCreate() { setForm(blankWork()); setCreating(true) }
+  function openCreate() { setForm(blankWork()); setDoiInput(''); setCreating(true) }
   function openEdit(work: Work) {
     setEditing(work)
     setForm(workToForm(work))
+    setDoiInput(work.doi || '')
   }
 
   async function lookupDoi() {
