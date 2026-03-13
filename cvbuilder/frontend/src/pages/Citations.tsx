@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Work } from '../lib/api'
-import { Button, Card, Input, PageHeader, Spinner } from '../components/ui'
+import { Button, Card, Input, Spinner } from '../components/ui'
 import { Plus, Trash2, Download, Save, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface CitationData {
@@ -27,7 +27,7 @@ interface FetchResult extends CitationData {
   works_queried: number
 }
 
-export function Citations() {
+export function CitationMetrics() {
   const qc = useQueryClient()
 
   // Load existing citation_metrics CVItem (aggregate data)
@@ -143,7 +143,7 @@ export function Citations() {
     ))
   }
 
-  if (loadingItems || loadingWorks) return <div className="p-8"><Spinner /></div>
+  if (loadingItems || loadingWorks) return <Spinner />
 
   const maxCount = Math.max(...yearRows.map(r => r.count), 1)
 
@@ -153,16 +153,16 @@ export function Citations() {
   )
 
   return (
-    <div className="p-8">
-      <PageHeader
-        title="Citation Metrics"
-        subtitle="Track your citation counts, h-index, and related metrics"
-        actions={
-          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
-            <Save size={16} /> Save
-          </Button>
-        }
-      />
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Citation Metrics</h2>
+          <p className="text-sm text-gray-500">Track your citation counts, h-index, and related metrics</p>
+        </div>
+        <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
+          <Save size={16} /> Save
+        </Button>
+      </div>
 
       {saveMut.isSuccess && (
         <div className="mb-4 px-4 py-2 bg-green-50 text-green-800 rounded-lg text-sm border border-green-200">
@@ -329,6 +329,6 @@ export function Citations() {
           )}
         </Card>
       )}
-    </div>
+    </>
   )
 }

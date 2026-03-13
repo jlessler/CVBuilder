@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2 } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3 } from 'lucide-react'
+import { CitationMetrics } from './Citations'
 
 type AuthorRow = {
   author_name: string
@@ -654,8 +655,15 @@ export function Publications() {
             onClick={() => setTypeFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
           >All</button>
+          <span className="border-l border-gray-300 mx-1" />
+          <button
+            onClick={() => setTypeFilter('citations')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${typeFilter === 'citations' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+          ><BarChart3 size={14} /> Citations</button>
         </div>
       </div>
+
+      {typeFilter === 'citations' ? <CitationMetrics /> : (<>
 
       {isLoading ? <Spinner /> : (
         <Card>
@@ -933,6 +941,7 @@ export function Publications() {
           </div>
         )}
       </Modal>
+      </>)}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, User, BookOpen, Layout, Download, GraduationCap,
-  LogOut, Files, BarChart3,
+  LogOut, Files,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -10,7 +10,6 @@ const navItems = [
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/sections', label: 'CV Sections', icon: GraduationCap },
   { to: '/publications', label: 'Scholarly Works', icon: BookOpen },
-  { to: '/citations', label: 'Citations', icon: BarChart3 },
   { to: '/cvs', label: 'CVs', icon: Files },
   { to: '/export', label: 'Import/Export', icon: Download },
   { to: '/templates', label: 'Templates', icon: Layout },
