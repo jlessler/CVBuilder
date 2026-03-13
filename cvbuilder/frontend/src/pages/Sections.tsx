@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Spinner } from '../components/ui'
-import { Plus, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, Copy } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Tab configuration — all sections are CVItems stored in data JSON blobs
@@ -217,10 +217,11 @@ function blankForm(tab: TabDef): Record<string, string | number> {
 // ---------------------------------------------------------------------------
 
 function ItemRow({
-  item, onEdit, onDelete,
+  item, onEdit, onCopy, onDelete,
 }: {
   item: Record<string, unknown>
   onEdit: () => void
+  onCopy: () => void
   onDelete: () => void
 }) {
   // item.data is flattened into top-level by the query, so we can access fields directly
@@ -255,6 +256,7 @@ function ItemRow({
       </div>
       <div className="flex items-center gap-1 ml-3">
         <Button variant="ghost" size="sm" onClick={onEdit}><Edit2 size={14} /></Button>
+        <Button variant="ghost" size="sm" onClick={onCopy} title="Duplicate entry"><Copy size={14} /></Button>
         <Button variant="ghost" size="sm" onClick={onDelete}><Trash2 size={14} className="text-red-500" /></Button>
       </div>
     </div>
@@ -319,6 +321,22 @@ export function Sections() {
   function openCreate() {
     setForm(blankForm(currentTab))
     setModal({ open: true, item: null })
+  }
+
+  function openCopy(item: Record<string, unknown>) {
+    const fields = FIELDS[tab] ?? []
+    const fieldKeys = fields.map(f => f.key)
+    const formData: Record<string, string | number> = {}
+    for (const k of fieldKeys) {
+      if (item[k] !== undefined && item[k] !== null) {
+        formData[k] = item[k] as string | number
+      }
+    }
+    if (currentTab.subtypeField && item.section) {
+      formData[currentTab.subtypeField] = item.section as string
+    }
+    setForm(formData)
+    setModal({ open: true, item: null })  // null item = create mode
   }
 
   function openEdit(item: Record<string, unknown>) {
@@ -403,6 +421,7 @@ export function Sections() {
                 key={item.id as number}
                 item={item}
                 onEdit={() => openEdit(item)}
+                onCopy={() => openCopy(item)}
                 onDelete={() => {
                   if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
                 }}

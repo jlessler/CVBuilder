@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2 } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2 } from 'lucide-react'
 
 type AuthorRow = {
   author_name: string
@@ -283,6 +283,11 @@ export function Publications() {
   })
 
   function openCreate() { setForm(blankWork()); setDoiInput(''); setCreating(true) }
+  function openCopy(work: Work) {
+    setForm(workToForm(work))
+    setDoiInput('')
+    setCreating(true)
+  }
   function openEdit(work: Work) {
     setEditing(work)
     setForm(workToForm(work))
@@ -685,6 +690,9 @@ export function Publications() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(work)}>
                     <Edit2 size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => openCopy(work)} title="Duplicate work">
+                    <Copy size={14} />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => {
                     if (confirm('Delete this work?')) deleteMut.mutate(work.id)
