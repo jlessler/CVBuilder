@@ -35,6 +35,7 @@ class Profile(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(100))
     website: Mapped[Optional[str]] = mapped_column(String(500))
     orcid: Mapped[Optional[str]] = mapped_column(String(100))
+    semantic_scholar_id: Mapped[Optional[str]] = mapped_column(String(200))
     linkedin: Mapped[Optional[str]] = mapped_column(String(200))
     addresses: Mapped[list["Address"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan", order_by="Address.line_order"

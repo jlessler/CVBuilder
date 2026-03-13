@@ -49,6 +49,7 @@ SECTION_KEY_MAP: dict[str, tuple[type, dict]] = {
     "departmentalOrals":        (models.CVItem, {"section": "departmentalOrals"}),
     "finaldefense":             (models.CVItem, {"section": "finaldefense"}),
     "schoolwideOrals":          (models.CVItem, {"section": "schoolwideOrals"}),
+    "citation_metrics":         (models.CVItem, {"section": "citation_metrics"}),
 }
 
 
@@ -374,6 +375,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
         "departmentalOrals": "departmentalOrals",
         "finaldefense": "finaldefense",
         "schoolwideOrals": "schoolwideOrals",
+        "citation_metrics": "citation_metrics",
     }
 
     # Publication section keys map to the "publications" data key with type filtering

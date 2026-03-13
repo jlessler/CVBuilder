@@ -65,6 +65,9 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
         "departmentalOrals": _cv_query("departmentalOrals"),
         "finaldefense": _cv_query("finaldefense"),
         "schoolwideOrals": _cv_query("schoolwideOrals"),
+        "citation_metrics": db.query(models.CVItem).filter_by(
+            user_id=user_id, section="citation_metrics"
+        ).all(),
         "publications": sort_items(
             db.query(models.Work).filter(
                 models.Work.user_id == user_id,

@@ -345,6 +345,23 @@ ul.cv-list li {{
   margin-bottom: 0.2em;
 }}
 
+.citation-chart {{
+  margin: 0.3em 0;
+}}
+
+.citation-summary {{
+  font-size: 10pt;
+  color: {s['text_color']};
+  margin-top: 0.3em;
+  line-height: 1.5;
+}}
+
+.citation-source {{
+  font-size: 9pt;
+  color: {s['muted_color']};
+  font-style: italic;
+}}
+
 @media print {{
   .cv-page {{ padding: 0; }}
   body {{ font-size: 10.5pt; }}
@@ -457,6 +474,7 @@ def render_cv_html(cv_data: dict, style: dict | None = None, sections: list[dict
         "cv": cv_data,
         "sections": sections,
         "theme_css_content": theme_css_content,
+        "style": _resolve_style(style),
     }
     return render_html("base.html", context)
 

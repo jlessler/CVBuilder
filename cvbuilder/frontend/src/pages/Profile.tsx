@@ -14,7 +14,7 @@ export function Profile() {
   })
 
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', website: '', orcid: '', linkedin: '',
+    name: '', email: '', phone: '', website: '', orcid: '', semantic_scholar_id: '', linkedin: '',
     homeAddr: [''], workAddr: [''],
   })
 
@@ -26,6 +26,7 @@ export function Profile() {
         phone: data.phone || '',
         website: data.website || '',
         orcid: data.orcid || '',
+        semantic_scholar_id: data.semantic_scholar_id || '',
         linkedin: data.linkedin || '',
         homeAddr: data.addresses.filter(a => a.type === 'home').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
         workAddr: data.addresses.filter(a => a.type === 'work').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
@@ -41,8 +42,9 @@ export function Profile() {
       ]
       return api.put('/profile', {
         name: form.name, email: form.email, phone: form.phone,
-        website: form.website, orcid: form.orcid, linkedin: form.linkedin,
-        addresses,
+        website: form.website, orcid: form.orcid,
+        semantic_scholar_id: form.semantic_scholar_id,
+        linkedin: form.linkedin, addresses,
       })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
@@ -92,6 +94,7 @@ export function Profile() {
           <Input label="Phone" value={form.phone} onChange={e => set('phone', e.target.value)} />
           <Input label="Website / Homepage" value={form.website} onChange={e => set('website', e.target.value)} />
           <Input label="ORCID" placeholder="0000-0000-0000-0000" value={form.orcid} onChange={e => set('orcid', e.target.value)} />
+          <Input label="Semantic Scholar Author ID" placeholder="e.g. 1741101" value={form.semantic_scholar_id} onChange={e => set('semantic_scholar_id', e.target.value)} />
           <Input label="LinkedIn" value={form.linkedin} onChange={e => set('linkedin', e.target.value)} />
         </Card>
 

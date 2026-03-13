@@ -70,6 +70,7 @@ const ALL_SECTIONS = [
   { key: 'otherservice', label: 'Other Service' },
   { key: 'dissertation', label: 'Dissertation' },
   { key: 'chairedsessions', label: 'Chaired Sessions' },
+  { key: 'citation_metrics', label: 'Citation Metrics' },
   { key: 'otherpractice', label: 'Other Practice Activities' },
   { key: 'departmentalOrals', label: 'Departmental Oral Exams' },
   { key: 'finaldefense', label: 'Final Dissertation Defenses' },

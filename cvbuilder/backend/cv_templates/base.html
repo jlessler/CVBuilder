@@ -311,6 +311,10 @@
       {% endfor %}
     </div>
 
+    {# Citation Metrics #}
+    {% elif key == 'citation_metrics' %}
+      {% include 'sections/citation_metrics.html' %}
+
     {# Publications #}
     {% elif key == 'publications_papers' %}
       {% set config = config | combine({'pub_type': 'papers', 'heading': config.get('heading', 'Peer-Reviewed Publications')}) %}

@@ -50,6 +50,7 @@ class ProfileBase(BaseModel):
     phone: Optional[str] = None
     website: Optional[str] = None
     orcid: Optional[str] = None
+    semantic_scholar_id: Optional[str] = None
     linkedin: Optional[str] = None
 
 class ProfileCreate(ProfileBase):

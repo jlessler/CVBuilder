@@ -87,6 +87,7 @@ export interface Profile {
   phone: string | null
   website: string | null
   orcid: string | null
+  semantic_scholar_id: string | null
   linkedin: string | null
   addresses: Address[]
 }

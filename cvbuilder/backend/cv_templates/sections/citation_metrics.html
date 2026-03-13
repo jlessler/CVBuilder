@@ -1,0 +1,94 @@
+{# Citation Metrics section — inline SVG bar chart + summary line #}
+{% set items = cv.citation_metrics %}
+{% if items %}
+{% set item = items[0] %}
+{% set d = item.data or {} %}
+{% set yearly = d.get('yearly_counts', {}) %}
+{% set total = d.get('total_citations', 0) %}
+{% set h = d.get('h_index', '') %}
+{% set i10 = d.get('i10_index', '') %}
+{% set src = d.get('source', '') %}
+{% set retrieved = d.get('retrieved_at', '') %}
+
+<div class="cv-section">
+  <div class="cv-section-heading">{{ config.get('heading', 'Citation Metrics') }}</div>
+
+  {% if yearly %}
+  {% set years_sorted = yearly.keys() | list | sort %}
+  {% set counts = [] %}
+  {% for y in years_sorted %}{% set _ = counts.append(yearly[y]) %}{% endfor %}
+  {% set max_count = counts | max if counts else 1 %}
+  {% set bar_w = 28 %}
+  {% set gap = 4 %}
+  {% set chart_h = 120 %}
+  {% set top_pad = 20 %}
+  {% set left_pad = 40 %}
+  {% set bottom_pad = 30 %}
+  {% set n = years_sorted | length %}
+  {% set svg_w = left_pad + n * (bar_w + gap) + 10 %}
+  {% set svg_h = top_pad + chart_h + bottom_pad %}
+
+  <svg xmlns="http://www.w3.org/2000/svg" width="{{ svg_w }}" height="{{ svg_h }}" class="citation-chart">
+    {# Y-axis label (rotated) #}
+    <text x="10" y="{{ top_pad + chart_h // 2 }}" text-anchor="middle"
+          font-size="8" fill="#666"
+          transform="rotate(-90, 10, {{ top_pad + chart_h // 2 }})">Citations</text>
+
+    {# Y-axis baseline #}
+    <line x1="{{ left_pad - 2 }}" y1="{{ top_pad }}"
+          x2="{{ left_pad - 2 }}" y2="{{ top_pad + chart_h }}"
+          stroke="#ccc" stroke-width="0.5" />
+
+    {# X-axis baseline #}
+    <line x1="{{ left_pad - 2 }}" y1="{{ top_pad + chart_h }}"
+          x2="{{ svg_w }}" y2="{{ top_pad + chart_h }}"
+          stroke="#ccc" stroke-width="0.5" />
+
+    {# Y-axis tick marks: 0, mid, max #}
+    {% set mid_count = (max_count // 2) %}
+    <text x="{{ left_pad - 6 }}" y="{{ top_pad + chart_h + 3 }}" text-anchor="end"
+          font-size="7" fill="#999">0</text>
+    {% if max_count > 20 %}
+    <text x="{{ left_pad - 6 }}" y="{{ top_pad + chart_h // 2 + 3 }}" text-anchor="end"
+          font-size="7" fill="#999">{{ mid_count }}</text>
+    <line x1="{{ left_pad - 4 }}" y1="{{ top_pad + chart_h // 2 }}"
+          x2="{{ left_pad - 2 }}" y2="{{ top_pad + chart_h // 2 }}"
+          stroke="#ccc" stroke-width="0.5" />
+    {% endif %}
+    <text x="{{ left_pad - 6 }}" y="{{ top_pad + 3 }}" text-anchor="end"
+          font-size="7" fill="#999">{{ max_count }}</text>
+
+    {# Bars + labels #}
+    {% for y in years_sorted %}
+    {% set count = yearly[y] %}
+    {% set bar_h = (count / max_count * chart_h) | int if max_count > 0 else 0 %}
+    {% set x = left_pad + loop.index0 * (bar_w + gap) %}
+    {% set bar_y = top_pad + chart_h - bar_h %}
+    <rect x="{{ x }}" y="{{ bar_y }}" width="{{ bar_w }}" height="{{ bar_h }}"
+          fill="{{ style.accent_color if style else '#2e6da4' }}" />
+    {# Count label above bar #}
+    <text x="{{ x + bar_w // 2 }}" y="{{ bar_y - 4 }}" text-anchor="middle"
+          font-size="7" fill="#666">{{ count }}</text>
+    {# Year label below x-axis #}
+    <text x="{{ x + bar_w // 2 }}" y="{{ top_pad + chart_h + 14 }}" text-anchor="middle"
+          font-size="7" fill="#666">{{ y[-2:] }}</text>
+    {% endfor %}
+
+    {# X-axis label #}
+    <text x="{{ left_pad + (n * (bar_w + gap)) // 2 }}" y="{{ svg_h - 2 }}" text-anchor="middle"
+          font-size="8" fill="#666">Year</text>
+  </svg>
+  {% endif %}
+
+  <div class="citation-summary">
+    {% set parts = [] %}
+    {% if total %}{% set _ = parts.append('Total citations: ' ~ total) %}{% endif %}
+    {% if h %}{% set _ = parts.append('h-index: ' ~ h) %}{% endif %}
+    {% if i10 %}{% set _ = parts.append('i10-index: ' ~ i10) %}{% endif %}
+    {{ parts | join(' &nbsp;|&nbsp; ') }}
+    {% if src %}
+    <br><span class="citation-source">Source: {{ src }}{% if retrieved %}, retrieved {{ retrieved }}{% endif %}</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

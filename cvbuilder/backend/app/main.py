@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import create_tables, get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.routers import auth, profile, templates, export, cv_instances, works, cv_items
+from app.routers import auth, profile, templates, export, cv_instances, works, cv_items, citations
 
 app = FastAPI(
     title="CVBuilder API",
@@ -33,6 +33,7 @@ app.include_router(export.router)
 app.include_router(cv_instances.router)
 app.include_router(works.router)
 app.include_router(cv_items.router)
+app.include_router(citations.router)
 
 
 @app.on_event("startup")
@@ -96,6 +97,7 @@ def _run_migrations():
         "ALTER TABLE cv_items ADD COLUMN sort_order INTEGER DEFAULT 0",
         "ALTER TABLE cv_items ADD COLUMN sort_date INTEGER",
         "ALTER TABLE cv_items ADD COLUMN user_id INTEGER REFERENCES users(id)",
+        "ALTER TABLE profile ADD COLUMN semantic_scholar_id VARCHAR(200)",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
@@ -692,6 +694,7 @@ _HEADINGS = {
     "departmentalOrals":          "Departmental Oral Exams",
     "finaldefense":               "Final Dissertation Defenses",
     "schoolwideOrals":            "School-wide Oral Exams",
+    "citation_metrics":           "Citation Metrics",
 }
 
 # ---------------------------------------------------------------------------

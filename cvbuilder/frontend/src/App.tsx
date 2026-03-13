@@ -8,6 +8,7 @@ import { Profile } from './pages/Profile'
 import { Sections } from './pages/Sections'
 import { Publications } from './pages/Publications'
 import { Templates } from './pages/Templates'
+import { Citations } from './pages/Citations'
 import { Export } from './pages/Export'
 import { CVInstances } from './pages/CVInstances'
 import { Login } from './pages/Login'
@@ -35,6 +36,7 @@ export default function App() {
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/sections" element={<Sections />} />
                       <Route path="/publications" element={<Publications />} />
+                      <Route path="/citations" element={<Citations />} />
                       <Route path="/cvs" element={<CVInstances />} />
                       <Route path="/export" element={<Export />} />
                       <Route path="/templates" element={<Templates />} />
