@@ -287,17 +287,54 @@ class AvailableItem(BaseModel):
 # Dashboard stats
 # ---------------------------------------------------------------------------
 
-class DashboardStats(BaseModel):
-    total_publications: int
-    papers: int
-    preprints: int
-    chapters: int
-    letters: int
-    scimeetings: int
-    editorials: int = 0
-    trainees: int
-    grants: int
-    profile_complete: bool
-    active_grants: int = 0
-    trainee_breakdown: list[dict] = []
-    active_grant_breakdown: list[dict] = []
+class ScholarlyOutputStats(BaseModel):
+    total_works: int = 0
+    counts_by_type: dict[str, int] = {}
+    works_by_year: list[dict] = []  # [{year, count}]
+    first_author_count: int = 0
+    corresponding_author_count: int = 0
+    senior_author_count: int = 0
+    student_led_count: int = 0
+    h_index: int = 0
+    i10_index: int = 0
+    total_citations: int = 0
+    citations_by_year: list[dict] = []  # [{year, count}]
+
+class TeachingMentorshipStats(BaseModel):
+    courses_total: int = 0
+    courses_three_year: int = 0
+    unique_courses: int = 0
+    trainees_total: int = 0
+    trainee_breakdown: list[dict] = []  # [{type, count}]
+    current_trainees: int = 0
+
+class ActiveGrantDetail(BaseModel):
+    title: str = ""
+    agency: str = ""
+    role: str = ""
+    period: str = ""
+    amount: str = ""
+
+class FundingStats(BaseModel):
+    grants_total: int = 0
+    grants_active: int = 0
+    grants_completed: int = 0
+    active_by_role: list[dict] = []  # [{role, count}]
+    total_funding_amount: str = ""
+    active_grants_detail: list[ActiveGrantDetail] = []
+
+class ServiceStats(BaseModel):
+    committees: int = 0
+    advisory_panels: int = 0
+    grant_review_panels: int = 0
+    symposia: int = 0
+    editorial: int = 0
+    peer_review: int = 0
+    service_breakdown: list[dict] = []  # [{label, count}]
+
+class DashboardData(BaseModel):
+    profile_complete: bool = False
+    scholarly_output: ScholarlyOutputStats = ScholarlyOutputStats()
+    teaching_mentorship: TeachingMentorshipStats = TeachingMentorshipStats()
+    funding: FundingStats = FundingStats()
+    service: ServiceStats = ServiceStats()

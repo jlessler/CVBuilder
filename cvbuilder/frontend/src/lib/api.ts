@@ -301,20 +301,62 @@ export interface AvailableItem {
   selected: boolean
 }
 
-export interface DashboardStats {
-  total_publications: number
-  papers: number
-  preprints: number
-  chapters: number
-  letters: number
-  scimeetings: number
-  editorials: number
-  trainees: number
-  grants: number
-  profile_complete: boolean
-  active_grants: number
+export interface ScholarlyOutputStats {
+  total_works: number
+  counts_by_type: Record<string, number>
+  works_by_year: { year: number; count: number }[]
+  first_author_count: number
+  corresponding_author_count: number
+  senior_author_count: number
+  student_led_count: number
+  h_index: number
+  i10_index: number
+  total_citations: number
+  citations_by_year: { year: number; count: number }[]
+}
+
+export interface TeachingMentorshipStats {
+  courses_total: number
+  courses_three_year: number
+  unique_courses: number
+  trainees_total: number
   trainee_breakdown: { type: string; count: number }[]
-  active_grant_breakdown: { role: string; count: number }[]
+  current_trainees: number
+}
+
+export interface ActiveGrantDetail {
+  title: string
+  agency: string
+  role: string
+  period: string
+  amount: string
+}
+
+export interface FundingStats {
+  grants_total: number
+  grants_active: number
+  grants_completed: number
+  active_by_role: { role: string; count: number }[]
+  total_funding_amount: string
+  active_grants_detail: ActiveGrantDetail[]
+}
+
+export interface ServiceStats {
+  committees: number
+  advisory_panels: number
+  grant_review_panels: number
+  symposia: number
+  editorial: number
+  peer_review: number
+  service_breakdown: { label: string; count: number }[]
+}
+
+export interface DashboardData {
+  profile_complete: boolean
+  scholarly_output: ScholarlyOutputStats
+  teaching_mentorship: TeachingMentorshipStats
+  funding: FundingStats
+  service: ServiceStats
 }
 
 export interface DOILookupResponse {

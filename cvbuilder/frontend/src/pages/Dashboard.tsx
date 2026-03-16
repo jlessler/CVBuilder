@@ -2,117 +2,72 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
-import type { DashboardStats, Work } from '../lib/api'
+import type {
+  DashboardData,
+  ScholarlyOutputStats,
+  TeachingMentorshipStats,
+  FundingStats,
+  ServiceStats,
+} from '../lib/api'
 import { Spinner } from '../components/ui'
 import {
-  BookOpen, Users, DollarSign, CheckCircle, AlertCircle,
-  Presentation, ChevronDown, ChevronUp, ArrowUpRight,
+  BookOpen, Users, DollarSign, Briefcase,
+  CheckCircle, AlertCircle, ArrowUpRight,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+const WORK_TYPE_LABELS: Record<string, string> = {
+  papers: 'Peer-Reviewed Papers',
+  preprints: 'Preprints',
+  chapters: 'Books & Chapters',
+  letters: 'Letters',
+  scimeetings: 'Meeting Presentations',
+  editorials: 'Editorials',
+}
+
 const TRAINEE_LABELS: Record<string, string> = {
-  advisee: 'Graduate Student Advisees',
-  postdoc:  'Postdoctoral Fellows',
-}
-
-type ExpandedPanel = 'papers' | 'trainees' | 'grants' | 'presentations' | null
-
-function buildYearCounts(works: Work[]): [string, number][] {
-  const m: Record<string, number> = {}
-  for (const w of works) if (w.year) m[String(w.year)] = (m[String(w.year)] ?? 0) + 1
-  return Object.entries(m).sort(([a], [b]) => a.localeCompare(b))
-}
-
-// CVItem shape from /api/cv/{section}
-interface CVItem {
-  id: number
-  section: string
-  data: Record<string, unknown>
-  sort_date: number | null
-  sort_order: number
+  advisee: 'Graduate Advisees',
+  postdoc: 'Postdoctoral Fellows',
 }
 
 // ---------------------------------------------------------------------------
-// Stat card
+// Reusable chart components
 // ---------------------------------------------------------------------------
 
-function StatCard({ label, value, subtitle, icon: Icon, color = 'blue', onClick, expanded }: {
-  label: string; value: number; subtitle?: string; icon: React.ElementType
-  color?: string; onClick: () => void; expanded: boolean
-}) {
-  const iconBg: Record<string, string> = {
-    blue:   'bg-blue-50   text-blue-700',
-    green:  'bg-green-50  text-green-700',
-    purple: 'bg-purple-50 text-purple-700',
-    orange: 'bg-orange-50 text-orange-700',
-  }
-  return (
-    <div
-      className={`bg-white rounded-xl border shadow-sm p-5 cursor-pointer hover:shadow-md transition-all select-none ${
-        expanded ? 'border-primary-400 ring-1 ring-primary-300' : 'border-gray-200'
-      }`}
-      onClick={onClick}
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-500 font-medium">{label}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className={`p-3 rounded-xl ${iconBg[color] ?? iconBg.blue}`}>
-            <Icon size={20} />
-          </div>
-          <span className="text-gray-400">
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Year bar chart
-// ---------------------------------------------------------------------------
-
-function YearBarChart({ entries, barClass }: { entries: [string, number][]; barClass: string }) {
-  if (!entries.length) return <p className="text-sm text-gray-400">No data.</p>
-  const maxVal = Math.max(...entries.map(([, n]) => n))
-  const BAR_H = 96 // px max bar height
+function YearBarChart({ entries, barClass }: { entries: { year: number; count: number }[]; barClass: string }) {
+  if (!entries.length) return <p className="text-sm text-gray-400">No data yet.</p>
+  const maxVal = Math.max(...entries.map(e => e.count))
+  const BAR_H = 96
 
   return (
     <div className="overflow-x-auto pb-1">
       <div className="flex items-end gap-1.5" style={{ minHeight: BAR_H + 48 }}>
-        {entries.map(([year, count]) => {
+        {entries.map(({ year, count }) => {
           const h = Math.max(Math.round((count / maxVal) * BAR_H), 4)
           return (
             <div key={year} className="flex flex-col items-center gap-0.5 flex-shrink-0 w-7">
               <span className="text-[10px] text-gray-500 leading-none">{count}</span>
               <div className={`w-full rounded-t ${barClass}`} style={{ height: h }} />
-              <span className="text-[10px] text-gray-400 leading-none">{year.slice(2)}</span>
+              <span className="text-[10px] text-gray-400 leading-none">{String(year).slice(2)}</span>
             </div>
           )
         })}
       </div>
-      <p className="text-[10px] text-gray-400 mt-1 text-right">year ('xx)</p>
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Breakdown bars (horizontal, for type/role summaries)
-// ---------------------------------------------------------------------------
-
 function BreakdownBars({ rows, total, barClass }: {
   rows: { label: string; value: number }[]; total: number; barClass: string
 }) {
+  const filtered = rows.filter(r => r.value > 0)
+  if (!filtered.length) return <p className="text-sm text-gray-400">None yet.</p>
   return (
     <div className="space-y-2.5">
-      {rows.filter(r => r.value > 0).map(({ label, value }) => {
+      {filtered.map(({ label, value }) => {
         const pct = total > 0 ? (value / total) * 100 : 0
         return (
           <div key={label}>
@@ -130,234 +85,357 @@ function BreakdownBars({ rows, total, barClass }: {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Panel wrapper
-// ---------------------------------------------------------------------------
-
-function Panel({ title, linkLabel, onLink, children }: {
-  title: string; linkLabel: string; onLink: () => void; children: React.ReactNode
+function SectionPanel({ title, icon: Icon, iconColor, linkLabel, onLink, children }: {
+  title: string; icon: React.ElementType; iconColor: string
+  linkLabel?: string; onLink?: () => void; children: React.ReactNode
 }) {
   return (
-    <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <button
-          onClick={onLink}
-          className="flex items-center gap-1 text-sm text-primary-600 hover:underline"
-        >
-          {linkLabel} <ArrowUpRight size={13} />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl ${iconColor}`}>
+            <Icon size={18} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        </div>
+        {linkLabel && onLink && (
+          <button
+            onClick={onLink}
+            className="flex items-center gap-1 text-sm text-primary-600 hover:underline"
+          >
+            {linkLabel} <ArrowUpRight size={13} />
+          </button>
+        )}
       </div>
       {children}
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Papers / Presentations panel
-// ---------------------------------------------------------------------------
-
-function PubPanel({ pubType, title }: { pubType: string; title: string }) {
-  const navigate = useNavigate()
-  const barClass = pubType === 'papers' ? 'bg-blue-500' : 'bg-orange-500'
-
-  const { data: works = [], isLoading } = useQuery<Work[]>({
-    queryKey: ['dashboard-works', pubType],
-    queryFn: () => api.get('/works', { params: { type: pubType, limit: 2000 } }).then(r => r.data),
-  })
-
-  const yearEntries = buildYearCounts(works)
-  const recent = works.slice(0, 6)
-
+function StatBox({ label, value }: { label: string; value: string | number }) {
   return (
-    <Panel
-      title={title}
-      linkLabel="View all"
-      onLink={() => navigate(`/publications?type=${pubType}`)}
-    >
-      {isLoading ? <Spinner /> : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Year chart */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">By Year</p>
-            <YearBarChart entries={yearEntries} barClass={barClass} />
-          </div>
-
-          {/* Recent list */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Most Recent</p>
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {recent.map(work => (
-                <div key={work.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                  <p className="text-sm font-medium text-gray-900 leading-snug line-clamp-2">{work.title}</p>
-                  {work.authors.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {work.authors.slice(0, 4).map(a => a.author_name).join(', ')}
-                      {work.authors.length > 4 && ` +${work.authors.length - 4} more`}
-                    </p>
-                  )}
-                  {work.data?.journal && (
-                    <p className="text-xs text-gray-400 mt-0.5 italic">
-                      {work.data.journal as string}{work.year ? ` (${work.year})` : ''}
-                    </p>
-                  )}
-                </div>
-              ))}
-              {works.length === 0 && <p className="text-sm text-gray-400">None yet.</p>}
-            </div>
-          </div>
-        </div>
-      )}
-    </Panel>
+    <div className="text-center">
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Trainees panel
+// Donut chart (pure SVG, no dependencies)
 // ---------------------------------------------------------------------------
 
-function TraineesPanel({ breakdown, total }: {
-  breakdown: DashboardStats['trainee_breakdown']; total: number
+const DONUT_COLORS = [
+  '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6',
+]
+
+function DonutChart({ slices, size = 120, strokeWidth = 24 }: {
+  slices: { label: string; value: number; color: string }[]
+  size?: number; strokeWidth?: number
 }) {
+  const total = slices.reduce((s, sl) => s + sl.value, 0)
+  if (total === 0) return null
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  let offset = 0
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={size} height={size} className="flex-shrink-0">
+        {slices.map((sl, i) => {
+          const pct = sl.value / total
+          const dash = pct * circumference
+          const gap = circumference - dash
+          const currentOffset = offset
+          offset += dash
+          return (
+            <circle
+              key={i}
+              cx={size / 2} cy={size / 2} r={radius}
+              fill="none" stroke={sl.color} strokeWidth={strokeWidth}
+              strokeDasharray={`${dash} ${gap}`}
+              strokeDashoffset={-currentOffset}
+              className="transition-all"
+            />
+          )
+        })}
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central"
+          className="text-lg font-bold fill-gray-900">{total}</text>
+      </svg>
+      <div className="space-y-1.5 text-xs min-w-0">
+        {slices.map((sl, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: sl.color }} />
+            <span className="text-gray-600 truncate">{sl.label}</span>
+            <span className="text-gray-900 font-medium ml-auto">{sl.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Scholarly Output Section
+// ---------------------------------------------------------------------------
+
+function ScholarlyOutputSection({ data }: { data: ScholarlyOutputStats }) {
   const navigate = useNavigate()
-  const { data: trainees = [], isLoading } = useQuery<CVItem[]>({
-    queryKey: ['trainees-dashboard'],
-    queryFn: () => api.get('/cv/trainees_advisees,trainees_postdocs').then(r => r.data),
-  })
+  const typeRows = Object.entries(data.counts_by_type).map(([type, count]) => ({
+    label: WORK_TYPE_LABELS[type] ?? type,
+    value: count,
+  }))
 
-  const sorted = [...trainees].sort((a, b) => {
-    const ya = parseInt(String(a.data?.years_start ?? '0')) || 0
-    const yb = parseInt(String(b.data?.years_start ?? '0')) || 0
-    return yb - ya
-  })
+  return (
+    <SectionPanel
+      title="Scholarly Output"
+      icon={BookOpen}
+      iconColor="bg-blue-50 text-blue-700"
+      linkLabel="View works"
+      onLink={() => navigate('/publications')}
+    >
+      {/* Top row: publications by year + citations by year */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Publications by Year</p>
+          <YearBarChart entries={data.works_by_year} barClass="bg-blue-500" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Citations by Year</p>
+          {data.citations_by_year.length > 0
+            ? <YearBarChart entries={data.citations_by_year} barClass="bg-indigo-400" />
+            : <p className="text-sm text-gray-400">No citation data yet.</p>
+          }
+        </div>
+      </div>
 
-  const breakdownRows = breakdown.map(({ type, count }) => ({
+      {/* Bottom row: publication summary + citation metrics + type donut */}
+      <div className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-8">
+        {/* Publication summary */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">Publication Summary</p>
+          <div className="grid grid-cols-2 gap-4">
+            <StatBox label="Total Works" value={data.total_works} />
+            <StatBox label="First Author" value={data.first_author_count} />
+            <StatBox label="Corresponding" value={data.corresponding_author_count} />
+            <StatBox label="Senior Author" value={data.senior_author_count} />
+            {data.student_led_count > 0 && (
+              <StatBox label="Student-Led" value={data.student_led_count} />
+            )}
+          </div>
+        </div>
+
+        {/* Citation metrics */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">Citation Metrics</p>
+          {data.total_citations > 0 ? (
+            <div className="space-y-4">
+              <StatBox label="Total" value={data.total_citations.toLocaleString()} />
+              <StatBox label="h-index" value={data.h_index} />
+              <StatBox label="i10-index" value={data.i10_index} />
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No citation data yet.</p>
+          )}
+        </div>
+
+        {/* Work type donut */}
+        {typeRows.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">By Type</p>
+            <DonutChart
+              slices={typeRows.map((r, i) => ({
+                label: r.label,
+                value: r.value,
+                color: DONUT_COLORS[i % DONUT_COLORS.length],
+              }))}
+            />
+          </div>
+        )}
+      </div>
+    </SectionPanel>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Teaching & Mentorship Section
+// ---------------------------------------------------------------------------
+
+function TeachingSection({ data }: { data: TeachingMentorshipStats }) {
+  const navigate = useNavigate()
+  const breakdownRows = data.trainee_breakdown.map(({ type, count }) => ({
     label: TRAINEE_LABELS[type] ?? type,
     value: count,
   }))
 
   return (
-    <Panel title="Trainees" linkLabel="Manage in Sections" onLink={() => navigate('/sections')}>
-      {isLoading ? <Spinner /> : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Breakdown */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">By Type</p>
-            <BreakdownBars rows={breakdownRows} total={total} barClass="bg-green-500" />
-          </div>
-
-          {/* Table */}
-          <div className="lg:col-span-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">All Trainees</p>
-            <div className="overflow-auto max-h-72 rounded border border-gray-200">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                  <tr className="text-xs text-gray-500 text-left">
-                    <th className="py-2 px-3 font-semibold">Name</th>
-                    <th className="py-2 px-3 font-semibold">Type</th>
-                    <th className="py-2 px-3 font-semibold">Degree</th>
-                    <th className="py-2 px-3 font-semibold">Years</th>
-                    <th className="py-2 px-3 font-semibold">Institution</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {sorted.map(t => {
-                    const d = t.data || {}
-                    return (
-                      <tr key={t.id} className="hover:bg-gray-50">
-                        <td className="py-1.5 px-3 font-medium text-gray-900">{(d.name as string) ?? '—'}</td>
-                        <td className="py-1.5 px-3 text-gray-600">{TRAINEE_LABELS[d.trainee_type as string] ?? (d.trainee_type as string) ?? '—'}</td>
-                        <td className="py-1.5 px-3 text-gray-600">{(d.degree as string) ?? '—'}</td>
-                        <td className="py-1.5 px-3 text-gray-500 whitespace-nowrap">
-                          {(d.years_start as string) ?? ''}
-                          {d.years_end ? `–${d.years_end}` : d.years_start ? '–present' : ''}
-                        </td>
-                        <td className="py-1.5 px-3 text-gray-600">{(d.school as string) ?? '—'}</td>
-                      </tr>
-                    )
-                  })}
-                  {sorted.length === 0 && (
-                    <tr><td colSpan={5} className="py-8 text-center text-gray-400 text-sm">No trainees yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+    <SectionPanel
+      title="Teaching & Mentorship"
+      icon={Users}
+      iconColor="bg-green-50 text-green-700"
+      linkLabel="Manage sections"
+      onLink={() => navigate('/sections')}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Course stats */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Courses</p>
+          <div className="grid grid-cols-3 gap-3">
+            <StatBox label="Total" value={data.courses_total} />
+            <StatBox label="Unique" value={data.unique_courses} />
+            <StatBox label="3-Year" value={data.courses_three_year} />
           </div>
         </div>
-      )}
-    </Panel>
+
+        {/* Trainee breakdown */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Trainees</p>
+          <BreakdownBars rows={breakdownRows} total={data.trainees_total} barClass="bg-green-500" />
+          {data.current_trainees > 0 && (
+            <p className="text-sm text-green-700 font-medium mt-3">
+              {data.current_trainees} current trainee{data.current_trainees !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
+        {/* Totals */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Totals</p>
+          <div className="grid grid-cols-2 gap-4">
+            <StatBox label="All Trainees" value={data.trainees_total} />
+            <StatBox label="Current" value={data.current_trainees} />
+          </div>
+        </div>
+      </div>
+    </SectionPanel>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Grants panel
+// Funding Section
 // ---------------------------------------------------------------------------
 
-function GrantsPanel({ breakdown, activeCount, totalCount }: {
-  breakdown: DashboardStats['active_grant_breakdown']; activeCount: number; totalCount: number
-}) {
+function FundingSection({ data }: { data: FundingStats }) {
   const navigate = useNavigate()
-  const { data: allGrants = [], isLoading } = useQuery<CVItem[]>({
-    queryKey: ['grants-dashboard'],
-    queryFn: () => api.get('/cv/grants').then(r => r.data),
-  })
-
-  const active = allGrants.filter(g => (g.data?.status as string) === 'active')
-
-  const breakdownRows = breakdown.map(({ role, count }) => ({ label: role, value: count }))
+  const roleRows = data.active_by_role.map(({ role, count }) => ({
+    label: role,
+    value: count,
+  }))
 
   return (
-    <Panel title="Active Grants" linkLabel="Manage in Sections" onLink={() => navigate('/sections')}>
-      {isLoading ? <Spinner /> : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Breakdown */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">By Role</p>
-            <BreakdownBars rows={breakdownRows} total={activeCount} barClass="bg-purple-500" />
-            <p className="text-xs text-gray-400 mt-4">{activeCount} active of {totalCount} total</p>
+    <SectionPanel
+      title="Funding"
+      icon={DollarSign}
+      iconColor="bg-purple-50 text-purple-700"
+      linkLabel="Manage grants"
+      onLink={() => navigate('/sections')}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Stats */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Overview</p>
+          <div className="grid grid-cols-2 gap-4">
+            <StatBox label="Total Grants" value={data.grants_total} />
+            <StatBox label="Active" value={data.grants_active} />
+            <StatBox label="Completed" value={data.grants_completed} />
+            {data.total_funding_amount && (
+              <StatBox label="Total Amount" value={data.total_funding_amount} />
+            )}
           </div>
-
-          {/* Table */}
-          <div className="lg:col-span-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Active Grants</p>
-            <div className="overflow-auto rounded border border-gray-200">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr className="text-xs text-gray-500 text-left">
-                    <th className="py-2 px-3 font-semibold">Title</th>
-                    <th className="py-2 px-3 font-semibold">Agency</th>
-                    <th className="py-2 px-3 font-semibold">Role</th>
-                    <th className="py-2 px-3 font-semibold">Period</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {active.map(g => {
-                    const d = g.data || {}
-                    return (
-                      <tr key={g.id} className="hover:bg-gray-50">
-                        <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
-                          <span className="line-clamp-2">{(d.title as string) ?? '—'}</span>
-                        </td>
-                        <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{(d.agency as string) ?? '—'}</td>
-                        <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{(d.role as string) ?? '—'}</td>
-                        <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
-                          {(d.years_start as string) ?? ''}
-                          {d.years_end ? `–${d.years_end}` : d.years_start ? '–present' : ''}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {active.length === 0 && (
-                    <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No active grants.</td></tr>
-                  )}
-                </tbody>
-              </table>
+          {roleRows.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Active by Role</p>
+              <BreakdownBars rows={roleRows} total={data.grants_active} barClass="bg-purple-500" />
             </div>
+          )}
+        </div>
+
+        {/* Active grants table */}
+        <div className="lg:col-span-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Active Grants</p>
+          <div className="overflow-auto rounded border border-gray-200">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-xs text-gray-500 text-left">
+                  <th className="py-2 px-3 font-semibold">Title</th>
+                  <th className="py-2 px-3 font-semibold">Agency</th>
+                  <th className="py-2 px-3 font-semibold">Role</th>
+                  <th className="py-2 px-3 font-semibold">Period</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.active_grants_detail.map((g, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
+                      <span className="line-clamp-2">{g.title || '—'}</span>
+                    </td>
+                    <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.agency || '—'}</td>
+                    <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.role || '—'}</td>
+                    <td className="py-2 px-3 text-gray-500 whitespace-nowrap">{g.period || '—'}</td>
+                  </tr>
+                ))}
+                {data.active_grants_detail.length === 0 && (
+                  <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No active grants.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
-    </Panel>
+      </div>
+    </SectionPanel>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Service Section
+// ---------------------------------------------------------------------------
+
+function ServiceSection({ data }: { data: ServiceStats }) {
+  const navigate = useNavigate()
+  const rows = data.service_breakdown.map(({ label, count }) => ({
+    label,
+    value: count,
+  }))
+  const total = rows.reduce((s, r) => s + r.value, 0)
+
+  return (
+    <SectionPanel
+      title="Service"
+      icon={Briefcase}
+      iconColor="bg-orange-50 text-orange-700"
+      linkLabel="Manage sections"
+      onLink={() => navigate('/sections')}
+    >
+      {total > 0 ? (
+        <div className="max-w-xl">
+          <BreakdownBars rows={rows} total={total} barClass="bg-orange-500" />
+          <p className="text-sm text-gray-500 mt-4">{total} total service activities</p>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">No service activities recorded yet.</p>
+      )}
+    </SectionPanel>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+type TabKey = 'scholarly' | 'teaching' | 'funding' | 'service'
+
+const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string }[] = [
+  { key: 'scholarly', label: 'Scholarly Output',       icon: BookOpen,  color: 'blue' },
+  { key: 'teaching',  label: 'Teaching & Mentorship',  icon: Users,     color: 'green' },
+  { key: 'funding',   label: 'Funding',                icon: DollarSign, color: 'purple' },
+  { key: 'service',   label: 'Service',                icon: Briefcase, color: 'orange' },
+]
+
+const TAB_COLORS: Record<string, { active: string; inactive: string }> = {
+  blue:   { active: 'border-blue-500 text-blue-700',     inactive: 'text-gray-500 hover:text-blue-600' },
+  green:  { active: 'border-green-500 text-green-700',   inactive: 'text-gray-500 hover:text-green-600' },
+  purple: { active: 'border-purple-500 text-purple-700', inactive: 'text-gray-500 hover:text-purple-600' },
+  orange: { active: 'border-orange-500 text-orange-700', inactive: 'text-gray-500 hover:text-orange-600' },
 }
 
 // ---------------------------------------------------------------------------
@@ -365,19 +443,15 @@ function GrantsPanel({ breakdown, activeCount, totalCount }: {
 // ---------------------------------------------------------------------------
 
 export function Dashboard() {
-  const [expanded, setExpanded] = useState<ExpandedPanel>(null)
+  const [activeTab, setActiveTab] = useState<TabKey>('scholarly')
 
-  const { data: stats, isLoading } = useQuery<DashboardStats>({
+  const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard').then(r => r.data),
   })
 
   if (isLoading) return <div className="p-8"><Spinner /></div>
-  if (!stats) return null
-
-  function toggle(panel: NonNullable<ExpandedPanel>) {
-    setExpanded(prev => prev === panel ? null : panel)
-  }
+  if (!data) return null
 
   return (
     <div className="p-8">
@@ -388,58 +462,43 @@ export function Dashboard() {
 
       {/* Profile status */}
       <div className={`flex items-center gap-2 mb-6 px-4 py-3 rounded-lg text-sm font-medium ${
-        stats.profile_complete
+        data.profile_complete
           ? 'bg-green-50 text-green-800 border border-green-200'
           : 'bg-amber-50 text-amber-800 border border-amber-200'
       }`}>
-        {stats.profile_complete
+        {data.profile_complete
           ? <><CheckCircle size={16} /> Profile complete</>
           : <><AlertCircle size={16} /> Profile incomplete — visit the Profile page to fill in your details</>
         }
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Peer-Reviewed Papers" value={stats.papers}
-          icon={BookOpen} color="blue"
-          onClick={() => toggle('papers')} expanded={expanded === 'papers'}
-        />
-        <StatCard
-          label="Trainees" value={stats.trainees}
-          icon={Users} color="green"
-          onClick={() => toggle('trainees')} expanded={expanded === 'trainees'}
-        />
-        <StatCard
-          label="Grants" value={stats.grants}
-          subtitle={`${stats.active_grants} active`}
-          icon={DollarSign} color="purple"
-          onClick={() => toggle('grants')} expanded={expanded === 'grants'}
-        />
-        <StatCard
-          label="Presentations" value={stats.scimeetings}
-          icon={Presentation} color="orange"
-          onClick={() => toggle('presentations')} expanded={expanded === 'presentations'}
-        />
+      {/* Tab bar */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-6 -mb-px">
+          {TABS.map(({ key, label, icon: Icon, color }) => {
+            const isActive = activeTab === key
+            const colors = TAB_COLORS[color]
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${
+                  isActive ? colors.active : `border-transparent ${colors.inactive}`
+                }`}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            )
+          })}
+        </nav>
       </div>
 
-      {/* Full-width expandable panels */}
-      {expanded === 'papers' && (
-        <PubPanel pubType="papers" title="Peer-Reviewed Papers" />
-      )}
-      {expanded === 'trainees' && (
-        <TraineesPanel breakdown={stats.trainee_breakdown} total={stats.trainees} />
-      )}
-      {expanded === 'grants' && (
-        <GrantsPanel
-          breakdown={stats.active_grant_breakdown}
-          activeCount={stats.active_grants}
-          totalCount={stats.grants}
-        />
-      )}
-      {expanded === 'presentations' && (
-        <PubPanel pubType="scimeetings" title="Scientific Meeting Presentations" />
-      )}
+      {/* Tab content */}
+      {activeTab === 'scholarly' && <ScholarlyOutputSection data={data.scholarly_output} />}
+      {activeTab === 'teaching' && <TeachingSection data={data.teaching_mentorship} />}
+      {activeTab === 'funding' && <FundingSection data={data.funding} />}
+      {activeTab === 'service' && <ServiceSection data={data.service} />}
     </div>
   )
 }

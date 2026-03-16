@@ -813,62 +813,231 @@ def health():
     return {"status": "ok", "version": "1.0.0"}
 
 
-@app.get("/api/dashboard", response_model=schemas.DashboardStats)
+@app.get("/api/dashboard", response_model=schemas.DashboardData)
 def dashboard(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     uid = current_user.id
     profile = db.query(models.Profile).filter_by(user_id=uid).first()
+    profile_complete = bool(profile and profile.name)
+
+    # ---- Scholarly Output ----
     _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
-    total = db.query(models.Work).filter(
+    all_works = db.query(models.Work).filter(
         models.Work.user_id == uid,
         models.Work.work_type.in_(_PUB_TYPES),
-    ).count()
+    ).all()
 
-    def count_type(t):
-        return db.query(models.Work).filter(
-            models.Work.user_id == uid,
-            models.Work.work_type == t,
-        ).count()
+    counts_by_type: dict[str, int] = {}
+    year_counts: dict[int, int] = {}
+    first_author = 0
+    corresponding_author = 0
+    senior_author = 0
+    student_led = 0
 
-    # Trainee breakdown from CVItem
-    from sqlalchemy import cast, String
+    # Use profile name to identify the CV owner in author lists
+    from app.services.pdf import _bold_self
+    profile_name = profile.name if profile else ""
+
+    def _is_me(author_name: str) -> bool:
+        """Check if an author name matches the CV owner."""
+        if not profile_name or not author_name:
+            return False
+        return "<strong>" in _bold_self(author_name, profile_name)
+
+    for w in all_works:
+        counts_by_type[w.work_type] = counts_by_type.get(w.work_type, 0) + 1
+        if w.year:
+            year_counts[w.year] = year_counts.get(w.year, 0) + 1
+
+        authors = sorted(w.authors, key=lambda a: a.author_order)
+        if authors:
+            # Find which author is the CV owner
+            my_author = next((a for a in authors if _is_me(a.author_name)), None)
+            if my_author:
+                # First/co-first: I'm the first author or marked cofirst
+                if my_author.author_order == authors[0].author_order or my_author.cofirst:
+                    first_author += 1
+                # Corresponding
+                if my_author.corresponding:
+                    corresponding_author += 1
+                # Senior/co-senior: I'm the last author or marked cosenior
+                if my_author.author_order == authors[-1].author_order or my_author.cosenior:
+                    senior_author += 1
+            # Student-led: first author is a student
+            if authors[0].student:
+                student_led += 1
+
+    works_by_year = sorted(
+        [{"year": y, "count": c} for y, c in year_counts.items()],
+        key=lambda x: x["year"],
+    )
+
+    # Citation metrics from Work data blobs
+    from app.services.fetch_citations import compute_aggregate
+    works_with_citations = []
+    for w in all_works:
+        wd = w.data or {}
+        if "cited_by_count" in wd:
+            works_with_citations.append(wd)
+    if works_with_citations:
+        agg = compute_aggregate(works_with_citations)
+        h_index = agg["h_index"]
+        i10_index = agg["i10_index"]
+        total_citations = agg["total_citations"]
+        citations_by_year = sorted(
+            [{"year": y, "count": c} for y, c in agg.get("yearly_counts", {}).items()],
+            key=lambda x: x["year"],
+        )
+    else:
+        h_index = i10_index = total_citations = 0
+        citations_by_year = []
+
+    scholarly = schemas.ScholarlyOutputStats(
+        total_works=len(all_works),
+        counts_by_type=counts_by_type,
+        works_by_year=works_by_year,
+        first_author_count=first_author,
+        corresponding_author_count=corresponding_author,
+        senior_author_count=senior_author,
+        student_led_count=student_led,
+        h_index=h_index,
+        i10_index=i10_index,
+        total_citations=total_citations,
+        citations_by_year=citations_by_year,
+    )
+
+    # ---- Teaching & Mentorship ----
+    class_items = db.query(models.CVItem).filter_by(user_id=uid, section="classes").all()
+    unique_courses = set()
+    courses_three_year = 0
+    for c in class_items:
+        cd = c.data or {}
+        name = cd.get("class_name", "")
+        if name:
+            unique_courses.add(name)
+        if cd.get("in_three_year"):
+            courses_three_year += 1
+
     trainee_items = db.query(models.CVItem).filter(
         models.CVItem.user_id == uid,
         models.CVItem.section.in_(["trainees_advisees", "trainees_postdocs"]),
     ).all()
     trainee_type_counts: dict[str, int] = {}
+    current_trainees = 0
     for t in trainee_items:
-        tt = (t.data or {}).get("trainee_type", t.section.replace("trainees_", ""))
+        td = t.data or {}
+        tt = td.get("trainee_type", t.section.replace("trainees_", ""))
         trainee_type_counts[tt] = trainee_type_counts.get(tt, 0) + 1
-    trainee_rows = list(trainee_type_counts.items())
+        if not td.get("years_end"):
+            current_trainees += 1
 
-    # Grant breakdown from CVItem
+    teaching = schemas.TeachingMentorshipStats(
+        courses_total=len(class_items),
+        courses_three_year=courses_three_year,
+        unique_courses=len(unique_courses),
+        trainees_total=len(trainee_items),
+        trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_type_counts.items()],
+        current_trainees=current_trainees,
+    )
+
+    # ---- Funding ----
+    import re as _re
     grant_items = db.query(models.CVItem).filter_by(user_id=uid, section="grants").all()
-    active_grant_roles: dict[str, int] = {}
     active_grants = 0
+    completed_grants = 0
+    active_by_role: dict[str, int] = {}
+    active_details: list[schemas.ActiveGrantDetail] = []
+    total_amount = 0.0
+
     for g in grant_items:
         gd = g.data or {}
+        # Parse amount
+        amt_str = gd.get("amount", "")
+        if amt_str:
+            nums = _re.findall(r'[\d,]+\.?\d*', str(amt_str))
+            if nums:
+                try:
+                    total_amount += float(nums[0].replace(",", ""))
+                except ValueError:
+                    pass
+
         if gd.get("status") == "active":
             active_grants += 1
             role = gd.get("role", "")
             if role:
-                active_grant_roles[role] = active_grant_roles.get(role, 0) + 1
-    active_grant_rows = sorted(active_grant_roles.items(), key=lambda x: -x[1])
+                active_by_role[role] = active_by_role.get(role, 0) + 1
+            period_start = gd.get("years_start", "")
+            period_end = gd.get("years_end", "")
+            period = f"{period_start}–{period_end}" if period_end else f"{period_start}–present" if period_start else ""
+            active_details.append(schemas.ActiveGrantDetail(
+                title=gd.get("title", ""),
+                agency=gd.get("agency", ""),
+                role=role,
+                period=period,
+                amount=str(amt_str),
+            ))
+        elif gd.get("status") == "completed":
+            completed_grants += 1
 
-    return schemas.DashboardStats(
-        total_publications=total,
-        papers=count_type("papers"),
-        preprints=count_type("preprints"),
-        chapters=count_type("chapters"),
-        letters=count_type("letters"),
-        scimeetings=count_type("scimeetings"),
-        editorials=count_type("editorials"),
-        trainees=len(trainee_items),
-        grants=len(grant_items),
-        active_grants=active_grants,
-        profile_complete=bool(profile and profile.name),
-        trainee_breakdown=[{"type": t, "count": c} for t, c in trainee_rows],
-        active_grant_breakdown=[{"role": r, "count": c} for r, c in active_grant_rows],
+    # Format total amount
+    if total_amount >= 1_000_000:
+        total_amount_str = f"${total_amount/1_000_000:,.1f}M"
+    elif total_amount > 0:
+        total_amount_str = f"${total_amount:,.0f}"
+    else:
+        total_amount_str = ""
+
+    funding = schemas.FundingStats(
+        grants_total=len(grant_items),
+        grants_active=active_grants,
+        grants_completed=completed_grants,
+        active_by_role=sorted(
+            [{"role": r, "count": c} for r, c in active_by_role.items()],
+            key=lambda x: -x["count"],
+        ),
+        total_funding_amount=total_amount_str,
+        active_grants_detail=active_details,
+    )
+
+    # ---- Service ----
+    def _count_section(section: str) -> int:
+        return db.query(models.CVItem).filter_by(user_id=uid, section=section).count()
+
+    committees = _count_section("committees")
+    advisory = _count_section("panels_advisory")
+    grantreview = _count_section("panels_grantreview")
+    symposia = _count_section("symposia")
+    editorial = _count_section("editorial")
+    peerrev = _count_section("peerrev")
+
+    service_breakdown = []
+    for label, count in [
+        ("Committees", committees),
+        ("Advisory Panels", advisory),
+        ("Grant Review Panels", grantreview),
+        ("Organized Sessions", symposia),
+        ("Editorial", editorial),
+        ("Peer Review", peerrev),
+    ]:
+        if count > 0:
+            service_breakdown.append({"label": label, "count": count})
+
+    service = schemas.ServiceStats(
+        committees=committees,
+        advisory_panels=advisory,
+        grant_review_panels=grantreview,
+        symposia=symposia,
+        editorial=editorial,
+        peer_review=peerrev,
+        service_breakdown=service_breakdown,
+    )
+
+    return schemas.DashboardData(
+        profile_complete=profile_complete,
+        scholarly_output=scholarly,
+        teaching_mentorship=teaching,
+        funding=funding,
+        service=service,
     )

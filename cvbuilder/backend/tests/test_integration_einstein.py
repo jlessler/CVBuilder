@@ -382,10 +382,13 @@ class TestRoundTrip:
         self._import_both(db_session)
         d = client.get("/api/dashboard").json()
         assert d["profile_complete"] is True
-        assert d["total_publications"] == 17  # 10 + 2 + 2 + 3
-        assert d["papers"] == 10
-        assert d["trainees"] == 5  # 2 advisees + 3 postdocs
-        assert d["grants"] == 3
+        so = d["scholarly_output"]
+        assert so["total_works"] == 17  # 10 + 2 + 2 + 3
+        assert so["counts_by_type"]["papers"] == 10
+        tm = d["teaching_mentorship"]
+        assert tm["trainees_total"] == 5  # 2 advisees + 3 postdocs
+        f = d["funding"]
+        assert f["grants_total"] == 3
 
 
 # ── UNC CV template preview with imported data ──────────────────────────
