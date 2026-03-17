@@ -945,60 +945,79 @@ def dashboard(
     # ---- Funding ----
     import re as _re
     grant_items = db.query(models.CVItem).filter_by(user_id=uid, section="grants").all()
-    active_grants = 0
-    completed_grants = 0
-    active_by_role: dict[str, int] = {}
-    active_details: list[schemas.ActiveGrantDetail] = []
     total_amount = 0.0
+
+    # Buckets for active / completed
+    buckets: dict[str, dict] = {
+        "active": {"roles": {}, "grants": [], "amount": 0.0},
+        "completed": {"roles": {}, "grants": [], "amount": 0.0},
+    }
+
+    def _parse_amount(amt_str: str) -> float:
+        if not amt_str:
+            return 0.0
+        nums = _re.findall(r'[\d,]+\.?\d*', str(amt_str))
+        if nums:
+            try:
+                return float(nums[0].replace(",", ""))
+            except ValueError:
+                pass
+        return 0.0
+
+    def _fmt_amount(val: float) -> str:
+        if val >= 1_000_000:
+            return f"${val/1_000_000:,.1f}M"
+        if val > 0:
+            return f"${val:,.0f}"
+        return ""
 
     for g in grant_items:
         gd = g.data or {}
-        # Parse amount
         amt_str = gd.get("amount", "")
-        if amt_str:
-            nums = _re.findall(r'[\d,]+\.?\d*', str(amt_str))
-            if nums:
-                try:
-                    total_amount += float(nums[0].replace(",", ""))
-                except ValueError:
-                    pass
+        amt = _parse_amount(amt_str)
+        total_amount += amt
 
-        if gd.get("status") == "active":
-            active_grants += 1
-            role = gd.get("role", "")
-            if role:
-                active_by_role[role] = active_by_role.get(role, 0) + 1
-            period_start = gd.get("years_start", "")
-            period_end = gd.get("years_end", "")
-            period = f"{period_start}–{period_end}" if period_end else f"{period_start}–present" if period_start else ""
-            active_details.append(schemas.ActiveGrantDetail(
-                title=gd.get("title", ""),
-                agency=gd.get("agency", ""),
-                role=role,
-                period=period,
-                amount=str(amt_str),
-            ))
-        elif gd.get("status") == "completed":
-            completed_grants += 1
+        status = gd.get("status", "")
+        if status not in buckets:
+            continue
+        bucket = buckets[status]
+        bucket["amount"] += amt
 
-    # Format total amount
-    if total_amount >= 1_000_000:
-        total_amount_str = f"${total_amount/1_000_000:,.1f}M"
-    elif total_amount > 0:
-        total_amount_str = f"${total_amount:,.0f}"
-    else:
-        total_amount_str = ""
+        role = gd.get("role", "")
+        if role:
+            role_key = "PI" if role.upper().strip() in ("PI", "MPI", "CONTACT PI") else "Other"
+            bucket["roles"][role_key] = bucket["roles"].get(role_key, 0) + 1
+
+        period_start = gd.get("years_start", "")
+        period_end = gd.get("years_end", "")
+        period = f"{period_start}–{period_end}" if period_end else f"{period_start}–present" if period_start else ""
+        bucket["grants"].append(schemas.GrantDetail(
+            title=gd.get("title", ""),
+            agency=gd.get("agency", ""),
+            role=role,
+            period=period,
+            amount=str(amt_str),
+            id_number=gd.get("id_number", ""),
+        ))
+
+    def _build_category(bucket: dict) -> schemas.GrantCategoryStats:
+        return schemas.GrantCategoryStats(
+            count=len(bucket["grants"]),
+            total_amount=bucket["amount"],
+            total_amount_display=_fmt_amount(bucket["amount"]),
+            by_role=sorted(
+                [{"role": r, "count": c} for r, c in bucket["roles"].items()],
+                key=lambda x: -x["count"],
+            ),
+            grants=bucket["grants"],
+        )
 
     funding = schemas.FundingStats(
         grants_total=len(grant_items),
-        grants_active=active_grants,
-        grants_completed=completed_grants,
-        active_by_role=sorted(
-            [{"role": r, "count": c} for r, c in active_by_role.items()],
-            key=lambda x: -x["count"],
-        ),
-        total_funding_amount=total_amount_str,
-        active_grants_detail=active_details,
+        total_funding_amount=_fmt_amount(total_amount),
+        total_funding_raw=total_amount,
+        active=_build_category(buckets["active"]),
+        completed=_build_category(buckets["completed"]),
     )
 
     # ---- Service ----

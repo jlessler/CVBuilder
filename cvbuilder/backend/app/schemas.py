@@ -308,20 +308,27 @@ class TeachingMentorshipStats(BaseModel):
     trainee_breakdown: list[dict] = []  # [{type, count}]
     current_trainees: int = 0
 
-class ActiveGrantDetail(BaseModel):
+class GrantDetail(BaseModel):
     title: str = ""
     agency: str = ""
     role: str = ""
     period: str = ""
     amount: str = ""
+    id_number: str = ""
+
+class GrantCategoryStats(BaseModel):
+    count: int = 0
+    total_amount: float = 0.0
+    total_amount_display: str = ""
+    by_role: list[dict] = []  # [{role, count}]
+    grants: list[GrantDetail] = []
 
 class FundingStats(BaseModel):
     grants_total: int = 0
-    grants_active: int = 0
-    grants_completed: int = 0
-    active_by_role: list[dict] = []  # [{role, count}]
     total_funding_amount: str = ""
-    active_grants_detail: list[ActiveGrantDetail] = []
+    total_funding_raw: float = 0.0
+    active: GrantCategoryStats = GrantCategoryStats()
+    completed: GrantCategoryStats = GrantCategoryStats()
 
 class ServiceStats(BaseModel):
     committees: int = 0

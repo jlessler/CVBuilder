@@ -23,7 +23,7 @@ def test_dashboard_empty_db(client):
     assert tm["trainee_breakdown"] == []
     f = d["funding"]
     assert f["grants_total"] == 0
-    assert f["grants_active"] == 0
+    assert f["active"]["count"] == 0
     s = d["service"]
     assert s["service_breakdown"] == []
 
@@ -60,9 +60,9 @@ def test_dashboard_with_data(client, sample_profile, sample_publication):
 
     f = d["funding"]
     assert f["grants_total"] == 1
-    assert f["grants_active"] == 1
-    assert len(f["active_grants_detail"]) == 1
-    assert f["active_grants_detail"][0]["role"] == "PI"
+    assert f["active"]["count"] == 1
+    assert len(f["active"]["grants"]) == 1
+    assert f["active"]["grants"][0]["role"] == "PI"
 
     s = d["service"]
     assert s["committees"] == 1

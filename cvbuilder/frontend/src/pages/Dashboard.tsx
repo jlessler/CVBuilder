@@ -7,6 +7,7 @@ import type {
   ScholarlyOutputStats,
   TeachingMentorshipStats,
   FundingStats,
+  GrantCategoryStats,
   ServiceStats,
 } from '../lib/api'
 import { Spinner } from '../components/ui'
@@ -315,12 +316,68 @@ function TeachingSection({ data }: { data: TeachingMentorshipStats }) {
 // Funding Section
 // ---------------------------------------------------------------------------
 
+function GrantTable({ grants, emptyMsg }: { grants: GrantCategoryStats['grants']; emptyMsg: string }) {
+  return (
+    <div className="overflow-auto rounded border border-gray-200">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr className="text-xs text-gray-500 text-left">
+            <th className="py-2 px-3 font-semibold">Title</th>
+            <th className="py-2 px-3 font-semibold">Agency</th>
+            <th className="py-2 px-3 font-semibold">Role</th>
+            <th className="py-2 px-3 font-semibold">Period</th>
+            <th className="py-2 px-3 font-semibold">Amount</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {grants.map((g, i) => (
+            <tr key={i} className="hover:bg-gray-50">
+              <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
+                <span className="line-clamp-2">{g.title || '—'}</span>
+              </td>
+              <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.agency || '—'}</td>
+              <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.role || '—'}</td>
+              <td className="py-2 px-3 text-gray-500 whitespace-nowrap">{g.period || '—'}</td>
+              <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.amount || '—'}</td>
+            </tr>
+          ))}
+          {grants.length === 0 && (
+            <tr><td colSpan={5} className="py-8 text-center text-gray-400 text-sm">{emptyMsg}</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function GrantCategoryPanel({ label, category }: {
+  label: string; category: GrantCategoryStats
+}) {
+  const roleRows = category.by_role.map(({ role, count }) => ({ label: role, value: count }))
+
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-gray-800 mb-3">{label}</h4>
+      <div className="flex items-center gap-4 mb-4">
+        <StatBox label="Grants" value={category.count} />
+        {category.total_amount_display && (
+          <StatBox label="Funding" value={category.total_amount_display} />
+        )}
+        {roleRows.length > 0 && (
+          <div className="flex items-center gap-3 ml-4 text-xs text-gray-600">
+            {roleRows.map(r => (
+              <span key={r.label}>{r.label}: <span className="font-semibold text-gray-900">{r.value}</span></span>
+            ))}
+          </div>
+        )}
+      </div>
+      <GrantTable grants={category.grants} emptyMsg={`No ${label.toLowerCase()} grants.`} />
+    </div>
+  )
+}
+
 function FundingSection({ data }: { data: FundingStats }) {
   const navigate = useNavigate()
-  const roleRows = data.active_by_role.map(({ role, count }) => ({
-    label: role,
-    value: count,
-  }))
 
   return (
     <SectionPanel
@@ -330,57 +387,11 @@ function FundingSection({ data }: { data: FundingStats }) {
       linkLabel="Manage grants"
       onLink={() => navigate('/sections')}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Stats */}
-        <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Overview</p>
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox label="Total Grants" value={data.grants_total} />
-            <StatBox label="Active" value={data.grants_active} />
-            <StatBox label="Completed" value={data.grants_completed} />
-            {data.total_funding_amount && (
-              <StatBox label="Total Amount" value={data.total_funding_amount} />
-            )}
-          </div>
-          {roleRows.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Active by Role</p>
-              <BreakdownBars rows={roleRows} total={data.grants_active} barClass="bg-purple-500" />
-            </div>
-          )}
-        </div>
-
-        {/* Active grants table */}
-        <div className="lg:col-span-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Active Grants</p>
-          <div className="overflow-auto rounded border border-gray-200">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr className="text-xs text-gray-500 text-left">
-                  <th className="py-2 px-3 font-semibold">Title</th>
-                  <th className="py-2 px-3 font-semibold">Agency</th>
-                  <th className="py-2 px-3 font-semibold">Role</th>
-                  <th className="py-2 px-3 font-semibold">Period</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {data.active_grants_detail.map((g, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="py-2 px-3 font-medium text-gray-900 max-w-xs">
-                      <span className="line-clamp-2">{g.title || '—'}</span>
-                    </td>
-                    <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.agency || '—'}</td>
-                    <td className="py-2 px-3 text-gray-600 whitespace-nowrap">{g.role || '—'}</td>
-                    <td className="py-2 px-3 text-gray-500 whitespace-nowrap">{g.period || '—'}</td>
-                  </tr>
-                ))}
-                {data.active_grants_detail.length === 0 && (
-                  <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No active grants.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div className="space-y-8">
+        <GrantCategoryPanel label="Active Grants" category={data.active} />
+        {data.completed.count > 0 && (
+          <GrantCategoryPanel label="Completed Grants" category={data.completed} />
+        )}
       </div>
     </SectionPanel>
   )

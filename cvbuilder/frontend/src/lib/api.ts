@@ -324,21 +324,29 @@ export interface TeachingMentorshipStats {
   current_trainees: number
 }
 
-export interface ActiveGrantDetail {
+export interface GrantDetail {
   title: string
   agency: string
   role: string
   period: string
   amount: string
+  id_number: string
+}
+
+export interface GrantCategoryStats {
+  count: number
+  total_amount: number
+  total_amount_display: string
+  by_role: { role: string; count: number }[]
+  grants: GrantDetail[]
 }
 
 export interface FundingStats {
   grants_total: number
-  grants_active: number
-  grants_completed: number
-  active_by_role: { role: string; count: number }[]
   total_funding_amount: string
-  active_grants_detail: ActiveGrantDetail[]
+  total_funding_raw: number
+  active: GrantCategoryStats
+  completed: GrantCategoryStats
 }
 
 export interface ServiceStats {
