@@ -6,6 +6,7 @@ import type {
   DashboardData,
   ScholarlyOutputStats,
   TeachingMentorshipStats,
+  MentorshipCategory,
   FundingStats,
   GrantCategoryStats,
   ServiceStats,
@@ -29,10 +30,13 @@ const WORK_TYPE_LABELS: Record<string, string> = {
   editorials: 'Editorials',
 }
 
-const TRAINEE_LABELS: Record<string, string> = {
-  advisee: 'Graduate Advisees',
-  postdoc: 'Postdoctoral Fellows',
-}
+const MENTORSHIP_CATEGORIES: { key: string; label: string }[] = [
+  { key: 'postdoctoral', label: 'Post-Doctoral' },
+  { key: 'doctoral', label: 'Doctoral' },
+  { key: 'masters', label: 'Masters' },
+  { key: 'undergraduate', label: 'Undergraduate' },
+  { key: 'other', label: 'Other' },
+]
 
 // ---------------------------------------------------------------------------
 // Reusable chart components
@@ -262,12 +266,24 @@ function ScholarlyOutputSection({ data }: { data: ScholarlyOutputStats }) {
 // Teaching & Mentorship Section
 // ---------------------------------------------------------------------------
 
+function MentorshipCategoryPanel({ label, category }: {
+  label: string; category: MentorshipCategory
+}) {
+  if (category.count === 0) return null
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-gray-800">{label}</h4>
+      <div className="flex items-center gap-3 mt-1">
+        <span className="text-sm text-gray-600">{category.count} total</span>
+        <span className="text-sm text-green-700 font-medium">{category.current} current</span>
+      </div>
+    </div>
+  )
+}
+
 function TeachingSection({ data }: { data: TeachingMentorshipStats }) {
   const navigate = useNavigate()
-  const breakdownRows = data.trainee_breakdown.map(({ type, count }) => ({
-    label: TRAINEE_LABELS[type] ?? type,
-    value: count,
-  }))
+  const { teaching, mentorship } = data
 
   return (
     <SectionPanel
@@ -277,34 +293,53 @@ function TeachingSection({ data }: { data: TeachingMentorshipStats }) {
       linkLabel="Manage sections"
       onLink={() => navigate('/sections')}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Course stats */}
+      <div className="space-y-8">
+        {/* Teaching */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Courses</p>
-          <div className="grid grid-cols-3 gap-3">
-            <StatBox label="Total" value={data.courses_total} />
-            <StatBox label="Unique" value={data.unique_courses} />
-            <StatBox label="3-Year" value={data.courses_three_year} />
+          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Teaching</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Overall ({teaching.courses_total} courses)</p>
+              {teaching.by_role.length > 0 ? (
+                <DonutChart
+                  slices={teaching.by_role.map((r, i) => ({
+                    label: r.role,
+                    value: r.count,
+                    color: DONUT_COLORS[i % DONUT_COLORS.length],
+                  }))}
+                />
+              ) : (
+                <p className="text-sm text-gray-400">No teaching data yet.</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Past 5 Years</p>
+              {teaching.by_role_five_year.length > 0 ? (
+                <DonutChart
+                  slices={teaching.by_role_five_year.map((r, i) => ({
+                    label: r.role,
+                    value: r.count,
+                    color: DONUT_COLORS[i % DONUT_COLORS.length],
+                  }))}
+                />
+              ) : (
+                <p className="text-sm text-gray-400">No teaching data in the past 5 years.</p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Trainee breakdown */}
+        {/* Mentorship */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Trainees</p>
-          <BreakdownBars rows={breakdownRows} total={data.trainees_total} barClass="bg-green-500" />
-          {data.current_trainees > 0 && (
-            <p className="text-sm text-green-700 font-medium mt-3">
-              {data.current_trainees} current trainee{data.current_trainees !== 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-
-        {/* Totals */}
-        <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Totals</p>
-          <div className="grid grid-cols-2 gap-4">
-            <StatBox label="All Trainees" value={data.trainees_total} />
-            <StatBox label="Current" value={data.current_trainees} />
+          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Mentorship</h3>
+          <div className="space-y-5">
+            {MENTORSHIP_CATEGORIES.map(({ key, label }) => (
+              <MentorshipCategoryPanel
+                key={key}
+                label={label}
+                category={mentorship[key as keyof typeof mentorship] as MentorshipCategory}
+              />
+            ))}
           </div>
         </div>
       </div>

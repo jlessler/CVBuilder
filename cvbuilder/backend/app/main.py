@@ -909,9 +909,13 @@ def dashboard(
     )
 
     # ---- Teaching & Mentorship ----
+    import datetime as _dt
+    five_year_cutoff = _dt.date.today().year - 4  # inclusive 5-year window
     class_items = db.query(models.CVItem).filter_by(user_id=uid, section="classes").all()
     unique_courses = set()
     courses_three_year = 0
+    role_counts: dict[str, int] = {}
+    role_counts_5y: dict[str, int] = {}
     for c in class_items:
         cd = c.data or {}
         name = cd.get("class_name", "")
@@ -919,21 +923,98 @@ def dashboard(
             unique_courses.add(name)
         if cd.get("in_three_year"):
             courses_three_year += 1
+        role = (cd.get("role") or "Unknown").strip()
+        role_counts[role] = role_counts.get(role, 0) + 1
+        yr = cd.get("year")
+        if yr and int(yr) >= five_year_cutoff:
+            role_counts_5y[role] = role_counts_5y.get(role, 0) + 1
 
     trainee_items = db.query(models.CVItem).filter(
         models.CVItem.user_id == uid,
         models.CVItem.section.in_(["trainees_advisees", "trainees_postdocs"]),
     ).all()
+
+    # Classify trainees into mentorship categories
+    def _classify_trainee(item: models.CVItem) -> str:
+        if item.section == "trainees_postdocs":
+            return "postdoctoral"
+        d = item.data or {}
+        degree = (d.get("degree") or "").strip().upper()
+        if not degree:
+            return "other"
+        doctoral_kw = ("PHD", "DRPH", "SCD", "DVM", "MD", "DO", "DPHIL",
+                        "EDD", "DBA", "JD", "DNAP", "DNS", "DOCTOR")
+        masters_kw = ("MS", "MPH", "MA", "MSPH", "MHS", "MPHIL", "MBA",
+                       "MSC", "MPA", "MSW", "MFA", "MED", "MASTER")
+        undergrad_kw = ("BS", "BA", "BSC", "BFA", "AB", "UNDERGRAD", "BACHELOR")
+        for kw in doctoral_kw:
+            if kw in degree:
+                return "doctoral"
+        for kw in masters_kw:
+            if kw in degree:
+                return "masters"
+        for kw in undergrad_kw:
+            if kw in degree:
+                return "undergraduate"
+        return "other"
+
+    def _trainee_detail(item: models.CVItem) -> schemas.TraineeDetail:
+        d = item.data or {}
+        ys = d.get("years_start", "")
+        ye = d.get("years_end", "")
+        period = f"{ys}–{ye}" if ye else f"{ys}–present" if ys else ""
+        return schemas.TraineeDetail(
+            name=d.get("name", ""),
+            degree=d.get("degree", ""),
+            advisor_type=d.get("type", ""),
+            institution=d.get("school", ""),
+            period=period,
+            current_position=d.get("current_position", ""),
+            is_current=not ye or ye.lower().strip() == "present",
+        )
+
+    mentorship_cats: dict[str, schemas.MentorshipCategory] = {
+        k: schemas.MentorshipCategory() for k in
+        ("postdoctoral", "doctoral", "masters", "undergraduate", "other")
+    }
     trainee_type_counts: dict[str, int] = {}
     current_trainees = 0
     for t in trainee_items:
         td = t.data or {}
         tt = td.get("trainee_type", t.section.replace("trainees_", ""))
         trainee_type_counts[tt] = trainee_type_counts.get(tt, 0) + 1
-        if not td.get("years_end"):
+        ye_val = (td.get("years_end") or "").strip().lower()
+        is_current = not ye_val or ye_val == "present"
+        if is_current:
             current_trainees += 1
 
+        cat_key = _classify_trainee(t)
+        cat = mentorship_cats[cat_key]
+        cat.count += 1
+        if is_current:
+            cat.current += 1
+        cat.trainees.append(_trainee_detail(t))
+
     teaching = schemas.TeachingMentorshipStats(
+        teaching=schemas.TeachingStats(
+            courses_total=len(class_items),
+            courses_three_year=courses_three_year,
+            unique_courses=len(unique_courses),
+            by_role=sorted(
+                [schemas.RoleCount(role=r, count=n) for r, n in role_counts.items()],
+                key=lambda x: x.count, reverse=True,
+            ),
+            by_role_five_year=sorted(
+                [schemas.RoleCount(role=r, count=n) for r, n in role_counts_5y.items()],
+                key=lambda x: x.count, reverse=True,
+            ),
+        ),
+        mentorship=schemas.MentorshipStats(
+            total=len(trainee_items),
+            current=current_trainees,
+            **mentorship_cats,
+        ),
+        # Legacy flat fields
         courses_total=len(class_items),
         courses_three_year=courses_three_year,
         unique_courses=len(unique_courses),

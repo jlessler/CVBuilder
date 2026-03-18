@@ -315,7 +315,48 @@ export interface ScholarlyOutputStats {
   citations_by_year: { year: number; count: number }[]
 }
 
+export interface TraineeDetail {
+  name: string
+  degree: string
+  advisor_type: string
+  institution: string
+  period: string
+  current_position: string
+  is_current: boolean
+}
+
+export interface MentorshipCategory {
+  count: number
+  current: number
+  trainees: TraineeDetail[]
+}
+
+export interface RoleCount {
+  role: string
+  count: number
+}
+
+export interface TeachingStats {
+  courses_total: number
+  courses_three_year: number
+  unique_courses: number
+  by_role: RoleCount[]
+  by_role_five_year: RoleCount[]
+}
+
+export interface MentorshipStats {
+  total: number
+  current: number
+  postdoctoral: MentorshipCategory
+  doctoral: MentorshipCategory
+  masters: MentorshipCategory
+  undergraduate: MentorshipCategory
+  other: MentorshipCategory
+}
+
 export interface TeachingMentorshipStats {
+  teaching: TeachingStats
+  mentorship: MentorshipStats
   courses_total: number
   courses_three_year: number
   unique_courses: number

@@ -300,7 +300,44 @@ class ScholarlyOutputStats(BaseModel):
     total_citations: int = 0
     citations_by_year: list[dict] = []  # [{year, count}]
 
+class TraineeDetail(BaseModel):
+    name: str = ""
+    degree: str = ""
+    advisor_type: str = ""
+    institution: str = ""
+    period: str = ""
+    current_position: str = ""
+    is_current: bool = False
+
+class MentorshipCategory(BaseModel):
+    count: int = 0
+    current: int = 0
+    trainees: list[TraineeDetail] = []
+
+class RoleCount(BaseModel):
+    role: str
+    count: int
+
+class TeachingStats(BaseModel):
+    courses_total: int = 0
+    courses_three_year: int = 0
+    unique_courses: int = 0
+    by_role: list[RoleCount] = []
+    by_role_five_year: list[RoleCount] = []
+
+class MentorshipStats(BaseModel):
+    total: int = 0
+    current: int = 0
+    postdoctoral: MentorshipCategory = MentorshipCategory()
+    doctoral: MentorshipCategory = MentorshipCategory()
+    masters: MentorshipCategory = MentorshipCategory()
+    undergraduate: MentorshipCategory = MentorshipCategory()
+    other: MentorshipCategory = MentorshipCategory()
+
 class TeachingMentorshipStats(BaseModel):
+    teaching: TeachingStats = TeachingStats()
+    mentorship: MentorshipStats = MentorshipStats()
+    # Legacy flat fields kept for backward compat
     courses_total: int = 0
     courses_three_year: int = 0
     unique_courses: int = 0

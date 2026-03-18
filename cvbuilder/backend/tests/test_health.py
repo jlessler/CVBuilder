@@ -19,8 +19,8 @@ def test_dashboard_empty_db(client):
     assert so["counts_by_type"] == {}
     assert so["works_by_year"] == []
     tm = d["teaching_mentorship"]
-    assert tm["trainees_total"] == 0
-    assert tm["trainee_breakdown"] == []
+    assert tm["mentorship"]["total"] == 0
+    assert tm["mentorship"]["doctoral"]["count"] == 0
     f = d["funding"]
     assert f["grants_total"] == 0
     assert f["active"]["count"] == 0
@@ -55,8 +55,9 @@ def test_dashboard_with_data(client, sample_profile, sample_publication):
     assert so["counts_by_type"]["papers"] == 1
 
     tm = d["teaching_mentorship"]
-    assert tm["trainees_total"] == 1
-    assert tm["current_trainees"] == 1  # no years_end = current
+    assert tm["mentorship"]["total"] == 1
+    assert tm["mentorship"]["current"] == 1  # no years_end = current
+    assert tm["mentorship"]["other"]["count"] == 1  # no degree = other
 
     f = d["funding"]
     assert f["grants_total"] == 1
