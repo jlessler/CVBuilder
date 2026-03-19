@@ -76,7 +76,7 @@ async def fetch_citations(
             works_with_citations.append(wd)
 
     aggregate = compute_aggregate(works_with_citations)
-    aggregate["source"] = "OpenAlex"
+    aggregate["source"] = "OpenAlex (yearly counts available from ~2012 onward)"
     aggregate["retrieved_at"] = date.today().isoformat()
     aggregate["works_updated"] = updated_count
     aggregate["works_matched"] = len(oa_results)
@@ -91,7 +91,7 @@ async def fetch_citations(
         "total_citations": aggregate["total_citations"],
         "h_index": aggregate["h_index"],
         "i10_index": aggregate["i10_index"],
-        "source": "OpenAlex",
+        "source": "OpenAlex (yearly counts available from ~2012 onward)",
         "retrieved_at": date.today().isoformat(),
     }
     if cv_item:
