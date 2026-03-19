@@ -146,7 +146,8 @@
         <div class="cv-entry-date">{{ p.date or '' }}</div>
         <div class="cv-entry-body">
           <span class="cv-entry-title">{{ p.topic or '' }}</span>
-          {% if p.outlet %}<div class="cv-entry-detail">{{ p.outlet }}</div>{% endif %}
+          {% set outlet_display = p.outlets | join(', ') if p.outlets is iterable and p.outlets is not string else (p.outlet or '') %}
+          {% if outlet_display %}<div class="cv-entry-detail">{{ outlet_display }}</div>{% endif %}
           {% if p.title %}<br><em>{{ p.title }}</em>{% endif %}
         </div>
       </div>

@@ -262,9 +262,9 @@ class TestImportCV:
     def test_press(self, client, db_session):
         self._import(db_session)
         items = client.get("/api/cv/press").json()
-        assert len(items) == 3  # 2 outlets for eclipse + 1 for Roosevelt letter
-        outlets = {i["data"]["outlet"] for i in items}
-        assert "The New York Times" in outlets
+        assert len(items) == 2
+        eclipse = [i for i in items if "eclipse" in i["data"]["topic"].lower()][0]
+        assert eclipse["data"]["outlets"] == ["The Times (London)", "The New York Times"]
 
     # -- Consulting -------------------------------------------------------
 

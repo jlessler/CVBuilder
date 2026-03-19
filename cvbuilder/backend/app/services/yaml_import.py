@@ -305,9 +305,8 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     _delete_cv_items("press")
     for i, item in enumerate(data.get("media", [])):
         outlets = item.get("outlets", [])
-        outlet_str = ", ".join(_clean(o) for o in outlets) if outlets else ""
         _add_cv_item("press", {
-            "outlet": outlet_str,
+            "outlets": [_clean(o) for o in outlets] if outlets else [],
             "topic": _clean(item.get("topic", "")),
             "date": str(item.get("date", "")),
         }, i)

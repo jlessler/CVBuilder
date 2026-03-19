@@ -47,6 +47,7 @@ def startup():
         _ensure_default_user(db)
         _migrate_works_data(db)
         _migrate_cv_items_data(db)
+        _migrate_press_outlets(db)
         _seed_templates(db, user_id=1)
     finally:
         db.close()
@@ -660,6 +661,21 @@ def _migrate_cv_items_data(db):
     db.commit()
     log.info("CVItem migration complete: %d items created, %d IDs remapped",
              db.query(models.CVItem).count(), len(id_remap))
+
+
+def _migrate_press_outlets(db):
+    """Convert press CVItems from data.outlet (string) → data.outlets (list)."""
+    import json as _json
+    items = db.query(models.CVItem).filter_by(section="press").all()
+    for item in items:
+        d = dict(item.data or {})
+        if "outlets" in d and isinstance(d["outlets"], list):
+            continue  # already migrated
+        if "outlet" in d:
+            outlet_str = d.pop("outlet")
+            d["outlets"] = [o.strip() for o in outlet_str.split(", ")] if outlet_str else []
+            item.data = d
+    db.commit()
 
 
 # ---------------------------------------------------------------------------

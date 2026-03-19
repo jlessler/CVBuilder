@@ -62,7 +62,7 @@ const GROUPS = ['Education and Experience', 'Teaching and Mentorship', 'Grants',
 // Field definitions per section
 // ---------------------------------------------------------------------------
 
-type FieldDef = { key: string; label: string; type?: string; textarea?: boolean; options?: { value: string; label: string }[] }
+type FieldDef = { key: string; label: string; type?: string; textarea?: boolean; list?: boolean; options?: { value: string; label: string }[] }
 
 const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
   education: [
@@ -159,7 +159,7 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
   ],
   press: [
     { key: 'topic', label: 'Topic' },
-    { key: 'outlet', label: 'Outlet / Publication' },
+    { key: 'outlets', label: 'Outlets', list: true },
     { key: 'date', label: 'Date' },
     { key: 'url', label: 'URL' },
   ],
@@ -215,8 +215,18 @@ function blankForm(tab: TabDef): Record<string, string | number> {
   const fields = FIELDS[tab.key] ?? []
   return Object.fromEntries(fields.map(f => [
     f.key,
-    f.options ? f.options[0].value : f.type === 'number' ? 0 : '',
+    f.list ? '[]' : f.options ? f.options[0].value : f.type === 'number' ? 0 : '',
   ]))
+}
+
+function parseListField(val: string | number): string[] {
+  if (typeof val !== 'string') return []
+  try { const arr = JSON.parse(val); return Array.isArray(arr) ? arr : [] }
+  catch { return [] }
+}
+
+function serializeList(arr: unknown[]): string {
+  return JSON.stringify(arr)
 }
 
 // ---------------------------------------------------------------------------
@@ -242,9 +252,10 @@ function ItemRow({
     editor: 'Editor', assocedit: 'Associate Editor', otheredit: 'Guest Editor / Other',
     trainees_advisees: 'Advisee', trainees_postdocs: 'Postdoc',
   }
+  const outletsDisplay = Array.isArray(item.outlets) ? (item.outlets as string[]).join(', ') : (item.outlet || '')
   const sub = (
     item.employer || item.agency || item.school || item.meeting ||
-    item.org || item.outlet || item.topic ||
+    item.org || outletsDisplay || item.topic ||
     item.department || item.publisher || item.role ||
     (item.section && SECTION_LABELS[item.section as string]) ||
     ''
@@ -319,8 +330,15 @@ export function Sections() {
 
   function buildData(d: Record<string, string | number>): Record<string, unknown> {
     const fields = FIELDS[tab] ?? []
-    const fieldKeys = fields.map(f => f.key).filter(k => k !== currentTab.subtypeField)
-    return Object.fromEntries(fieldKeys.map(k => [k, d[k] ?? '']).filter(([, v]) => v !== ''))
+    const fieldKeys = fields.filter(f => f.key !== currentTab.subtypeField)
+    const entries: [string, unknown][] = fieldKeys.map(f => {
+      if (f.list) return [f.key, parseListField(d[f.key])]
+      return [f.key, d[f.key] ?? '']
+    })
+    return Object.fromEntries(entries.filter(([, v]) => {
+      if (Array.isArray(v)) return v.length > 0
+      return v !== ''
+    }))
   }
 
   const createMut = useMutation({
@@ -347,11 +365,14 @@ export function Sections() {
 
   function openCopy(item: Record<string, unknown>) {
     const fields = FIELDS[tab] ?? []
-    const fieldKeys = fields.map(f => f.key)
     const formData: Record<string, string | number> = {}
-    for (const k of fieldKeys) {
-      if (item[k] !== undefined && item[k] !== null) {
-        formData[k] = item[k] as string | number
+    for (const f of fields) {
+      if (item[f.key] !== undefined && item[f.key] !== null) {
+        if (f.list && Array.isArray(item[f.key])) {
+          formData[f.key] = serializeList(item[f.key] as unknown[])
+        } else {
+          formData[f.key] = item[f.key] as string | number
+        }
       }
     }
     if (currentTab.subtypeField && item.section) {
@@ -369,11 +390,14 @@ export function Sections() {
     }
     // Data fields are already flattened into top-level by the query
     const fields = FIELDS[tab] ?? []
-    const fieldKeys = fields.map(f => f.key)
     const formData: Record<string, string | number> = { id: item.id as number }
-    for (const k of fieldKeys) {
-      if (item[k] !== undefined && item[k] !== null) {
-        formData[k] = item[k] as string | number
+    for (const f of fields) {
+      if (item[f.key] !== undefined && item[f.key] !== null) {
+        if (f.list && Array.isArray(item[f.key])) {
+          formData[f.key] = serializeList(item[f.key] as unknown[])
+        } else {
+          formData[f.key] = item[f.key] as string | number
+        }
       }
     }
     Object.assign(formData, extra)
@@ -497,7 +521,32 @@ export function Sections() {
           {fields.map(field => (
             <div key={field.key}>
               <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-              {field.options ? (
+              {field.list ? (() => {
+                const items = parseListField(form[field.key])
+                return (
+                  <div className="space-y-2">
+                    {items.map((val, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          value={val}
+                          onChange={e => {
+                            const updated = [...items]
+                            updated[idx] = e.target.value
+                            setField(field.key, serializeList(updated))
+                          }}
+                        />
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          const updated = items.filter((_, i) => i !== idx)
+                          setField(field.key, serializeList(updated))
+                        }}><Trash2 size={14} className="text-red-500" /></Button>
+                      </div>
+                    ))}
+                    <Button variant="secondary" size="sm" onClick={() => {
+                      setField(field.key, serializeList([...items, '']))
+                    }}><Plus size={14} /> Add {field.label.replace(/s$/, '')}</Button>
+                  </div>
+                )
+              })() : field.options ? (
                 <select
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   value={String(form[field.key] ?? field.options[0].value)}

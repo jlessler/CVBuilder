@@ -75,11 +75,60 @@ def export_yaml(
          "lectures": r.data.get("lectures"), "inthreeyear": r.data.get("in_three_year")}
         for r in _cv_items("classes")
     ]
-    cv_data["grants"] = _cv_item_dicts("grants", ["title", "agency", "amount", "role", "status"],
-        lambda r: {"years": f"{r.data.get('years_start', '')}-{r.data.get('years_end', '')}".strip("-"),
-                    "id": r.data.get("id_number")})
+    def _grant_dicts(status):
+        result = []
+        for r in _cv_items("grants"):
+            if r.data.get("status") != status:
+                continue
+            d = {
+                "title": r.data.get("title"), "org": r.data.get("agency"),
+                "amount": r.data.get("amount"), "role": r.data.get("role"),
+                "dates": f"{r.data.get('years_start', '')}-{r.data.get('years_end', '')}".strip("-"),
+                "number": r.data.get("id_number"), "PI": r.data.get("pi"),
+                "type": r.data.get("grant_type"),
+                "pcteffort": r.data.get("pcteffort"),
+                "description": r.data.get("description"),
+            }
+            result.append({k: v for k, v in d.items() if v is not None and v != ""})
+        return result
+
+    cv_data["activegrants"] = _grant_dicts("active")
+    cv_data["completedgrants"] = _grant_dicts("completed")
     cv_data["honor"] = _cv_item_dicts("awards", ["name", "date"],
         lambda r: {"grantee": r.data.get("org")})
+
+    # --- Press / media ---
+    cv_data["media"] = [{"topic": r.data.get("topic"), "date": r.data.get("date"),
+        "outlets": r.data.get("outlets", [])} for r in _cv_items("press")]
+
+    # --- Trainees ---
+    cv_data["advisees"] = [{"name": r.data.get("name"), "degree": r.data.get("degree"),
+        "dates": f"{r.data.get('years_start', '')}-{r.data.get('years_end', '')}".strip("-"),
+        "type": r.data.get("type"), "school": r.data.get("school"),
+        "thesis": r.data.get("thesis"), "wherenow": r.data.get("current_position")}
+        for r in _cv_items("trainees_advisees")]
+    cv_data["postdocs"] = [{"name": r.data.get("name"),
+        "dates": f"{r.data.get('years_start', '')}-{r.data.get('years_end', '')}".strip("-"),
+        "wherenow": r.data.get("current_position")}
+        for r in _cv_items("trainees_postdocs")]
+
+    # --- Committees ---
+    cv_data["committees"] = _cv_item_dicts("committees", ["committee", "org", "role", "dates"])
+
+    # --- Misc sections (editorial, peerrev, service, exams, etc.) ---
+    for key in ["editor", "assocedit", "otheredit", "peerrev", "policypres", "policycons",
+                "otherservice", "schoolwideOrals", "departmentalOrals", "finaldefense"]:
+        items = _cv_items(key)
+        if items:
+            cv_data[key] = [r.data for r in items]
+
+    # --- Chaired sessions ---
+    cv_data["chairedsessions"] = [{"title": r.data.get("title"),
+        "year": r.data.get("date"), "conference": r.data.get("meeting")}
+        for r in _cv_items("chairedsessions")]
+
+    # --- Other practice → policyother ---
+    cv_data["policyother"] = [r.data for r in _cv_items("otherpractice")]
 
     # Publications (from works table)
     pub_data: dict = {"myname": profile.name if profile else ""}
@@ -127,6 +176,34 @@ def export_yaml(
             if d.get("published_doi"):
                 entry["published_doi"] = d["published_doi"]
             pub_data[yaml_key].append(entry)
+
+    # --- Seminars (Work records) ---
+    cv_data["seminars"] = []
+    for w in db.query(models.Work).filter_by(user_id=uid, work_type="seminars").order_by(models.Work.id).all():
+        d = w.data or {}
+        entry = {"title": w.title, "org": d.get("institution"), "event": d.get("conference"),
+                 "loc": d.get("location"), "date": d.get("date_raw") or (str(w.year) if w.year else "")}
+        cv_data["seminars"].append({k: v for k, v in entry.items() if v})
+
+    # --- Software (Work records) ---
+    cv_data["software"] = []
+    for w in db.query(models.Work).filter_by(user_id=uid, work_type="software").order_by(models.Work.id).all():
+        d = w.data or {}
+        entry = {"title": w.title, "year": d.get("year_raw") or (str(w.year) if w.year else ""),
+                 "publisher": d.get("publisher"), "url": d.get("url"),
+                 "authors": ", ".join(a.author_name for a in w.authors)}
+        cv_data["software"].append({k: v for k, v in entry.items() if v})
+
+    # --- Dissertation (Work record, singular dict) ---
+    diss = db.query(models.Work).filter_by(user_id=uid, work_type="dissertation").first()
+    if diss:
+        d = diss.data or {}
+        inst = d.get("institution", "")
+        parts = inst.split(", ", 1) if inst else ["", ""]
+        cv_data["dissertation"] = {"title": diss.title,
+            "year": d.get("year_raw") or (str(diss.year) if diss.year else ""),
+            "department": parts[0] if len(parts) > 1 else "",
+            "institution": parts[1] if len(parts) > 1 else parts[0]}
 
     combined = {"cv": cv_data, "refs": pub_data}
     yaml_str = yaml.dump(combined, allow_unicode=True, sort_keys=False, default_flow_style=False)
