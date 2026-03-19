@@ -57,6 +57,7 @@ const ALL_SECTIONS = [
   { key: 'press', label: 'Press Coverage' },
   { key: 'trainees_advisees', label: 'Graduate Advisees' },
   { key: 'trainees_postdocs', label: 'Postdoctoral Fellows' },
+  { key: 'mentorship', label: 'Mentorship' },
   { key: 'seminars', label: 'Invited Seminars & Lectures' },
   { key: 'publications_papers', label: 'Papers' },
   { key: 'publications_preprints', label: 'Preprints' },

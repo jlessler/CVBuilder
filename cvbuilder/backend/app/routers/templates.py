@@ -51,6 +51,7 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
         "awards": _cv_query("awards"),
         "press": _cv_query("press"),
         "trainees": _cv_query_multi(["trainees_advisees", "trainees_postdocs"]),
+        "mentorship": _cv_query("mentorship"),
         "seminars": sort_items(_works_query("seminars"), models.Work, reverse=rev),
         "committees": _cv_query("committees"),
         "editorial": _cv_query_multi(["editor", "assocedit", "otheredit"]),
