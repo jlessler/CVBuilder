@@ -145,8 +145,8 @@
       <div class="cv-entry">
         <div class="cv-entry-date">{{ p.date or '' }}</div>
         <div class="cv-entry-body">
-          <span class="cv-entry-title">{{ p.outlet or '' }}</span>
-          {% if p.topic %}<br>{{ p.topic }}{% endif %}
+          <span class="cv-entry-title">{{ p.topic or '' }}</span>
+          {% if p.outlet %}<div class="cv-entry-detail">{{ p.outlet }}</div>{% endif %}
           {% if p.title %}<br><em>{{ p.title }}</em>{% endif %}
         </div>
       </div>

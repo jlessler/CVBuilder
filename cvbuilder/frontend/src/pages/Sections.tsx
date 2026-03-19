@@ -233,7 +233,7 @@ function ItemRow({
 }) {
   // item.data is flattened into top-level by the query, so we can access fields directly
   const title = (
-    item.name || item.title || item.class_name || item.degree ||
+    item.name || item.title || item.topic || item.class_name || item.degree ||
     item.panel || item.committee || item.org || item.journal ||
     item.value || item.description || ''
   ) as string

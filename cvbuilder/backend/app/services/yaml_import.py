@@ -303,15 +303,14 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
     # Press / Media
     # ------------------------------------------------------------------
     _delete_cv_items("press")
-    sort_i = 0
-    for item in data.get("media", []):
-        topic = _clean(item.get("topic", ""))
-        date = str(item.get("date", ""))
-        for outlet in item.get("outlets", []):
-            _add_cv_item("press", {
-                "outlet": _clean(outlet), "topic": topic, "date": date,
-            }, sort_i)
-            sort_i += 1
+    for i, item in enumerate(data.get("media", [])):
+        outlets = item.get("outlets", [])
+        outlet_str = ", ".join(_clean(o) for o in outlets) if outlets else ""
+        _add_cv_item("press", {
+            "outlet": outlet_str,
+            "topic": _clean(item.get("topic", "")),
+            "date": str(item.get("date", "")),
+        }, i)
 
     # ------------------------------------------------------------------
     # Trainees (advisees + postdocs)
