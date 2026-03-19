@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, User, BookOpen, Layout, Download, GraduationCap,
-  LogOut, Files,
+  LogOut, Files, Users,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-const navItems = [
+const baseNavItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/sections', label: 'CV Sections', icon: GraduationCap },
@@ -18,6 +18,10 @@ const navItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { user, logout } = useAuth()
+
+  const navItems = user?.is_admin
+    ? [...baseNavItems, { to: '/users', label: 'Users', icon: Users }]
+    : baseNavItems
 
   return (
     <div className="flex h-screen bg-gray-50">

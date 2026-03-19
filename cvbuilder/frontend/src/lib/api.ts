@@ -47,6 +47,8 @@ export interface UserOut {
   email: string
   full_name: string | null
   is_active: boolean
+  is_admin: boolean
+  created_at: string | null
 }
 
 export interface Token {
@@ -440,4 +442,26 @@ export interface SyncCheckResponse {
   candidates: PublicationCandidate[]
   searched: string[]
   errors: Record<string, string>
+}
+
+// ---- Admin API ----
+
+export interface AdminUserUpdate {
+  is_active?: boolean
+  is_admin?: boolean
+  full_name?: string
+}
+
+export async function listUsers(): Promise<UserOut[]> {
+  const { data } = await api.get<UserOut[]>('/admin/users')
+  return data
+}
+
+export async function updateUser(userId: number, updates: AdminUserUpdate): Promise<UserOut> {
+  const { data } = await api.patch<UserOut>(`/admin/users/${userId}`, updates)
+  return data
+}
+
+export async function deleteUser(userId: number): Promise<void> {
+  await api.delete(`/admin/users/${userId}`)
 }

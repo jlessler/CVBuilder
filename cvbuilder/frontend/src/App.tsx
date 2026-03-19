@@ -12,6 +12,7 @@ import { Export } from './pages/Export'
 import { CVInstances } from './pages/CVInstances'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
+import { Users } from './pages/Users'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -38,6 +39,7 @@ export default function App() {
                       <Route path="/cvs" element={<CVInstances />} />
                       <Route path="/export" element={<Export />} />
                       <Route path="/templates" element={<Templates />} />
+                      <Route path="/users" element={<Users />} />
                     </Routes>
                   </AppLayout>
                 </ProtectedRoute>

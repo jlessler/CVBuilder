@@ -18,6 +18,14 @@ class UserOut(BaseModel):
     email: str
     full_name: Optional[str] = None
     is_active: bool
+    is_admin: bool = False
+    created_at: Optional[datetime] = None
+
+
+class AdminUserUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    full_name: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

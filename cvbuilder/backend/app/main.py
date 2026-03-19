@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import create_tables, get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.routers import auth, profile, templates, export, cv_instances, works, cv_items, citations
+from app.routers import admin, auth, profile, templates, export, cv_instances, works, cv_items, citations
 
 app = FastAPI(
     title="CVBuilder API",
@@ -34,6 +34,7 @@ app.include_router(cv_instances.router)
 app.include_router(works.router)
 app.include_router(cv_items.router)
 app.include_router(citations.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")
@@ -98,6 +99,7 @@ def _run_migrations():
         "ALTER TABLE cv_items ADD COLUMN sort_date INTEGER",
         "ALTER TABLE cv_items ADD COLUMN user_id INTEGER REFERENCES users(id)",
         "ALTER TABLE profile ADD COLUMN semantic_scholar_id VARCHAR(200)",
+        "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
@@ -151,10 +153,14 @@ def _ensure_default_user(db):
             hashed_password=get_password_hash("changeme"),
             full_name="Admin",
             is_active=True,
+            is_admin=True,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    elif not user.is_admin:
+        user.is_admin = True
+        db.commit()
 
     # Backfill any rows that have NULL user_id with the default user
     for table in _USER_ID_TABLES:

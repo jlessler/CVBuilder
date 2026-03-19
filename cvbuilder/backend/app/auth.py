@@ -82,6 +82,16 @@ def get_current_user(
     return _resolve_token(token, db)
 
 
+def get_current_admin(user=Depends(get_current_user)):
+    """Require the authenticated user to be an admin."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return user
+
+
 # Optional variant: returns None instead of raising when no/bad token
 _oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
