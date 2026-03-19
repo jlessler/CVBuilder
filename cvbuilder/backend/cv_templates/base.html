@@ -163,6 +163,29 @@
       {% set config = config | combine({'trainee_type': 'postdoc', 'heading': config.get('heading', 'Postdoctoral Fellows')}) %}
       {% include 'sections/trainees.html' %}
 
+    {# Mentorship #}
+    {% elif key == 'mentorship' %}
+    {% set items = cv.get('mentorship', []) %}
+    {% if items %}
+    <div class="cv-section">
+      <div class="cv-section-heading">{{ config.get('heading', 'Mentorship') }}</div>
+      {% for m in items %}
+      <div class="cv-entry">
+        <div class="cv-entry-date">
+          {{ m.years_start or '' }}{% if m.years_end %}–{{ m.years_end }}{% endif %}
+        </div>
+        <div class="cv-entry-body">
+          <span class="cv-entry-title">{{ m.name or '' }}</span>
+          {% if m.role %}, {{ m.role }}{% endif %}
+          {% if m.department %}<br><span class="cv-entry-org">{{ m.department }}</span>{% endif %}
+          {% if m.description %}<br><span class="cv-entry-detail">{{ m.description }}</span>{% endif %}
+          {% if m.current_position %}<br><span class="cv-entry-detail">Now: {{ m.current_position }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {# Seminars (invited talks) #}
     {% elif key == 'seminars' and cv.seminars %}
     <div class="cv-section">

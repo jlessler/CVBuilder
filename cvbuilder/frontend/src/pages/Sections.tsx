@@ -12,7 +12,7 @@ type SectionKey =
   | 'education' | 'experience' | 'consulting' | 'memberships'
   | 'grants' | 'awards' | 'classes' | 'symposia'
   | 'panels_advisory' | 'panels_grantreview'
-  | 'trainees_advisees' | 'trainees_postdocs'
+  | 'trainees' | 'mentorship'
   | 'press' | 'committees'
   | 'misc_editor' | 'misc_peerrev' | 'misc_policypres' | 'misc_policycons'
   | 'misc_otherservice'
@@ -34,9 +34,9 @@ const TABS: TabDef[] = [
   { key: 'consulting',          label: 'Consulting',       group: 'Education and Experience', section: 'consulting' },
   { key: 'awards',              label: 'Awards',           group: 'Education and Experience', section: 'awards' },
   // --- Teaching & trainees ---
-  { key: 'classes',             label: 'Classes',          group: 'Teaching',   section: 'classes' },
-  { key: 'trainees_advisees',   label: 'Advisees',         group: 'Teaching',   section: 'trainees_advisees' },
-  { key: 'trainees_postdocs',   label: 'Postdocs',         group: 'Teaching',   section: 'trainees_postdocs' },
+  { key: 'classes',             label: 'Classes',          group: 'Teaching and Mentorship',   section: 'classes' },
+  { key: 'trainees',            label: 'Trainees',          group: 'Teaching and Mentorship',   section: 'trainees_advisees,trainees_postdocs', subtypeField: 'trainee_type' },
+  { key: 'mentorship',          label: 'Mentorship',        group: 'Teaching and Mentorship',   section: 'mentorship' },
   // --- Grants ---
   { key: 'grants',              label: 'Grants',           group: 'Grants',     section: 'grants' },
   // --- Service ---
@@ -56,7 +56,7 @@ const TABS: TabDef[] = [
   { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', section: 'otherpractice', createSection: 'otherpractice' },
 ]
 
-const GROUPS = ['Education and Experience', 'Teaching', 'Grants', 'Service', 'Misc']
+const GROUPS = ['Education and Experience', 'Teaching and Mentorship', 'Grants', 'Service', 'Misc']
 
 // ---------------------------------------------------------------------------
 // Field definitions per section
@@ -134,7 +134,11 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'date', label: 'Date' },
     { key: 'panel_id', label: 'Review ID' },
   ],
-  trainees_advisees: [
+  trainees: [
+    { key: 'trainee_type', label: 'Category', options: [
+      { value: 'trainees_advisees',  label: 'Advisee' },
+      { value: 'trainees_postdocs',  label: 'Postdoc' },
+    ]},
     { key: 'name', label: 'Name' },
     { key: 'degree', label: 'Degree' },
     { key: 'type', label: 'Advisor Type' },
@@ -144,10 +148,13 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
     { key: 'thesis', label: 'Thesis Title' },
     { key: 'current_position', label: 'Current Position' },
   ],
-  trainees_postdocs: [
+  mentorship: [
     { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Mentee Role (e.g., Junior Faculty, Research Scientist)' },
+    { key: 'department', label: 'Department / Institution' },
     { key: 'years_start', label: 'Start' },
     { key: 'years_end', label: 'End' },
+    { key: 'description', label: 'Description', textarea: true },
     { key: 'current_position', label: 'Current Position' },
   ],
   press: [
@@ -233,6 +240,7 @@ function ItemRow({
 
   const SECTION_LABELS: Record<string, string> = {
     editor: 'Editor', assocedit: 'Associate Editor', otheredit: 'Guest Editor / Other',
+    trainees_advisees: 'Advisee', trainees_postdocs: 'Postdoc',
   }
   const sub = (
     item.employer || item.agency || item.school || item.meeting ||
@@ -247,10 +255,23 @@ function ItemRow({
     `${item.years_start || ''}${item.years_end ? `–${item.years_end}` : ''}`
   ) as string
 
+  // Badge for multi-section tabs (e.g. trainees, editorial)
+  const BADGE_SECTIONS = new Set(['trainees_advisees', 'trainees_postdocs'])
+  const badgeLabel = BADGE_SECTIONS.has(item.section as string)
+    ? (item.degree as string || SECTION_LABELS[item.section as string] || null)
+    : null
+
   return (
     <div className="flex items-start justify-between px-5 py-3 hover:bg-gray-50">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{title || '(no title)'}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-gray-900 truncate">{title || '(no title)'}</p>
+          {badgeLabel && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700 whitespace-nowrap">
+              {badgeLabel}
+            </span>
+          )}
+        </div>
         {sub && <p className="text-xs text-gray-500 truncate">{sub}</p>}
         {date && <p className="text-xs text-gray-400">{date}</p>}
       </div>

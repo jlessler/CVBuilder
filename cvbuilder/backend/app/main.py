@@ -674,6 +674,7 @@ _HEADINGS = {
     "press":                      "Media and Press",
     "trainees_advisees":          "Advisees",
     "trainees_postdocs":          "Postdoctoral Trainees",
+    "mentorship":                 "Mentorship",
     "publications_papers":        "Peer-Reviewed Publications",
     "publications_preprints":     "Preprints",
     "publications_chapters":      "Books and Chapters",
