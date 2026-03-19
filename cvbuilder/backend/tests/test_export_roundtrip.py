@@ -178,3 +178,29 @@ class TestExportRoundtrip:
         assert "completedgrants" in cv
         assert len(cv["activegrants"]) >= 1
         assert len(cv["completedgrants"]) >= 1
+
+    def test_combined_file_import_via_api(self, client, db_session, test_user):
+        """The combined backup file can be reimported via the import endpoint."""
+        self._import_einstein(db_session, test_user.id)
+
+        # Export
+        resp = client.get("/api/export/yaml")
+        assert resp.status_code == 200
+        backup_bytes = resp.content
+
+        # Wipe existing data by reimporting — the import functions delete first,
+        # so reimporting the same user effectively replaces everything.
+        # Upload the combined file in the cv_file slot
+        resp = client.post(
+            "/api/export/yaml/import",
+            files={"cv_file": ("backup.yml", backup_bytes, "application/x-yaml")},
+        )
+        assert resp.status_code == 200
+        assert "CV data imported" in resp.json()["imported"]
+        assert "Publications imported" in resp.json()["imported"]
+
+        # Verify data survived
+        items = self._cv_items(db_session, test_user.id, "education")
+        assert len(items) >= 2  # Einstein has 2 education entries
+        works = self._works(db_session, test_user.id, "papers")
+        assert len(works) >= 1

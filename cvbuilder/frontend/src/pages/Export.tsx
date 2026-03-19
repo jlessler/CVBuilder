@@ -115,7 +115,8 @@ export function Export() {
             <Upload size={18} /> Import YAML
           </h3>
           <p className="text-sm text-gray-500">
-            Import your existing <code className="bg-gray-100 px-1 rounded">CV.yml</code> and/or{' '}
+            Import a combined backup file (exported above), or separate{' '}
+            <code className="bg-gray-100 px-1 rounded">CV.yml</code> and{' '}
             <code className="bg-gray-100 px-1 rounded">refs.yml</code> files.
             This will replace existing data in the database.
           </p>
@@ -133,11 +134,11 @@ export function Export() {
 
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">CV.yml</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1">CV.yml or combined backup</label>
               <input ref={cvRef} type="file" accept=".yml,.yaml" className="text-sm text-gray-600" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">refs.yml</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1">refs.yml (optional if using combined backup)</label>
               <input ref={refsRef} type="file" accept=".yml,.yaml" className="text-sm text-gray-600" />
             </div>
             <Button onClick={handleImport} loading={importing}>

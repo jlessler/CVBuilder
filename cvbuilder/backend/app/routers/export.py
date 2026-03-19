@@ -222,18 +222,44 @@ async def import_yaml_upload(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Accept uploaded CV.yml and/or refs.yml and import them."""
+    """Accept uploaded CV.yml and/or refs.yml and import them.
+
+    Supports three modes:
+    - Two separate files (cv_file + refs_file) in the original flat format
+    - A single combined backup file (cv_file) with top-level ``cv`` and ``refs`` keys
+      (the format produced by the export endpoint)
+    - A single flat CV or refs file
+    """
     import tempfile, os
     from app.services.yaml_import import import_cv_yaml, import_refs_yaml
 
     results = []
     with tempfile.TemporaryDirectory() as tmpdir:
         if cv_file:
-            cv_path = os.path.join(tmpdir, "CV.yml")
-            with open(cv_path, "wb") as f:
-                f.write(await cv_file.read())
-            import_cv_yaml(cv_path, db, user_id=current_user.id)
-            results.append("CV.yml imported")
+            raw = await cv_file.read()
+            # Detect combined backup format (has top-level 'cv' and/or 'refs' keys)
+            parsed = yaml.safe_load(raw)
+            if isinstance(parsed, dict) and ("cv" in parsed or "refs" in parsed):
+                # Combined format — split into separate files
+                if parsed.get("cv"):
+                    cv_path = os.path.join(tmpdir, "CV.yml")
+                    with open(cv_path, "w", encoding="utf-8") as f:
+                        yaml.dump(parsed["cv"], f, allow_unicode=True, sort_keys=False)
+                    import_cv_yaml(cv_path, db, user_id=current_user.id)
+                    results.append("CV data imported")
+                if parsed.get("refs"):
+                    refs_path = os.path.join(tmpdir, "refs.yml")
+                    with open(refs_path, "w", encoding="utf-8") as f:
+                        yaml.dump(parsed["refs"], f, allow_unicode=True, sort_keys=False)
+                    import_refs_yaml(refs_path, db, user_id=current_user.id)
+                    results.append("Publications imported")
+            else:
+                # Flat CV file
+                cv_path = os.path.join(tmpdir, "CV.yml")
+                with open(cv_path, "wb") as f:
+                    f.write(raw)
+                import_cv_yaml(cv_path, db, user_id=current_user.id)
+                results.append("CV.yml imported")
 
         if refs_file:
             refs_path = os.path.join(tmpdir, "refs.yml")
