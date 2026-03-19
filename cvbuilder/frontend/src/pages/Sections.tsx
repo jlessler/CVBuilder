@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Spinner } from '../components/ui'
-import { Plus, Trash2, Edit2, Copy } from 'lucide-react'
+import { Plus, Trash2, Edit2, Copy, Search } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Tab configuration — all sections are CVItems stored in data JSON blobs
@@ -273,6 +273,7 @@ export function Sections() {
   const [activeGroup, setActiveGroup] = useState('Education and Experience')
   const [modal, setModal] = useState<{ open: boolean; item: Record<string, unknown> | null }>({ open: false, item: null })
   const [form, setForm] = useState<Record<string, string | number>>({})
+  const [search, setSearch] = useState('')
 
   const currentTab = TABS.find(t => t.key === tab)!
   const url = `/cv/${currentTab.section}`
@@ -388,6 +389,7 @@ export function Sections() {
             key={g}
             onClick={() => {
               setActiveGroup(g)
+              setSearch('')
               const first = TABS.find(t => t.group === g)
               if (first) setTab(first.key)
             }}
@@ -404,7 +406,7 @@ export function Sections() {
         {groupTabs.map(t => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => { setTab(t.key); setSearch('') }}
             className={`px-4 py-2 text-sm font-medium -mb-px transition-colors rounded-t-lg
               ${tab === t.key
                 ? 'bg-white border border-b-white border-gray-200 text-primary-700'
@@ -413,28 +415,57 @@ export function Sections() {
         ))}
       </div>
 
-      {isLoading ? <Spinner /> : (
-        <Card>
-          <div className="divide-y divide-gray-100">
-            {(data as Record<string, unknown>[]).map((item) => (
-              <ItemRow
-                key={item.id as number}
-                item={item}
-                onEdit={() => openEdit(item)}
-                onCopy={() => openCopy(item)}
-                onDelete={() => {
-                  if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
-                }}
-              />
-            ))}
-            {data.length === 0 && (
-              <div className="py-12 text-center text-gray-400 text-sm">
-                No entries yet. Click "Add Entry" to add one.
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
+      {/* Search bar */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search entries…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        />
+      </div>
+
+      {(() => {
+        const filtered = search.trim()
+          ? data.filter(item => {
+              const q = search.toLowerCase()
+              return Object.values(item).some(v =>
+                (typeof v === 'string' && v.toLowerCase().includes(q))
+                || (typeof v === 'number' && String(v).includes(q))
+              )
+            })
+          : data
+
+        return isLoading ? <Spinner /> : (
+          <Card>
+            <div className="divide-y divide-gray-100">
+              {filtered.map((item) => (
+                <ItemRow
+                  key={item.id as number}
+                  item={item}
+                  onEdit={() => openEdit(item)}
+                  onCopy={() => openCopy(item)}
+                  onDelete={() => {
+                    if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
+                  }}
+                />
+              ))}
+              {data.length === 0 && !search && (
+                <div className="py-12 text-center text-gray-400 text-sm">
+                  No entries yet. Click "Add Entry" to add one.
+                </div>
+              )}
+              {filtered.length === 0 && search.trim() && (
+                <div className="py-12 text-center text-gray-400 text-sm">
+                  No entries match "{search}".
+                </div>
+              )}
+            </div>
+          </Card>
+        )
+      })()}
 
       <Modal
         open={modal.open}
