@@ -473,7 +473,7 @@
       {% set items = cv.get(key, []) %}
       {% if items %}
       <div class="cv-section cv-depth-{{ _depth }}">
-        <h2 class="cv-section-title">{{ heading }}</h2>
+        <div class="cv-section-heading">{{ heading }}</div>
         {% if sec_def.layout == 'list' %}
         <ul class="cv-list">
           {% for item in items %}
