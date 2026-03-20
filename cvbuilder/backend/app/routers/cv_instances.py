@@ -58,6 +58,9 @@ def _query_section_items(db: Session, user_id: int, section_key: str):
     """Query all items for a section key, applying type/section filters."""
     mapping = SECTION_KEY_MAP.get(section_key)
     if not mapping:
+        # Custom sections (custom_*) are stored as CVItems with section=key
+        if section_key.startswith("custom_"):
+            return db.query(models.CVItem).filter_by(user_id=user_id, section=section_key).all()
         return []
     model_cls, filters = mapping
     q = db.query(model_cls).filter(model_cls.user_id == user_id)
@@ -432,6 +435,8 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
             data_key = _CV_DATA_KEY_MAP[key]
             items = cv_data.get(data_key, [])
             cv_data[data_key] = [item for item in items if item.id in item_ids]
+        elif key.startswith("custom_") and key in cv_data:
+            cv_data[key] = [item for item in cv_data[key] if item.id in item_ids]
 
     # Clean up internal keys from sections
     clean_sections = [

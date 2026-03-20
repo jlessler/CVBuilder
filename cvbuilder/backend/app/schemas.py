@@ -180,6 +180,34 @@ class SyncAddRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Section Definitions (custom user-defined sections)
+# ---------------------------------------------------------------------------
+
+class SectionFieldDef(BaseModel):
+    key: str
+    label: str
+    type: str = "text"  # text | date | url | multiline | boolean
+
+class SectionDefinitionBase(BaseModel):
+    label: str
+    layout: str = "entry"  # entry | list
+    fields: list[SectionFieldDef] = []
+    sort_field: Optional[str] = None
+
+class SectionDefinitionCreate(SectionDefinitionBase):
+    pass
+
+class SectionDefinitionUpdate(SectionDefinitionBase):
+    pass
+
+class SectionDefinitionOut(SectionDefinitionBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    section_key: str
+    created_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------------
 # Templates
 # ---------------------------------------------------------------------------
 

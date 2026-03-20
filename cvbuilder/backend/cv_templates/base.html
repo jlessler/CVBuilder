@@ -465,6 +465,56 @@
       {% endfor %}
     </div>
 
+    {# Custom user-defined sections #}
+    {% else %}
+      {% set sec_def = cv.get('_section_defs', {}).get(key) %}
+      {% if sec_def %}
+      {% set heading = config.get('heading', '') or sec_def.label %}
+      {% set items = cv.get(key, []) %}
+      {% if items %}
+      <div class="cv-section cv-depth-{{ _depth }}">
+        <h2 class="cv-section-title">{{ heading }}</h2>
+        {% if sec_def.layout == 'list' %}
+        <ul class="cv-list">
+          {% for item in items %}
+          <li>
+            {% for fld in sec_def.fields %}
+              {% set val = item.data.get(fld.key, '') %}
+              {% if val %}
+                {% if not loop.first %} &mdash; {% endif %}
+                {% if fld.type == 'url' %}<a href="{{ val }}">{{ val }}</a>{% else %}{{ val }}{% endif %}
+              {% endif %}
+            {% endfor %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        {% for item in items %}
+        <div class="cv-entry">
+          {% set date_val = item.data.get(sec_def.sort_field or '', '') %}
+          {% if date_val %}<div class="cv-entry-date">{{ date_val }}</div>{% endif %}
+          <div class="cv-entry-body">
+            {% for fld in sec_def.fields %}
+              {% if fld.key != sec_def.sort_field %}
+                {% set val = item.data.get(fld.key, '') %}
+                {% if val %}
+                  {% if fld.type == 'url' %}<a href="{{ val }}">{{ val }}</a>
+                  {% elif fld.type == 'multiline' %}<div class="cv-entry-detail">{{ val }}</div>
+                  {% elif fld.type == 'boolean' %}{% if val %}{{ fld.label }}{% endif %}
+                  {% elif loop.first or (loop.index0 == 1 and sec_def.sort_field == sec_def.fields[0].key) %}<span class="cv-entry-title">{{ val }}</span>
+                  {% else %}<br><span class="cv-entry-detail">{{ val }}</span>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+
     {% endif %}
   {% endfor %}
   </div>

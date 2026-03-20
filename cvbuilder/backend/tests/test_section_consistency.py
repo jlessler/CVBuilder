@@ -27,10 +27,9 @@ def _extract_headings_keys() -> set[str]:
 def _extract_build_cv_data_keys() -> set[str]:
     """Parse keys from _build_cv_data() return dict in templates.py."""
     text = (ROOT / "backend" / "app" / "routers" / "templates.py").read_text()
-    # Find the return dict block — keys like:  "education": ...,
-    # Start after "return {" and end at the closing "}"
-    m = re.search(r'return\s*\{(.+?)^\s*\}', text, re.DOTALL | re.MULTILINE)
-    assert m, "_build_cv_data return dict not found"
+    # Find the cv_data dict block — keys like:  "education": ...,
+    m = re.search(r'cv_data\s*=\s*\{(.+?)^\s{4}\}', text, re.DOTALL | re.MULTILINE)
+    assert m, "_build_cv_data cv_data dict not found"
     block = m.group(1)
     # Extract top-level string keys (skip "publications" which is a combined key)
     return set(re.findall(r'^\s*"([a-zA-Z_]+)":', block, re.MULTILINE))

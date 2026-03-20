@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, getToken } from '../lib/api'
-import type { CVTemplate } from '../lib/api'
+import { api, getToken, listSectionDefinitions } from '../lib/api'
+import type { CVTemplate, SectionDefinition } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, Settings } from 'lucide-react'
 import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
+import type { PickerSection } from '../components/SectionPickerModal'
+import { SectionDefinitionEditor } from '../components/SectionDefinitionEditor'
 
 const SORT_DIRECTIONS = [
   { value: 'desc', label: 'Newest first' },
@@ -226,7 +228,7 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
   )
 }
 
-function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose: () => void }) {
+function TemplateComposer({ template, onClose, customSections }: { template: CVTemplate; onClose: () => void; customSections: PickerSection[] }) {
   const qc = useQueryClient()
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || '')
@@ -236,7 +238,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
   const initialSections = toSectionEntries(
     template.sections,
     (s, i): SectionEntry => {
-      const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
+      const meta = ALL_SECTIONS.find(m => m.key === s.section_key) || customSections.find(m => m.key === s.section_key)
       return {
         section_key: s.section_key,
         label: s.section_key === 'group_heading'
@@ -282,7 +284,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
 
         <StyleEditor style={style} onChange={setStyle} />
 
-        <SectionComposer sections={sections} onChange={setSections} />
+        <SectionComposer sections={sections} onChange={setSections} customSections={customSections} templateId={template.id} />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
           <Button variant="secondary" onClick={() => setPreview(true)}>
@@ -318,11 +320,23 @@ export function Templates() {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [copyStyleFrom, setCopyStyleFrom] = useState('')
+  const [managingCustom, setManagingCustom] = useState(false)
 
   const { data = [], isLoading } = useQuery<CVTemplate[]>({
     queryKey: ['templates'],
     queryFn: () => api.get('/templates').then(r => r.data),
   })
+
+  const { data: customDefs = [] } = useQuery<SectionDefinition[]>({
+    queryKey: ['section-definitions'],
+    queryFn: listSectionDefinitions,
+  })
+
+  const customPickerSections: PickerSection[] = customDefs.map(d => ({
+    key: d.section_key,
+    label: d.label,
+    group: 'Custom',
+  }))
 
   const createMut = useMutation({
     mutationFn: () => {
@@ -352,7 +366,12 @@ export function Templates() {
       <PageHeader
         title="Templates"
         subtitle="Define section layout, order, and style for your CVs"
-        actions={<Button onClick={() => setCreating(true)}><Plus size={16} /> New Template</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setManagingCustom(true)}><Settings size={16} /> Custom Sections</Button>
+            <Button onClick={() => setCreating(true)}><Plus size={16} /> New Template</Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -425,9 +444,12 @@ export function Templates() {
       {/* Composer modal */}
       {composing && (
         <Modal open={!!composing} onClose={() => setComposing(null)} title={`Compose: ${composing.name}`}>
-          <TemplateComposer template={composing} onClose={() => setComposing(null)} />
+          <TemplateComposer template={composing} onClose={() => setComposing(null)} customSections={customPickerSections} />
         </Modal>
       )}
+
+      {/* Custom section definitions editor */}
+      <SectionDefinitionEditor open={managingCustom} onClose={() => setManagingCustom(false)} />
     </div>
   )
 }

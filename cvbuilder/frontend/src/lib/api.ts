@@ -446,6 +446,47 @@ export interface SyncCheckResponse {
   errors: Record<string, string>
 }
 
+// ---- Section Definitions API ----
+
+export interface SectionFieldDef {
+  key: string
+  label: string
+  type: 'text' | 'date' | 'url' | 'multiline' | 'boolean'
+}
+
+export interface SectionDefinition {
+  id: number
+  section_key: string
+  label: string
+  layout: 'entry' | 'list'
+  fields: SectionFieldDef[]
+  sort_field: string | null
+  created_at: string | null
+}
+
+export async function listSectionDefinitions(): Promise<SectionDefinition[]> {
+  const { data } = await api.get<SectionDefinition[]>('/section-definitions')
+  return data
+}
+
+export async function createSectionDefinition(defn: {
+  label: string; layout: string; fields: SectionFieldDef[]; sort_field: string | null
+}): Promise<SectionDefinition> {
+  const { data } = await api.post<SectionDefinition>('/section-definitions', defn)
+  return data
+}
+
+export async function updateSectionDefinition(id: number, defn: {
+  label: string; layout: string; fields: SectionFieldDef[]; sort_field: string | null
+}): Promise<SectionDefinition> {
+  const { data } = await api.put<SectionDefinition>(`/section-definitions/${id}`, defn)
+  return data
+}
+
+export async function deleteSectionDefinition(id: number): Promise<void> {
+  await api.delete(`/section-definitions/${id}`)
+}
+
 // ---- Admin API ----
 
 export interface AdminUserUpdate {

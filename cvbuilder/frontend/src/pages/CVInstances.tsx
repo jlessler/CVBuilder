@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, getToken } from '../lib/api'
-import type { CVInstance, CVTemplate, AvailableItem } from '../lib/api'
+import { api, getToken, listSectionDefinitions } from '../lib/api'
+import type { CVInstance, CVTemplate, AvailableItem, SectionDefinition } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
 import { Plus, Trash2, Edit2, Eye, FileDown } from 'lucide-react'
 import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
+import type { PickerSection } from '../components/SectionPickerModal'
 
 const HEADER_ALIGNMENTS = [
   { value: '', label: '(Inherit)' },
@@ -184,7 +185,7 @@ function StyleOverrideEditor({ overrides, onChange }: { overrides: Record<string
 // CV Instance Curator — full editing view
 // ---------------------------------------------------------------------------
 
-function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClose: () => void }) {
+function CVInstanceCurator({ instance, onClose, customSections }: { instance: CVInstance; onClose: () => void; customSections: PickerSection[] }) {
   const qc = useQueryClient()
   const [name, setName] = useState(instance.name)
   const [description, setDescription] = useState(instance.description || '')
@@ -196,7 +197,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
   const initialSections = toSectionEntries(
     sorted,
     (s, i): SectionEntry => {
-      const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
+      const meta = ALL_SECTIONS.find(m => m.key === s.section_key) || customSections.find(m => m.key === s.section_key)
       return {
         section_key: s.section_key,
         label: s.section_key === 'group_heading'
@@ -261,6 +262,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
         <SectionComposer
           sections={sections}
           onChange={setSections}
+          customSections={customSections}
           sectionLabel="Sections (drag to reorder, expand to curate items)"
           renderExpandedContent={(sec, idx) => (
             <ItemCurator
@@ -325,6 +327,17 @@ export function CVInstances() {
     queryKey: ['templates'],
     queryFn: () => api.get('/templates').then(r => r.data),
   })
+
+  const { data: customDefs = [] } = useQuery<SectionDefinition[]>({
+    queryKey: ['section-definitions'],
+    queryFn: listSectionDefinitions,
+  })
+
+  const customPickerSections: PickerSection[] = customDefs.map(d => ({
+    key: d.section_key,
+    label: d.label,
+    group: 'Custom',
+  }))
 
   const createMut = useMutation({
     mutationFn: () => api.post('/cv-instances', {
@@ -443,7 +456,7 @@ export function CVInstances() {
       {/* Curator modal */}
       {editing && (
         <Modal open={!!editing} onClose={() => setEditing(null)} title={`Edit: ${editing.name}`}>
-          <CVInstanceCurator instance={editing} onClose={() => setEditing(null)} />
+          <CVInstanceCurator instance={editing} onClose={() => setEditing(null)} customSections={customPickerSections} />
         </Modal>
       )}
     </div>

@@ -303,6 +303,19 @@ class CVItem(Base):
         return None
 
 
+class SectionDefinition(Base):
+    """User-defined custom CV section types."""
+    __tablename__ = "section_definitions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    section_key: Mapped[str] = mapped_column(String(100), index=True)  # "custom_<slug>"
+    label: Mapped[str] = mapped_column(String(200))
+    layout: Mapped[str] = mapped_column(String(20), default="entry")   # "entry" | "list"
+    fields: Mapped[dict] = mapped_column(JSON)  # [{key, label, type}]
+    sort_field: Mapped[Optional[str]] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
 class WorkAuthor(Base):
     __tablename__ = "work_authors"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

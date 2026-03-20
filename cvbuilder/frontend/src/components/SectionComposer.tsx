@@ -249,7 +249,7 @@ function SortableDataRow({
 
 export function SectionComposer({
   sections, onChange, renderExpandedContent, renderBadges, sectionLabel,
-  customSections,
+  customSections, templateId,
 }: {
   sections: SectionEntry[]
   onChange: (sections: SectionEntry[]) => void
@@ -257,6 +257,7 @@ export function SectionComposer({
   renderBadges?: (section: SectionEntry, index: number) => React.ReactNode
   sectionLabel?: string
   customSections?: PickerSection[]
+  templateId?: number
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor))
@@ -307,6 +308,13 @@ export function SectionComposer({
       },
     ])
     setPickerOpen(false)
+  }
+
+  function importSections(imported: SectionEntry[]) {
+    onChange([
+      ...sections,
+      ...imported.map((s, i) => ({ ...s, section_order: sections.length + i })),
+    ])
   }
 
   function removeSection(index: number) {
@@ -375,6 +383,9 @@ export function SectionComposer({
           availableSections={allPickerSections}
           onSelect={addSection}
           onClose={() => setPickerOpen(false)}
+          currentTemplateId={templateId}
+          customSections={customSections}
+          onImportSections={importSections}
         />
       )}
     </div>

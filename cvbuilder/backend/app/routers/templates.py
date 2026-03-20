@@ -37,7 +37,7 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
 
     _PUB_TYPES = ["papers", "preprints", "chapters", "letters", "scimeetings", "editorials"]
 
-    return {
+    cv_data = {
         "profile": profile,
         "education": _cv_query("education"),
         "experience": _cv_query("experience"),
@@ -77,6 +77,24 @@ def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> d
             models.Work, reverse=rev,
         ),
     }
+
+    # Add custom section definitions and their data
+    custom_defs = db.query(models.SectionDefinition).filter_by(user_id=user_id).all()
+    section_defs = {}
+    for defn in custom_defs:
+        section_defs[defn.section_key] = {
+            "label": defn.label,
+            "layout": defn.layout,
+            "fields": defn.fields or [],
+            "sort_field": defn.sort_field,
+        }
+        cv_data[defn.section_key] = sort_items(
+            db.query(models.CVItem).filter_by(user_id=user_id, section=defn.section_key).all(),
+            models.CVItem, reverse=rev,
+        )
+    cv_data["_section_defs"] = section_defs
+
+    return cv_data
 
 
 @router.get("", response_model=list[schemas.CVTemplateOut])

@@ -1,22 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../lib/api'
+import { api, listSectionDefinitions } from '../lib/api'
+import type { SectionDefinition } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Spinner } from '../components/ui'
-import { Plus, Trash2, Edit2, Copy, Search } from 'lucide-react'
+import { Plus, Trash2, Edit2, Copy, Search, Settings } from 'lucide-react'
+import { SectionDefinitionEditor } from '../components/SectionDefinitionEditor'
 
 // ---------------------------------------------------------------------------
 // Tab configuration — all sections are CVItems stored in data JSON blobs
 // ---------------------------------------------------------------------------
 
-type SectionKey =
-  | 'education' | 'experience' | 'consulting' | 'memberships'
-  | 'grants' | 'awards' | 'classes' | 'symposia'
-  | 'panels_advisory' | 'panels_grantreview'
-  | 'trainees' | 'mentorship'
-  | 'press' | 'committees'
-  | 'misc_editor' | 'misc_peerrev' | 'misc_policypres' | 'misc_policycons'
-  | 'misc_otherservice'
-  | 'misc_chairedsessions' | 'misc_otherpractice'
+type SectionKey = string
 
 interface TabDef {
   key: SectionKey
@@ -56,7 +50,7 @@ const TABS: TabDef[] = [
   { key: 'misc_otherpractice',   label: 'Other Practice',      group: 'Misc', section: 'otherpractice', createSection: 'otherpractice' },
 ]
 
-const GROUPS = ['Education and Experience', 'Teaching and Mentorship', 'Grants', 'Service', 'Misc']
+const BUILTIN_GROUPS = ['Education and Experience', 'Teaching and Mentorship', 'Grants', 'Service', 'Misc']
 
 // ---------------------------------------------------------------------------
 // Field definitions per section
@@ -64,7 +58,7 @@ const GROUPS = ['Education and Experience', 'Teaching and Mentorship', 'Grants',
 
 type FieldDef = { key: string; label: string; type?: string; textarea?: boolean; list?: boolean; options?: { value: string; label: string }[] }
 
-const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
+const BUILTIN_FIELDS: Record<string, FieldDef[]> = {
   education: [
     { key: 'degree', label: 'Degree' },
     { key: 'year', label: 'Year', type: 'number' },
@@ -211,8 +205,8 @@ const FIELDS: Partial<Record<SectionKey, FieldDef[]>> = {
   ],
 }
 
-function blankForm(tab: TabDef): Record<string, string | number> {
-  const fields = FIELDS[tab.key] ?? []
+function blankForm(tab: TabDef, allFields: Record<string, FieldDef[]>): Record<string, string | number> {
+  const fields = allFields[tab.key] ?? []
   return Object.fromEntries(fields.map(f => [
     f.key,
     f.list ? '[]' : f.options ? f.options[0].value : f.type === 'number' ? 0 : '',
@@ -306,8 +300,42 @@ export function Sections() {
   const [modal, setModal] = useState<{ open: boolean; item: Record<string, unknown> | null }>({ open: false, item: null })
   const [form, setForm] = useState<Record<string, string | number>>({})
   const [search, setSearch] = useState('')
+  const [managingCustom, setManagingCustom] = useState(false)
 
-  const currentTab = TABS.find(t => t.key === tab)!
+  const { data: customDefs = [] } = useQuery<SectionDefinition[]>({
+    queryKey: ['section-definitions'],
+    queryFn: listSectionDefinitions,
+  })
+
+  // Build dynamic tabs, fields, and groups from custom definitions
+  const { allTabs, allFields, allGroups } = useMemo(() => {
+    const customTabs: TabDef[] = customDefs.map(d => ({
+      key: d.section_key,
+      label: d.label,
+      group: 'Custom Sections',
+      section: d.section_key,
+      createSection: d.section_key,
+    }))
+    const customFields: Record<string, FieldDef[]> = {}
+    for (const d of customDefs) {
+      customFields[d.section_key] = d.fields.map(f => ({
+        key: f.key,
+        label: f.label,
+        type: f.type === 'boolean' ? undefined : f.type === 'date' ? undefined : f.type === 'url' ? undefined : f.type === 'multiline' ? undefined : undefined,
+        textarea: f.type === 'multiline',
+      }))
+    }
+    const groups = customTabs.length > 0
+      ? [...BUILTIN_GROUPS, 'Custom Sections']
+      : [...BUILTIN_GROUPS]
+    return {
+      allTabs: [...TABS, ...customTabs],
+      allFields: { ...BUILTIN_FIELDS, ...customFields },
+      allGroups: groups,
+    }
+  }, [customDefs])
+
+  const currentTab = allTabs.find(t => t.key === tab)!
   const url = `/cv/${currentTab.section}`
 
   const { data = [], isLoading } = useQuery<Record<string, unknown>[]>({
@@ -329,7 +357,7 @@ export function Sections() {
   }
 
   function buildData(d: Record<string, string | number>): Record<string, unknown> {
-    const fields = FIELDS[tab] ?? []
+    const fields = allFields[tab] ?? []
     const fieldKeys = fields.filter(f => f.key !== currentTab.subtypeField)
     const entries: [string, unknown][] = fieldKeys.map(f => {
       if (f.list) return [f.key, parseListField(d[f.key])]
@@ -359,12 +387,12 @@ export function Sections() {
   })
 
   function openCreate() {
-    setForm(blankForm(currentTab))
+    setForm(blankForm(currentTab, allFields))
     setModal({ open: true, item: null })
   }
 
   function openCopy(item: Record<string, unknown>) {
-    const fields = FIELDS[tab] ?? []
+    const fields = allFields[tab] ?? []
     const formData: Record<string, string | number> = {}
     for (const f of fields) {
       if (item[f.key] !== undefined && item[f.key] !== null) {
@@ -389,7 +417,7 @@ export function Sections() {
       extra[currentTab.subtypeField] = item.section
     }
     // Data fields are already flattened into top-level by the query
-    const fields = FIELDS[tab] ?? []
+    const fields = allFields[tab] ?? []
     const formData: Record<string, string | number> = { id: item.id as number }
     for (const f of fields) {
       if (item[f.key] !== undefined && item[f.key] !== null) {
@@ -414,8 +442,8 @@ export function Sections() {
     setForm(f => ({ ...f, [key]: value }))
   }
 
-  const groupTabs = TABS.filter(t => t.group === activeGroup)
-  const fields = FIELDS[tab] ?? []
+  const groupTabs = allTabs.filter(t => t.group === activeGroup)
+  const fields = allFields[tab] ?? []
 
   return (
     <div className="p-8">
@@ -423,19 +451,22 @@ export function Sections() {
         title="CV Sections"
         subtitle="Manage all CV sections"
         actions={
-          <Button onClick={openCreate}><Plus size={16} /> Add Entry</Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setManagingCustom(true)}><Settings size={16} /> Custom Sections</Button>
+            <Button onClick={openCreate}><Plus size={16} /> Add Entry</Button>
+          </div>
         }
       />
 
       {/* Group bar */}
       <div className="flex gap-2 mb-3 flex-wrap">
-        {GROUPS.map(g => (
+        {allGroups.map(g => (
           <button
             key={g}
             onClick={() => {
               setActiveGroup(g)
               setSearch('')
-              const first = TABS.find(t => t.group === g)
+              const first = allTabs.find(t => t.group === g)
               if (first) setTab(first.key)
             }}
             className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors
@@ -583,6 +614,8 @@ export function Sections() {
           </div>
         </div>
       </Modal>
+
+      <SectionDefinitionEditor open={managingCustom} onClose={() => setManagingCustom(false)} />
     </div>
   )
 }

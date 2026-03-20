@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import create_tables, get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.routers import admin, auth, profile, templates, export, cv_instances, works, cv_items, citations
+from app.routers import admin, auth, profile, templates, export, cv_instances, works, cv_items, citations, section_definitions
 
 app = FastAPI(
     title="CVBuilder API",
@@ -34,6 +34,7 @@ app.include_router(cv_instances.router)
 app.include_router(works.router)
 app.include_router(cv_items.router)
 app.include_router(citations.router)
+app.include_router(section_definitions.router)
 app.include_router(admin.router)
 
 
