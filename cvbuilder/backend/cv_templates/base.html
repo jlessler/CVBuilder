@@ -33,22 +33,23 @@
   {% for section in sections %}
     {% set key = section.key %}
     {% set config = section.config %}
+    {% set _depth = section.depth|default(0) %}
 
     {# Group Heading #}
     {% if key == 'group_heading' %}
-    <div class="cv-group-heading">{{ config.get('heading', '') }}</div>
+    <div class="cv-group-heading cv-group-heading-{{ _depth }} cv-depth-{{ _depth }}">{{ config.get('heading', '') }}</div>
 
     {# Education #}
     {% elif key == 'education' %}
-      {% include 'sections/education.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/education.html' %}</div>
 
     {# Experience #}
     {% elif key == 'experience' %}
-      {% include 'sections/experience.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/experience.html' %}</div>
 
     {# Consulting #}
     {% elif key == 'consulting' and cv.consulting %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Consulting') }}</div>
       {% for e in cv.consulting %}
       <div class="cv-entry">
@@ -63,7 +64,7 @@
 
     {# Memberships #}
     {% elif key == 'memberships' and cv.memberships %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Professional Memberships') }}</div>
       <ul class="cv-list">
         {% for m in cv.memberships %}
@@ -75,16 +76,16 @@
     {# Panels - Advisory #}
     {% elif key == 'panels_advisory' %}
       {% set config = config | combine({'panel_type': 'advisory', 'heading': config.get('heading', 'Advisory Panels')}) %}
-      {% include 'sections/panels.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/panels.html' %}</div>
 
     {# Panels - Grant Review #}
     {% elif key == 'panels_grantreview' %}
       {% set config = config | combine({'panel_type': 'grant_review', 'heading': config.get('heading', 'Grant Review Panels')}) %}
-      {% include 'sections/panels.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/panels.html' %}</div>
 
     {# Patents #}
     {% elif key == 'patents' and cv.patents %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Patents') }} <span class="pub-count">({{ cv.patents | length }} total)</span></div>
       {% for p in cv.patents %}
       <div class="cv-entry">
@@ -102,7 +103,7 @@
 
     {# Symposia #}
     {% elif key == 'symposia' and cv.symposia %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Symposia Organized') }}</div>
       {% for s in cv.symposia %}
       <div class="cv-entry">
@@ -118,7 +119,7 @@
 
     {# Teaching / Classes #}
     {% elif key == 'classes' and cv.classes %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Teaching') }}</div>
       {% for c in cv.classes %}
       <div class="cv-entry">
@@ -135,15 +136,15 @@
 
     {# Grants #}
     {% elif key == 'grants' %}
-      {% include 'sections/grants.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/grants.html' %}</div>
 
     {# Awards #}
     {% elif key == 'awards' %}
-      {% include 'sections/awards.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/awards.html' %}</div>
 
     {# Press #}
     {% elif key == 'press' and cv.press %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Press Coverage') }}</div>
       {% for p in cv.press %}
       <div class="cv-entry">
@@ -161,18 +162,18 @@
     {# Trainees - advisees #}
     {% elif key == 'trainees_advisees' %}
       {% set config = config | combine({'trainee_type': 'advisee', 'heading': config.get('heading', 'Graduate Advisees')}) %}
-      {% include 'sections/trainees.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/trainees.html' %}</div>
 
     {# Trainees - postdocs #}
     {% elif key == 'trainees_postdocs' %}
       {% set config = config | combine({'trainee_type': 'postdoc', 'heading': config.get('heading', 'Postdoctoral Fellows')}) %}
-      {% include 'sections/trainees.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/trainees.html' %}</div>
 
     {# Mentorship #}
     {% elif key == 'mentorship' %}
     {% set items = cv.get('mentorship', []) %}
     {% if items %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Mentorship') }}</div>
       {% for m in items %}
       <div class="cv-entry">
@@ -193,7 +194,7 @@
 
     {# Seminars (invited talks) #}
     {% elif key == 'seminars' and cv.seminars %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Invited Seminars') }}</div>
       {% for s in cv.seminars %}
       <div class="cv-entry">
@@ -210,7 +211,7 @@
 
     {# Committees #}
     {% elif key == 'committees' and cv.committees %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Committee Memberships') }}</div>
       {% for c in cv.committees %}
       <div class="cv-entry">
@@ -229,7 +230,7 @@
     {% set editors     = cv.editorial | selectattr('section', 'equalto', 'editor')    | list %}
     {% set assocedits  = cv.editorial | selectattr('section', 'equalto', 'assocedit') | list %}
     {% set otheredits  = cv.editorial | selectattr('section', 'equalto', 'otheredit') | list %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Editorial Activities') }}</div>
 
       {% if editors %}
@@ -266,7 +267,7 @@
 
     {# Peer Review #}
     {% elif key == 'peerrev' and cv.peerrev %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Peer Review') }}</div>
       <ul class="cv-list">
         {% for p in cv.peerrev %}
@@ -277,7 +278,7 @@
 
     {# Software #}
     {% elif key == 'software' and cv.software %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Software') }}</div>
       {% for s in cv.software %}
       <div class="cv-entry">
@@ -294,7 +295,7 @@
 
     {# Policy Presentations #}
     {% elif key == 'policypres' and cv.policypres %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Policy Presentations') }}</div>
       {% for p in cv.policypres %}
       <div class="cv-entry">
@@ -310,7 +311,7 @@
 
     {# Policy Consulting #}
     {% elif key == 'policycons' and cv.policycons %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Policy Consulting') }}</div>
       {% for p in cv.policycons %}
       <div class="cv-entry">
@@ -326,7 +327,7 @@
 
     {# Other Service #}
     {% elif key == 'otherservice' and cv.otherservice %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Other Service') }}</div>
       {% for s in cv.otherservice %}
       <div class="cv-entry">
@@ -341,36 +342,36 @@
 
     {# Citation Metrics #}
     {% elif key == 'citation_metrics' %}
-      {% include 'sections/citation_metrics.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/citation_metrics.html' %}</div>
 
     {# Publications #}
     {% elif key == 'publications_papers' %}
       {% set config = config | combine({'pub_type': 'papers', 'heading': config.get('heading', 'Peer-Reviewed Publications')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {% elif key == 'publications_preprints' %}
       {% set config = config | combine({'pub_type': 'preprints', 'heading': config.get('heading', 'Preprints')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {% elif key == 'publications_chapters' %}
       {% set config = config | combine({'pub_type': 'chapters', 'heading': config.get('heading', 'Book Chapters')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {% elif key == 'publications_letters' %}
       {% set config = config | combine({'pub_type': 'letters', 'heading': config.get('heading', 'Letters & Commentaries')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {% elif key == 'publications_scimeetings' %}
       {% set config = config | combine({'pub_type': 'scimeetings', 'heading': config.get('heading', 'Scientific Meeting Presentations')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {% elif key == 'publications_editorials' %}
       {% set config = config | combine({'pub_type': 'editorials', 'heading': config.get('heading', 'Published Articles and Editorials not Peer Reviewed')}) %}
-      {% include 'sections/publications.html' %}
+      <div class="cv-depth-{{ _depth }}">{% include 'sections/publications.html' %}</div>
 
     {# Dissertation #}
     {% elif key == 'dissertation' and cv.dissertation %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Dissertation') }}</div>
       {% for d in cv.dissertation %}
       <div class="cv-entry">
@@ -385,7 +386,7 @@
 
     {# Chaired Sessions #}
     {% elif key == 'chairedsessions' and cv.chairedsessions %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Chaired Sessions') }}</div>
       {% for s in cv.chairedsessions %}
       <div class="cv-entry">
@@ -400,7 +401,7 @@
 
     {# Other Practice Activities #}
     {% elif key == 'otherpractice' and cv.otherpractice %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Other Practice Activities') }}</div>
       {% for p in cv.otherpractice %}
       <div class="cv-entry">
@@ -416,7 +417,7 @@
 
     {# Departmental Oral Exams #}
     {% elif key == 'departmentalOrals' and cv.departmentalOrals %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Departmental Oral Exams') }}</div>
       {% for s in cv.departmentalOrals %}
       <div class="cv-entry">
@@ -432,7 +433,7 @@
 
     {# Final Dissertation Defenses #}
     {% elif key == 'finaldefense' and cv.finaldefense %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'Final Dissertation Defenses') }}</div>
       {% for s in cv.finaldefense %}
       <div class="cv-entry">
@@ -449,7 +450,7 @@
 
     {# School-wide Oral Exams #}
     {% elif key == 'schoolwideOrals' and cv.schoolwideOrals %}
-    <div class="cv-section">
+    <div class="cv-section cv-depth-{{ _depth }}">
       <div class="cv-section-heading">{{ config.get('heading', 'School-wide Oral Exams') }}</div>
       {% for s in cv.schoolwideOrals %}
       <div class="cv-entry">

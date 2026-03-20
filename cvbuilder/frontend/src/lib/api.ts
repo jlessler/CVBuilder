@@ -255,6 +255,7 @@ export interface TemplateSection {
   enabled: boolean
   section_order: number
   config: Record<string, string> | null
+  depth: number
 }
 
 export interface CVTemplate {
@@ -280,6 +281,7 @@ export interface CVInstanceSection {
   section_order: number | null
   heading_override: string | null
   config_overrides: Record<string, unknown> | null
+  depth: number
   curated: boolean
   items: CVInstanceItem[]
 }

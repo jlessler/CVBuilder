@@ -207,6 +207,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
         heading: s.heading_override || '',
         config: s.config_overrides || {},
         extra: { curated: s.curated ?? false },
+        depth: s.depth ?? 0,
       }
     },
   )
@@ -233,6 +234,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
           section_order: i,
           heading_override: s.heading || null,
           config_overrides: Object.keys(s.config).length > 0 ? s.config : null,
+          depth: s.depth,
           curated: !!s.extra.curated,
         })),
       })

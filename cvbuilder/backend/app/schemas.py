@@ -188,6 +188,7 @@ class TemplateSectionBase(BaseModel):
     enabled: bool = True
     section_order: int = 0
     config: Optional[dict] = None
+    depth: int = 0
 
 class TemplateSectionCreate(TemplateSectionBase):
     pass
@@ -235,6 +236,7 @@ class CVInstanceSectionOut(BaseModel):
     section_order: Optional[int] = None
     heading_override: Optional[str] = None
     config_overrides: Optional[dict] = None
+    depth: int = 0
     curated: bool = False
     items: list[CVInstanceItemOut] = []
 
@@ -274,6 +276,7 @@ class CVInstanceSectionUpdate(BaseModel):
     section_order: Optional[int] = None
     heading_override: Optional[str] = None
     config_overrides: Optional[dict] = None
+    depth: int = 0
     curated: bool = False
 
 

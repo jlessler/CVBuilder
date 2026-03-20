@@ -151,6 +151,7 @@ def create_cv_instance(
             enabled=ts.enabled,
             section_order=ts.section_order,
             heading_override=ts.config.get("heading") if ts.config else None,
+            depth=ts.depth or 0,
             curated=False,
         ))
     db.commit()
@@ -240,6 +241,7 @@ def update_sections(
             section_order=sec_data.section_order,
             heading_override=sec_data.heading_override,
             config_overrides=sec_data.config_overrides,
+            depth=sec_data.depth,
             curated=sec_data.curated,
         )
         db.add(new_sec)
@@ -347,6 +349,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
             effective_sections.append({
                 "key": "group_heading",
                 "config": {"heading": sec.heading_override or ""},
+                "depth": sec.depth or 0,
                 "_curated": False,
                 "_item_ids": None,
             })
@@ -361,6 +364,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
         effective_sections.append({
             "key": sec.section_key,
             "config": config,
+            "depth": sec.depth or 0,
             "_curated": sec.curated,
             "_item_ids": {item.item_id for item in sec.items} if sec.curated else None,
         })
@@ -431,7 +435,7 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
 
     # Clean up internal keys from sections
     clean_sections = [
-        {"key": s["key"], "config": s["config"]}
+        {"key": s["key"], "config": s["config"], "depth": s.get("depth", 0)}
         for s in effective_sections
     ]
 

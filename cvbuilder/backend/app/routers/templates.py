@@ -118,6 +118,7 @@ def create_template(
             enabled=s.enabled,
             section_order=s.section_order or i,
             config=s.config,
+            depth=s.depth,
         ))
     db.commit()
     db.refresh(tmpl)
@@ -149,6 +150,7 @@ def update_template(
                 enabled=s.enabled,
                 section_order=s.section_order or i,
                 config=s.config,
+                depth=s.depth,
             ))
     db.commit()
     db.refresh(tmpl)
@@ -194,7 +196,7 @@ def preview_template(
         raise HTTPException(status_code=404, detail="Template not found")
     cv_data = _build_cv_data(db, user_id=user.id, sort_direction=tmpl.sort_direction)
     enabled_sections = [
-        {"key": s.section_key, "config": s.config or {}}
+        {"key": s.section_key, "config": s.config or {}, "depth": s.depth or 0}
         for s in tmpl.sections if s.enabled
     ]
     from app.services.pdf import render_cv_html
@@ -213,7 +215,7 @@ def export_pdf(
         raise HTTPException(status_code=404, detail="Template not found")
     cv_data = _build_cv_data(db, user_id=current_user.id, sort_direction=tmpl.sort_direction)
     enabled_sections = [
-        {"key": s.section_key, "config": s.config or {}}
+        {"key": s.section_key, "config": s.config or {}, "depth": s.depth or 0}
         for s in tmpl.sections if s.enabled
     ]
     from app.services.pdf import render_cv_html, html_to_pdf

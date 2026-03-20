@@ -37,6 +37,8 @@ DEFAULT_STYLE: dict[str, str] = {
     "section_margin_bottom": "1.2em",
     "heading_letter_spacing": "0.08em",
     "line_height": "1.4",
+    "subgroup_font_size": "",
+    "section_indent_per_level": "0",
     "custom_css": "",
 }
 
@@ -142,6 +144,17 @@ def _resolve_style(style: dict | None) -> dict[str, str]:
             if v is not None:
                 merged[k] = v
     return merged
+
+
+def _depth_indent_css(s: dict[str, str]) -> str:
+    """Generate CSS for depth-based indentation if section_indent_per_level is set."""
+    indent = s.get("section_indent_per_level", "0")
+    if not indent or indent == "0":
+        return ""
+    lines = []
+    for d in range(1, 4):
+        lines.append(f".cv-depth-{d} {{ padding-left: calc({d} * {indent}); }}")
+    return "\n".join(lines)
 
 
 def generate_css(style: dict | None) -> str:
@@ -373,6 +386,42 @@ ul.cv-list li {{
   color: {s['muted_color']};
   font-style: italic;
 }}
+
+.cv-group-heading-0 {{
+  font-family: {s['font_heading']};
+  font-size: {s['name_font_size']};
+  font-weight: bold;
+  color: {s['primary_color']};
+  {heading_transform}
+  letter-spacing: {s['heading_letter_spacing']};
+  border-bottom: 2px solid {s['primary_color']};
+  padding-bottom: 3px;
+  margin: 1.2em 0 0.6em 0;
+}}
+
+.cv-group-heading-1 {{
+  font-family: {s['font_heading']};
+  font-size: {s.get('subgroup_font_size') or s['heading_font_size']};
+  font-weight: bold;
+  color: {s['primary_color']};
+  {heading_transform}
+  letter-spacing: {s['heading_letter_spacing']};
+  border-bottom: 1px solid {s['border_color']};
+  padding-bottom: 2px;
+  margin: 0.8em 0 0.4em 0;
+}}
+
+.cv-group-heading-2 {{
+  font-family: {s['font_heading']};
+  font-size: {s['heading_font_size']};
+  font-weight: normal;
+  font-style: italic;
+  color: {s['primary_color']};
+  letter-spacing: {s['heading_letter_spacing']};
+  margin: 0.6em 0 0.3em 0;
+}}
+
+{_depth_indent_css(s)}
 
 @media print {{
   .cv-page {{ padding: 0; }}

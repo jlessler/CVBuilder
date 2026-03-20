@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, Checkbox, Badge } from './ui'
-import { GripVertical, ChevronDown, ChevronRight, Layers, Trash2 } from 'lucide-react'
+import { GripVertical, ChevronDown, ChevronRight, ChevronLeft, Layers, Trash2, IndentIncrease, IndentDecrease } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -59,6 +59,7 @@ export type SectionEntry = {
   heading: string
   config: Record<string, unknown>
   extra: Record<string, unknown>
+  depth: number
 }
 
 export function buildInitialSections<T>(
@@ -81,6 +82,7 @@ export function buildInitialSections<T>(
       heading: '',
       config: {},
       extra: {},
+      depth: 0,
     }))
   return [...ordered, ...missing]
 }
@@ -90,19 +92,20 @@ export function buildInitialSections<T>(
 // ---------------------------------------------------------------------------
 
 function SortableGroupHeadingRow({
-  section, sortableId, onHeadingChange, onDelete,
+  section, sortableId, onHeadingChange, onDelete, onDepthChange,
 }: {
   section: SectionEntry
   sortableId: string
   onHeadingChange: (h: string) => void
   onDelete: () => void
+  onDepthChange: (depth: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: sortableId })
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Transform.toString(transform), transition, marginLeft: `${section.depth * 1.5}rem` }}
       className="rounded-lg border mb-1.5 bg-blue-50 border-blue-200"
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
@@ -118,6 +121,24 @@ function SortableGroupHeadingRow({
             onChange={e => onHeadingChange(e.target.value)}
           />
         </div>
+        <div className="flex gap-0.5">
+          <button
+            onClick={() => onDepthChange(Math.max(0, section.depth - 1))}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+            disabled={section.depth === 0}
+            title="Outdent"
+          >
+            <IndentDecrease size={14} />
+          </button>
+          <button
+            onClick={() => onDepthChange(Math.min(3, section.depth + 1))}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+            disabled={section.depth >= 3}
+            title="Indent"
+          >
+            <IndentIncrease size={14} />
+          </button>
+        </div>
         <button onClick={onDelete} className="text-red-400 hover:text-red-600">
           <Trash2 size={14} />
         </button>
@@ -128,13 +149,14 @@ function SortableGroupHeadingRow({
 
 function SortableDataRow({
   section, sortableId, onToggle, onHeadingChange, onConfigChange,
-  renderExpandedContent, renderBadges, alwaysExpandable,
+  onDepthChange, renderExpandedContent, renderBadges, alwaysExpandable,
 }: {
   section: SectionEntry
   sortableId: string
   onToggle: () => void
   onHeadingChange: (h: string) => void
   onConfigChange: (config: Record<string, unknown>) => void
+  onDepthChange: (depth: number) => void
   renderExpandedContent?: () => React.ReactNode
   renderBadges?: () => React.ReactNode
   alwaysExpandable?: boolean
@@ -148,7 +170,7 @@ function SortableDataRow({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Transform.toString(transform), transition, marginLeft: `${section.depth * 1.5}rem` }}
       className={`rounded-lg border mb-1.5 ${
         section.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
       }`}
@@ -170,6 +192,24 @@ function SortableDataRow({
           <p className="text-sm font-medium text-gray-800">{section.label}</p>
         </div>
         {renderBadges?.()}
+        <div className="flex gap-0.5">
+          <button
+            onClick={() => onDepthChange(Math.max(0, section.depth - 1))}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+            disabled={section.depth === 0}
+            title="Outdent"
+          >
+            <IndentDecrease size={14} />
+          </button>
+          <button
+            onClick={() => onDepthChange(Math.min(3, section.depth + 1))}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+            disabled={section.depth >= 3}
+            title="Indent"
+          >
+            <IndentIncrease size={14} />
+          </button>
+        </div>
         <input
           className="w-40 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
           placeholder="Section heading..."
@@ -246,6 +286,7 @@ export function SectionComposer({
         heading: '',
         config: {},
         extra: {},
+        depth: 0,
       },
     ])
   }
@@ -279,6 +320,7 @@ export function SectionComposer({
                 section={sec}
                 onHeadingChange={h => updateSection(idx, { heading: h })}
                 onDelete={() => removeSection(idx)}
+                onDepthChange={depth => updateSection(idx, { depth })}
               />
             ) : (
               <SortableDataRow
@@ -288,6 +330,7 @@ export function SectionComposer({
                 onToggle={() => updateSection(idx, { enabled: !sec.enabled })}
                 onHeadingChange={h => updateSection(idx, { heading: h })}
                 onConfigChange={config => updateSection(idx, { config })}
+                onDepthChange={depth => updateSection(idx, { depth })}
                 alwaysExpandable={hasExpandableContent}
                 renderExpandedContent={renderExpandedContent ? () => renderExpandedContent(sec, idx) : undefined}
                 renderBadges={renderBadges ? () => renderBadges(sec, idx) : undefined}

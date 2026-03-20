@@ -386,6 +386,7 @@ class TemplateSection(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     section_order: Mapped[int] = mapped_column(Integer, default=0)
     config: Mapped[Optional[dict]] = mapped_column(JSON)  # heading text, etc.
+    depth: Mapped[int] = mapped_column(Integer, default=0)
     template: Mapped["CVTemplate"] = relationship(back_populates="sections")
 
 
@@ -420,6 +421,7 @@ class CVInstanceSection(Base):
     section_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     heading_override: Mapped[Optional[str]] = mapped_column(String(300))
     config_overrides: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    depth: Mapped[int] = mapped_column(Integer, default=0)
     curated: Mapped[bool] = mapped_column(Boolean, default=False)
     cv_instance: Mapped["CVInstance"] = relationship(back_populates="sections")
     items: Mapped[list["CVInstanceItem"]] = relationship(

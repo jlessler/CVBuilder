@@ -197,6 +197,8 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
           <div className="grid grid-cols-3 gap-3">
             {([
               ['heading_font_size', 'Heading size'],
+              ['subgroup_font_size', 'Sub-heading size'],
+              ['section_indent_per_level', 'Indent / level'],
               ['page_width', 'Page width'],
               ['page_padding', 'Page padding'],
               ['date_column_width', 'Date col width'],
@@ -245,6 +247,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
         heading: (s.config?.heading as string) || '',
         config: { ...s.config },
         extra: { id: s.id ?? 0 },
+        depth: s.depth ?? 0,
       }
     },
   )
@@ -261,6 +264,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
         enabled: s.enabled,
         section_order: i,
         config: { ...s.config, heading: s.heading },
+        depth: s.depth,
       })),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); onClose() },
