@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { Button, Checkbox, Badge } from './ui'
-import { GripVertical, ChevronDown, ChevronRight, ChevronLeft, Layers, Trash2, IndentIncrease, IndentDecrease } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Button, Badge } from './ui'
+import { GripVertical, ChevronDown, ChevronRight, Layers, Trash2, IndentIncrease, IndentDecrease, Plus } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -9,8 +9,10 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { SectionPickerModal } from './SectionPickerModal'
+import type { PickerSection } from './SectionPickerModal'
 
-export const ALL_SECTIONS = [
+export const ALL_SECTIONS: PickerSection[] = [
   { key: 'education', label: 'Education' },
   { key: 'experience', label: 'Experience' },
   { key: 'consulting', label: 'Consulting' },
@@ -62,29 +64,20 @@ export type SectionEntry = {
   depth: number
 }
 
+/** @deprecated Use `toSectionEntries` instead — sections are no longer padded with missing entries */
 export function buildInitialSections<T>(
   existingSections: T[],
   toEntry: (s: T, index: number) => SectionEntry,
 ): SectionEntry[] {
-  const ordered = existingSections.map(toEntry)
-  const existingKeys = new Set(
-    ordered
-      .filter(s => s.section_key !== 'group_heading')
-      .map(s => s.section_key),
-  )
-  const missing: SectionEntry[] = ALL_SECTIONS
-    .filter(s => !existingKeys.has(s.key))
-    .map((s, i) => ({
-      section_key: s.key,
-      label: s.label,
-      enabled: false,
-      section_order: ordered.length + i,
-      heading: '',
-      config: {},
-      extra: {},
-      depth: 0,
-    }))
-  return [...ordered, ...missing]
+  return existingSections.map(toEntry)
+}
+
+/** Convert raw API section data to SectionEntry array (no padding with missing sections) */
+export function toSectionEntries<T>(
+  existingSections: T[],
+  toEntry: (s: T, index: number) => SectionEntry,
+): SectionEntry[] {
+  return existingSections.map(toEntry)
 }
 
 // ---------------------------------------------------------------------------
@@ -148,15 +141,15 @@ function SortableGroupHeadingRow({
 }
 
 function SortableDataRow({
-  section, sortableId, onToggle, onHeadingChange, onConfigChange,
-  onDepthChange, renderExpandedContent, renderBadges, alwaysExpandable,
+  section, sortableId, onHeadingChange, onConfigChange,
+  onDepthChange, onRemove, renderExpandedContent, renderBadges, alwaysExpandable,
 }: {
   section: SectionEntry
   sortableId: string
-  onToggle: () => void
   onHeadingChange: (h: string) => void
   onConfigChange: (config: Record<string, unknown>) => void
   onDepthChange: (depth: number) => void
+  onRemove: () => void
   renderExpandedContent?: () => React.ReactNode
   renderBadges?: () => React.ReactNode
   alwaysExpandable?: boolean
@@ -171,15 +164,12 @@ function SortableDataRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, marginLeft: `${section.depth * 1.5}rem` }}
-      className={`rounded-lg border mb-1.5 ${
-        section.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
-      }`}
+      className="rounded-lg border mb-1.5 bg-white border-gray-200"
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
           <GripVertical size={16} />
         </button>
-        <Checkbox checked={section.enabled} onChange={onToggle} />
         {isExpandable && (
           <button
             className="text-gray-400 hover:text-gray-600"
@@ -216,8 +206,11 @@ function SortableDataRow({
           value={section.heading}
           onChange={e => onHeadingChange(e.target.value)}
         />
+        <button onClick={onRemove} className="text-red-400 hover:text-red-600" title="Remove section">
+          <Trash2 size={14} />
+        </button>
       </div>
-      {expanded && section.enabled && (
+      {expanded && (
         <div className="border-t border-gray-100">
           {hasCrossrefOptions && (
             <div className="px-4 py-2 border-b border-gray-100 space-y-1">
@@ -256,15 +249,23 @@ function SortableDataRow({
 
 export function SectionComposer({
   sections, onChange, renderExpandedContent, renderBadges, sectionLabel,
+  customSections,
 }: {
   sections: SectionEntry[]
   onChange: (sections: SectionEntry[]) => void
   renderExpandedContent?: (section: SectionEntry, index: number) => React.ReactNode
   renderBadges?: (section: SectionEntry, index: number) => React.ReactNode
   sectionLabel?: string
+  customSections?: PickerSection[]
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor))
   const sortableIds = sections.map((_, i) => `row_${i}`)
+
+  const allPickerSections = useMemo(() => {
+    const custom = (customSections || []).map(s => ({ ...s, group: s.group || 'Custom' }))
+    return [...ALL_SECTIONS, ...custom]
+  }, [customSections])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -291,6 +292,23 @@ export function SectionComposer({
     ])
   }
 
+  function addSection(picked: PickerSection) {
+    onChange([
+      ...sections,
+      {
+        section_key: picked.key,
+        label: picked.label,
+        enabled: true,
+        section_order: sections.length,
+        heading: '',
+        config: {},
+        extra: {},
+        depth: 0,
+      },
+    ])
+    setPickerOpen(false)
+  }
+
   function removeSection(index: number) {
     onChange(sections.filter((_, i) => i !== index))
   }
@@ -306,10 +324,22 @@ export function SectionComposer({
     <div>
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-medium text-gray-700">{sectionLabel || 'Sections (drag to reorder)'}</p>
-        <Button variant="secondary" size="sm" onClick={addGroupHeading}>
-          <Layers size={14} /> Add Group Heading
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>
+            <Plus size={14} /> Add Section
+          </Button>
+          <Button variant="secondary" size="sm" onClick={addGroupHeading}>
+            <Layers size={14} /> Add Group Heading
+          </Button>
+        </div>
       </div>
+
+      {sections.length === 0 && (
+        <div className="py-8 text-center text-gray-400 text-sm border border-dashed border-gray-200 rounded-lg mb-2">
+          No sections added yet. Click "Add Section" to get started.
+        </div>
+      )}
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           {sections.map((sec, idx) =>
@@ -327,10 +357,10 @@ export function SectionComposer({
                 key={sortableIds[idx]}
                 sortableId={sortableIds[idx]}
                 section={sec}
-                onToggle={() => updateSection(idx, { enabled: !sec.enabled })}
                 onHeadingChange={h => updateSection(idx, { heading: h })}
                 onConfigChange={config => updateSection(idx, { config })}
                 onDepthChange={depth => updateSection(idx, { depth })}
+                onRemove={() => removeSection(idx)}
                 alwaysExpandable={hasExpandableContent}
                 renderExpandedContent={renderExpandedContent ? () => renderExpandedContent(sec, idx) : undefined}
                 renderBadges={renderBadges ? () => renderBadges(sec, idx) : undefined}
@@ -339,6 +369,14 @@ export function SectionComposer({
           )}
         </SortableContext>
       </DndContext>
+
+      {pickerOpen && (
+        <SectionPickerModal
+          availableSections={allPickerSections}
+          onSelect={addSection}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   )
 }

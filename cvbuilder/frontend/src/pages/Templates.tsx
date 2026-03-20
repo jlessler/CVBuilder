@@ -4,7 +4,7 @@ import { api, getToken } from '../lib/api'
 import type { CVTemplate } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Select } from '../components/ui'
 import { Plus, Trash2, Edit2, Eye } from 'lucide-react'
-import { ALL_SECTIONS, SectionComposer, buildInitialSections } from '../components/SectionComposer'
+import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
 
 const SORT_DIRECTIONS = [
@@ -233,7 +233,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
   const [style, setStyle] = useState<Record<string, string>>(template.style || THEME_PRESETS.academic)
   const [sortDirection, setSortDirection] = useState(template.sort_direction ?? 'desc')
 
-  const initialSections = buildInitialSections(
+  const initialSections = toSectionEntries(
     template.sections,
     (s, i): SectionEntry => {
       const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
@@ -242,7 +242,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
         label: s.section_key === 'group_heading'
           ? (s.config?.heading as string || 'Group Heading')
           : (meta?.label || s.section_key),
-        enabled: s.enabled,
+        enabled: true,
         section_order: s.section_order ?? i,
         heading: (s.config?.heading as string) || '',
         config: { ...s.config },
@@ -261,7 +261,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
       sort_direction: sortDirection,
       sections: sections.map((s, i) => ({
         section_key: s.section_key,
-        enabled: s.enabled,
+        enabled: true,
         section_order: i,
         config: { ...s.config, heading: s.heading },
         depth: s.depth,
@@ -334,10 +334,7 @@ export function Templates() {
       }
       return api.post('/templates', {
         name: newName, style: initialStyle, sort_direction: 'desc',
-        sections: ALL_SECTIONS.map((s, i) => ({
-          section_key: s.key, enabled: true, section_order: i,
-          config: { heading: s.label },
-        })),
+        sections: [],
       })
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); setCreating(false); setNewName(''); setCopyStyleFrom('') },
@@ -368,7 +365,7 @@ export function Templates() {
                   {tmpl.style?.primary_color && (
                     <span className="inline-block w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: tmpl.style.primary_color }} />
                   )}
-                  <Badge color="gray">{tmpl.sections.filter(s => s.enabled).length} sections</Badge>
+                  <Badge color="gray">{tmpl.sections.filter(s => s.section_key !== 'group_heading').length} sections</Badge>
                   <Badge color="blue">{tmpl.sort_direction === 'desc' ? 'Newest first' : 'Oldest first'}</Badge>
                 </div>
               </div>
@@ -415,7 +412,7 @@ export function Templates() {
               </select>
             </div>
           )}
-          <p className="text-sm text-gray-500">All sections will be enabled by default. You can customize in the composer.</p>
+          <p className="text-sm text-gray-500">You can add sections in the composer after creating the template.</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>
             <Button onClick={() => createMut.mutate()} loading={createMut.isPending} disabled={!newName}>

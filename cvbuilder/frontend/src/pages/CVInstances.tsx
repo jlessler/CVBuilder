@@ -4,7 +4,7 @@ import { api, getToken } from '../lib/api'
 import type { CVInstance, CVTemplate, AvailableItem } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
 import { Plus, Trash2, Edit2, Eye, FileDown } from 'lucide-react'
-import { ALL_SECTIONS, SectionComposer, buildInitialSections } from '../components/SectionComposer'
+import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
 
 const HEADER_ALIGNMENTS = [
@@ -193,7 +193,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
   const [preview, setPreview] = useState(false)
 
   const sorted = [...instance.sections].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0))
-  const initialSections = buildInitialSections(
+  const initialSections = toSectionEntries(
     sorted,
     (s, i): SectionEntry => {
       const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
@@ -202,7 +202,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
         label: s.section_key === 'group_heading'
           ? (s.heading_override || 'Group Heading')
           : (meta?.label || s.section_key),
-        enabled: s.enabled ?? false,
+        enabled: true,
         section_order: s.section_order ?? i,
         heading: s.heading_override || '',
         config: s.config_overrides || {},
@@ -230,7 +230,7 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
       await api.put(`/cv-instances/${instance.id}/sections`, {
         sections: sections.map((s, i) => ({
           section_key: s.section_key,
-          enabled: s.enabled,
+          enabled: true,
           section_order: i,
           heading_override: s.heading || null,
           config_overrides: Object.keys(s.config).length > 0 ? s.config : null,
@@ -378,7 +378,7 @@ export function CVInstances() {
                 <div className="flex gap-1 mt-1 flex-wrap">
                   <Badge color="blue">{inst.template_name || 'Unknown template'}</Badge>
                   {inst.style_overrides && Object.keys(inst.style_overrides).length > 0 && <Badge color="purple">Custom style</Badge>}
-                  <Badge color="gray">{inst.sections.filter(s => s.enabled).length} sections</Badge>
+                  <Badge color="gray">{inst.sections.filter(s => s.section_key !== 'group_heading').length} sections</Badge>
                   {inst.sections.some(s => s.curated) && <Badge color="green">Curated</Badge>}
                 </div>
               </div>

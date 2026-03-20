@@ -47,7 +47,7 @@ def _extract_frontend_all_sections() -> set[str]:
     """Parse ALL_SECTIONS array keys from the shared SectionComposer component."""
     text = (ROOT / "frontend" / "src" / "components" / "SectionComposer.tsx").read_text()
     # Find the ALL_SECTIONS block
-    m = re.search(r'const ALL_SECTIONS\s*=\s*\[(.+?)\]', text, re.DOTALL)
+    m = re.search(r'ALL_SECTIONS[^=]*=\s*\[(.+?)\]', text, re.DOTALL)
     assert m, "ALL_SECTIONS not found in SectionComposer.tsx"
     block = m.group(1)
     return set(re.findall(r"key:\s*'([a-zA-Z_]+)'", block))
