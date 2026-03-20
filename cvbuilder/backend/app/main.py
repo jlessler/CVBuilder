@@ -682,6 +682,7 @@ def _migrate_press_outlets(db):
 # Section heading labels used by all templates
 # ---------------------------------------------------------------------------
 _HEADINGS = {
+    "group_heading":              "",
     "education":                  "Education",
     "experience":                 "Professional Experience",
     "consulting":                 "Consulting Activities",
@@ -721,22 +722,61 @@ _HEADINGS = {
 }
 
 # ---------------------------------------------------------------------------
-# Template definitions: name → (description, style_preset_name, ordered section keys)
+# Template definitions: name → (description, style_preset_name, ordered sections)
+# Each section is a tuple of (section_key, config_override_or_None).
+# Group headings use section_key="group_heading" with {"heading": "..."}.
 # ---------------------------------------------------------------------------
 _TEMPLATES = {
     "Academic CV": (
         "Full academic CV with all sections",
         "academic",
         [
-            "education", "experience", "consulting", "memberships",
-            "panels_advisory", "panels_grantreview", "patents", "symposia",
-            "committees", "editorial", "peerrev",
-            "classes", "grants", "awards", "press",
-            "trainees_advisees", "trainees_postdocs",
-            "seminars",
-            "publications_papers", "publications_preprints",
-            "publications_chapters", "publications_letters",
-            "publications_scimeetings",
+            ("group_heading", {"heading": "Education and Training"}),
+            ("education", None),
+            ("experience", None),
+            ("group_heading", {"heading": "Professional Activities"}),
+            ("memberships", None),
+            ("panels_advisory", None),
+            ("panels_grantreview", None),
+            ("symposia", None),
+            ("patents", None),
+            ("group_heading", {"heading": "Editorial and Other Peer Review Activities"}),
+            ("editorial", None),
+            ("peerrev", None),
+            ("group_heading", {"heading": "Honors and Awards"}),
+            ("awards", None),
+            ("group_heading", {"heading": "Publications"}),
+            ("publications_papers", None),
+            ("publications_editorials", None),
+            ("publications_preprints", None),
+            ("publications_chapters", None),
+            ("publications_letters", None),
+            ("group_heading", {"heading": "Practice Activities"}),
+            ("policypres", None),
+            ("policycons", None),
+            ("press", None),
+            ("software", None),
+            ("otherpractice", None),
+            ("group_heading", {"heading": "Teaching"}),
+            ("trainees_advisees", None),
+            ("trainees_postdocs", None),
+            ("mentorship", None),
+            ("departmentalOrals", None),
+            ("finaldefense", None),
+            ("schoolwideOrals", None),
+            ("classes", None),
+            ("group_heading", {"heading": "Research Grant Participation"}),
+            ("grants", None),
+            ("group_heading", {"heading": "Academic Service"}),
+            ("committees", None),
+            ("otherservice", None),
+            ("group_heading", {"heading": "Presentations"}),
+            ("publications_scimeetings", None),
+            ("chairedsessions", None),
+            ("seminars", None),
+            ("consulting", None),
+            ("dissertation", None),
+            ("citation_metrics", None),
         ],
     ),
     "UNC CV": (
@@ -744,18 +784,49 @@ _TEMPLATES = {
         "bibliography-forward section order",
         "unc",
         [
-            "education", "experience", "awards", "memberships",
-            "dissertation",
-            "publications_papers", "patents",
-            "publications_editorials",
-            "publications_chapters", "publications_preprints",
-            "publications_letters", "publications_scimeetings",
-            "classes", "trainees_advisees", "trainees_postdocs",
-            "grants",
-            "panels_advisory", "panels_grantreview", "symposia",
-            "chairedsessions",
-            "consulting", "press",
-            "otherpractice",
+            ("education", None),
+            ("experience", None),
+            ("group_heading", {"heading": "Honors and Awards"}),
+            ("awards", None),
+            ("group_heading", {"heading": "Memberships"}),
+            ("memberships", None),
+            ("group_heading", {"heading": "Bibliography and Products of Scholarship"}),
+            ("publications_papers", None),
+            ("patents", None),
+            ("publications_editorials", None),
+            ("publications_chapters", None),
+            ("publications_preprints", None),
+            ("publications_letters", None),
+            ("publications_scimeetings", None),
+            ("seminars", None),
+            ("software", None),
+            ("dissertation", None),
+            ("group_heading", {"heading": "Teaching Record"}),
+            ("classes", None),
+            ("trainees_advisees", None),
+            ("trainees_postdocs", None),
+            ("mentorship", None),
+            ("departmentalOrals", None),
+            ("finaldefense", None),
+            ("schoolwideOrals", None),
+            ("group_heading", {"heading": "Contracts and Grants"}),
+            ("grants", None),
+            ("group_heading", {"heading": "Professional Service"}),
+            ("committees", None),
+            ("otherservice", None),
+            ("panels_advisory", None),
+            ("panels_grantreview", None),
+            ("symposia", None),
+            ("chairedsessions", None),
+            ("editorial", None),
+            ("peerrev", None),
+            ("consulting", None),
+            ("group_heading", {"heading": "Public Health Practice and Communication"}),
+            ("policypres", None),
+            ("policycons", None),
+            ("press", None),
+            ("otherpractice", None),
+            ("citation_metrics", None),
         ],
     ),
     "Hopkins CV": (
@@ -763,13 +834,52 @@ _TEMPLATES = {
         "centered CURRICULUM VITAE title, practice-activities section",
         "hopkins",
         [
-            "education", "experience",
-            "memberships", "panels_advisory", "symposia", "patents",
-            "panels_grantreview", "awards",
-            "publications_papers", "publications_chapters",
-            "publications_letters", "press",
-            "trainees_advisees", "trainees_postdocs", "classes",
-            "grants", "publications_scimeetings", "consulting",
+            ("group_heading", {"heading": "Education and Training"}),
+            ("education", None),
+            ("experience", None),
+            ("group_heading", {"heading": "Professional Activities"}),
+            ("memberships", None),
+            ("panels_advisory", None),
+            ("symposia", None),
+            ("patents", None),
+            ("panels_grantreview", None),
+            ("group_heading", {"heading": "Editorial and Other Peer Review Activities"}),
+            ("editorial", None),
+            ("peerrev", None),
+            ("group_heading", {"heading": "Honors and Awards"}),
+            ("awards", None),
+            ("group_heading", {"heading": "Publications"}),
+            ("publications_papers", None),
+            ("publications_editorials", None),
+            ("publications_chapters", None),
+            ("publications_letters", None),
+            ("group_heading", {"heading": "Practice Activities"}),
+            ("policypres", None),
+            ("policycons", None),
+            ("press", None),
+            ("software", None),
+            ("otherpractice", None),
+            ("group_heading", {"heading": "Teaching"}),
+            ("trainees_advisees", None),
+            ("trainees_postdocs", None),
+            ("mentorship", None),
+            ("departmentalOrals", None),
+            ("finaldefense", None),
+            ("schoolwideOrals", None),
+            ("classes", None),
+            ("group_heading", {"heading": "Research Grant Participation"}),
+            ("grants", None),
+            ("group_heading", {"heading": "Academic Service"}),
+            ("committees", None),
+            ("otherservice", None),
+            ("group_heading", {"heading": "Presentations"}),
+            ("publications_scimeetings", None),
+            ("chairedsessions", None),
+            ("seminars", None),
+            ("publications_preprints", None),
+            ("dissertation", None),
+            ("consulting", None),
+            ("citation_metrics", None),
         ],
     ),
     "UNIGE CV": (
@@ -777,20 +887,59 @@ _TEMPLATES = {
         "research-supervision-forward structure",
         "unige",
         [
-            "education", "experience", "grants",
-            "trainees_advisees", "trainees_postdocs",
-            "panels_advisory", "panels_grantreview", "symposia",
-            "publications_scimeetings",
-            "publications_papers", "publications_preprints",
-            "publications_chapters", "publications_letters",
-            "memberships", "press",
+            ("group_heading", {"heading": "Personal Data"}),
+            ("education", None),
+            ("experience", None),
+            ("group_heading", {"heading": "Research Outputs"}),
+            ("publications_papers", None),
+            ("publications_preprints", None),
+            ("publications_chapters", None),
+            ("publications_letters", None),
+            ("publications_editorials", None),
+            ("group_heading", {"heading": "Research Funding and Grants"}),
+            ("grants", None),
+            ("group_heading", {"heading": "Research Supervision and Mentoring"}),
+            ("trainees_advisees", None),
+            ("trainees_postdocs", None),
+            ("mentorship", None),
+            ("group_heading", {"heading": "Other Scientific Activities"}),
+            ("policypres", None),
+            ("policycons", None),
+            ("press", None),
+            ("otherpractice", None),
+            ("panels_advisory", None),
+            ("panels_grantreview", None),
+            ("symposia", None),
+            ("seminars", None),
+            ("publications_scimeetings", None),
+            ("chairedsessions", None),
+            ("editorial", None),
+            ("peerrev", None),
+            ("memberships", None),
+            ("classes", None),
+            ("awards", None),
+            ("patents", None),
+            ("software", None),
+            ("dissertation", None),
+            ("committees", None),
+            ("otherservice", None),
+            ("consulting", None),
+            ("departmentalOrals", None),
+            ("finaldefense", None),
+            ("schoolwideOrals", None),
+            ("citation_metrics", None),
         ],
     ),
 }
 
 
 def _seed_templates(db, user_id: int = 1):
-    """Insert new templates and add any missing sections to existing templates."""
+    """Insert new templates and add any missing sections to existing templates.
+
+    Each entry in the sections list is a tuple of (section_key, config_override_or_None).
+    Group headings (section_key="group_heading") are always appended since multiple
+    can exist; regular sections are only added if not already present.
+    """
     from app.services.pdf import THEME_PRESETS
 
     existing_tmpls = {
@@ -809,17 +958,39 @@ def _seed_templates(db, user_id: int = 1):
         else:
             tmpl = existing_tmpls[name]
 
-        existing_keys = {
-            s.section_key for s in
-            db.query(models.TemplateSection).filter_by(template_id=tmpl.id).all()
-        }
-        # Append any new section keys at the end of the current order
-        next_order = db.query(models.TemplateSection).filter_by(
-            template_id=tmpl.id
-        ).count()
-        for key in sections:
-            if key not in existing_keys:
-                heading = _HEADINGS.get(key, key.replace("_", " ").title())
+        existing_rows = (
+            db.query(models.TemplateSection)
+            .filter_by(template_id=tmpl.id)
+            .all()
+        )
+        existing_keys = {s.section_key for s in existing_rows}
+        has_group_headings = any(
+            s.section_key == "group_heading" for s in existing_rows
+        )
+
+        # If the template already has group headings, skip re-seeding entirely
+        if has_group_headings:
+            continue
+
+        # For brand-new templates, add all sections in order.
+        # For existing templates, append only missing regular sections.
+        next_order = len(existing_rows)
+        for key, config_override in sections:
+            if key == "group_heading":
+                # Group headings are always new rows (multiple allowed)
+                db.add(models.TemplateSection(
+                    template_id=tmpl.id,
+                    section_key="group_heading",
+                    enabled=True,
+                    section_order=next_order,
+                    config=config_override or {},
+                ))
+                next_order += 1
+            elif key not in existing_keys:
+                heading = (
+                    (config_override or {}).get("heading")
+                    or _HEADINGS.get(key, key.replace("_", " ").title())
+                )
                 db.add(models.TemplateSection(
                     template_id=tmpl.id,
                     section_key=key,
@@ -827,7 +998,52 @@ def _seed_templates(db, user_id: int = 1):
                     section_order=next_order,
                     config={"heading": heading},
                 ))
+                existing_keys.add(key)
                 next_order += 1
+
+        # For existing templates that just got group headings added,
+        # reorder all sections to match the canonical template order.
+        if name in existing_tmpls:
+            all_rows = (
+                db.query(models.TemplateSection)
+                .filter_by(template_id=tmpl.id)
+                .order_by(models.TemplateSection.section_order)
+                .all()
+            )
+            # Build target order from _TEMPLATES definition
+            target_keys = [k for k, _ in sections]
+            # Index existing rows by key (group_headings: collect in order)
+            keyed_rows: dict[str, list] = {}
+            for row in all_rows:
+                keyed_rows.setdefault(row.section_key, []).append(row)
+            # Assign new order following the template definition
+            order = 0
+            used_group_idx = 0
+            for tkey in target_keys:
+                if tkey == "group_heading":
+                    # Pick group headings added during this seed (they have
+                    # the config from the template definition)
+                    gh_rows = keyed_rows.get("group_heading", [])
+                    if used_group_idx < len(gh_rows):
+                        gh_rows[used_group_idx].section_order = order
+                        used_group_idx += 1
+                        order += 1
+                else:
+                    rows = keyed_rows.get(tkey, [])
+                    if rows:
+                        rows[0].section_order = order
+                        order += 1
+            # Any remaining rows not in the template definition go at the end
+            placed = set()
+            for tkey in target_keys:
+                if tkey == "group_heading":
+                    continue
+                placed.add(tkey)
+            for row in all_rows:
+                if row.section_key not in placed and row.section_key != "group_heading":
+                    row.section_order = order
+                    order += 1
+
     db.commit()
 
 

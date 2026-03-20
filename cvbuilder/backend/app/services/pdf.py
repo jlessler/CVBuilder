@@ -224,6 +224,18 @@ body {{
   margin-bottom: {s['section_margin_bottom']};
 }}
 
+.cv-group-heading {{
+  font-family: {s['font_heading']};
+  font-size: {s['name_font_size']};
+  font-weight: bold;
+  color: {s['primary_color']};
+  {heading_transform}
+  letter-spacing: {s['heading_letter_spacing']};
+  border-bottom: 2px solid {s['primary_color']};
+  padding-bottom: 3px;
+  margin: 1.2em 0 0.6em 0;
+}}
+
 .cv-section-heading {{
   font-family: {s['font_heading']};
   font-size: {s['heading_font_size']};

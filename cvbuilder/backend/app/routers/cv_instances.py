@@ -218,26 +218,43 @@ def update_sections(
     current_user: models.User = Depends(get_current_user),
 ):
     inst = _get_instance(db, instance_id, current_user.id)
-    existing = {s.section_key: s for s in inst.sections}
 
+    # Delete-and-recreate approach: handles duplicate keys (group_heading)
+    # cleanly while preserving curated item selections for data sections.
+    # Build a map of existing sections with their curated items for preservation.
+    existing_by_key: dict[str, list[models.CVInstanceSection]] = {}
+    for s in inst.sections:
+        existing_by_key.setdefault(s.section_key, []).append(s)
+
+    # Delete all existing sections
+    for s in list(inst.sections):
+        db.delete(s)
+    db.flush()
+
+    # Re-create from the incoming data
     for sec_data in data.sections:
-        if sec_data.section_key in existing:
-            sec = existing[sec_data.section_key]
-            sec.enabled = sec_data.enabled
-            sec.section_order = sec_data.section_order
-            sec.heading_override = sec_data.heading_override
-            sec.config_overrides = sec_data.config_overrides
-            sec.curated = sec_data.curated
-        else:
-            db.add(models.CVInstanceSection(
-                cv_instance_id=inst.id,
-                section_key=sec_data.section_key,
-                enabled=sec_data.enabled,
-                section_order=sec_data.section_order,
-                heading_override=sec_data.heading_override,
-                config_overrides=sec_data.config_overrides,
-                curated=sec_data.curated,
-            ))
+        new_sec = models.CVInstanceSection(
+            cv_instance_id=inst.id,
+            section_key=sec_data.section_key,
+            enabled=sec_data.enabled,
+            section_order=sec_data.section_order,
+            heading_override=sec_data.heading_override,
+            config_overrides=sec_data.config_overrides,
+            curated=sec_data.curated,
+        )
+        db.add(new_sec)
+        db.flush()
+
+        # Restore curated items for data sections (not group_heading)
+        if sec_data.section_key != "group_heading" and sec_data.curated:
+            old_sections = existing_by_key.get(sec_data.section_key, [])
+            for old_sec in old_sections:
+                for item in old_sec.items:
+                    db.add(models.CVInstanceItem(
+                        cv_instance_section_id=new_sec.id,
+                        item_id=item.item_id,
+                    ))
+
     db.commit()
     db.refresh(inst)
     return inst.sections
@@ -318,22 +335,25 @@ def _build_cv_instance_data(db: Session, inst: models.CVInstance) -> tuple[dict,
     # Get all CV data
     cv_data = _build_cv_data(db, user_id=inst.user_id, sort_direction=sort_direction)
 
-    # Resolve effective sections: instance sections override template
-    inst_sections_map = {s.section_key: s for s in inst.sections}
-
-    # Build lookup of template section configs
-    tmpl_section_configs = {}
-    for ts in (tmpl.sections or []):
-        tmpl_section_configs[ts.section_key] = dict(ts.config) if ts.config else {}
-
     # Build ordered section list
     effective_sections = []
     for sec in sorted(inst.sections, key=lambda s: s.section_order or 0):
         enabled = sec.enabled if sec.enabled is not None else True
         if not enabled:
             continue
-        # Start with template section config as base, overlay instance overrides + heading
-        config = dict(tmpl_section_configs.get(sec.section_key, {}))
+
+        if sec.section_key == "group_heading":
+            # Group headings carry their text in heading_override
+            effective_sections.append({
+                "key": "group_heading",
+                "config": {"heading": sec.heading_override or ""},
+                "_curated": False,
+                "_item_ids": None,
+            })
+            continue
+
+        # For data sections, start with an empty config and apply overrides + heading
+        config: dict = {}
         if sec.config_overrides:
             config.update(sec.config_overrides)
         if sec.heading_override:

@@ -34,8 +34,12 @@
     {% set key = section.key %}
     {% set config = section.config %}
 
+    {# Group Heading #}
+    {% if key == 'group_heading' %}
+    <div class="cv-group-heading">{{ config.get('heading', '') }}</div>
+
     {# Education #}
-    {% if key == 'education' %}
+    {% elif key == 'education' %}
       {% include 'sections/education.html' %}
 
     {# Experience #}
