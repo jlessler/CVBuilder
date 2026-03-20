@@ -43,12 +43,12 @@ def _extract_base_html_keys() -> set[str]:
     return keys
 
 
-def _extract_frontend_all_sections(filename: str) -> set[str]:
-    """Parse ALL_SECTIONS array keys from a frontend .tsx file."""
-    text = (ROOT / "frontend" / "src" / "pages" / filename).read_text()
+def _extract_frontend_all_sections() -> set[str]:
+    """Parse ALL_SECTIONS array keys from the shared SectionComposer component."""
+    text = (ROOT / "frontend" / "src" / "components" / "SectionComposer.tsx").read_text()
     # Find the ALL_SECTIONS block
     m = re.search(r'const ALL_SECTIONS\s*=\s*\[(.+?)\]', text, re.DOTALL)
-    assert m, f"ALL_SECTIONS not found in {filename}"
+    assert m, "ALL_SECTIONS not found in SectionComposer.tsx"
     block = m.group(1)
     return set(re.findall(r"key:\s*'([a-zA-Z_]+)'", block))
 
@@ -77,19 +77,14 @@ def _extract_cv_data_key_map_keys() -> set[str]:
 class TestSectionConsistency:
     """All section key registries must contain the same keys."""
 
-    def test_templates_tsx_matches_cv_instances_tsx(self):
-        """The two frontend ALL_SECTIONS arrays must be identical."""
-        templates = _extract_frontend_all_sections("Templates.tsx")
-        instances = _extract_frontend_all_sections("CVInstances.tsx")
-        assert templates == instances, (
-            f"ALL_SECTIONS mismatch:\n"
-            f"  In Templates.tsx only: {templates - instances}\n"
-            f"  In CVInstances.tsx only: {instances - templates}"
-        )
+    def test_all_sections_shared_component_exists(self):
+        """ALL_SECTIONS is defined in the shared SectionComposer component."""
+        sections = _extract_frontend_all_sections()
+        assert len(sections) > 0, "ALL_SECTIONS is empty in SectionComposer.tsx"
 
     def test_frontend_matches_headings(self):
         """Every frontend section key must have a _HEADINGS entry."""
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        frontend = _extract_frontend_all_sections()
         headings = _extract_headings_keys()
         missing = frontend - headings
         assert not missing, (
@@ -97,9 +92,13 @@ class TestSectionConsistency:
         )
 
     def test_headings_matches_frontend(self):
-        """Every _HEADINGS key should appear in the frontend ALL_SECTIONS."""
-        headings = _extract_headings_keys()
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        """Every _HEADINGS key should appear in the frontend ALL_SECTIONS.
+
+        group_heading is excluded — it's a meta-entry for visual hierarchy,
+        not a data section, so it doesn't belong in ALL_SECTIONS.
+        """
+        headings = _extract_headings_keys() - {"group_heading"}
+        frontend = _extract_frontend_all_sections()
         missing = headings - frontend
         assert not missing, (
             f"_HEADINGS keys missing from frontend ALL_SECTIONS: {missing}"
@@ -107,7 +106,7 @@ class TestSectionConsistency:
 
     def test_base_html_covers_frontend_sections(self):
         """Every frontend section key must have a rendering block in base.html."""
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        frontend = _extract_frontend_all_sections()
         html_keys = _extract_base_html_keys()
         missing = frontend - html_keys
         assert not missing, (
@@ -116,7 +115,7 @@ class TestSectionConsistency:
 
     def test_build_cv_data_covers_frontend_sections(self):
         """Every non-publication frontend key must be queried in _build_cv_data."""
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        frontend = _extract_frontend_all_sections()
         cv_data_keys = _extract_build_cv_data_keys()
 
         # Publication sub-types are rendered from the combined "publications" key
@@ -142,7 +141,7 @@ class TestSectionConsistency:
 
     def test_section_key_map_covers_frontend(self):
         """Every non-publication frontend key must be in SECTION_KEY_MAP (cv_instances.py)."""
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        frontend = _extract_frontend_all_sections()
         skm = _extract_section_key_map_keys()
         # Publication sub-types map via _PUB_TYPE_MAP, not SECTION_KEY_MAP
         pub_keys = {k for k in frontend if k.startswith("publications_")}
@@ -153,7 +152,7 @@ class TestSectionConsistency:
 
     def test_cv_data_key_map_covers_frontend(self):
         """Every non-publication frontend key must be in _CV_DATA_KEY_MAP (cv_instances.py)."""
-        frontend = _extract_frontend_all_sections("Templates.tsx")
+        frontend = _extract_frontend_all_sections()
         cdkm = _extract_cv_data_key_map_keys()
         # Publication sub-types are handled separately
         pub_keys = {k for k in frontend if k.startswith("publications_")}

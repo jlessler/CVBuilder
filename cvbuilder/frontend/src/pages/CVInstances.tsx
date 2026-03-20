@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken } from '../lib/api'
-import type { CVInstance, CVInstanceSection, CVTemplate, AvailableItem } from '../lib/api'
+import type { CVInstance, CVTemplate, AvailableItem } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, FileDown, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
-import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-} from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
-import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { Plus, Trash2, Edit2, Eye, FileDown } from 'lucide-react'
+import { ALL_SECTIONS, SectionComposer, buildInitialSections } from '../components/SectionComposer'
+import type { SectionEntry } from '../components/SectionComposer'
 
 const HEADER_ALIGNMENTS = [
   { value: '', label: '(Inherit)' },
@@ -37,45 +31,6 @@ const SORT_DIRECTIONS = [
   { value: '', label: '(Inherit from template)' },
   { value: 'desc', label: 'Newest first' },
   { value: 'asc', label: 'Oldest first' },
-]
-
-const ALL_SECTIONS = [
-  { key: 'education', label: 'Education' },
-  { key: 'experience', label: 'Experience' },
-  { key: 'consulting', label: 'Consulting' },
-  { key: 'memberships', label: 'Professional Memberships' },
-  { key: 'panels_advisory', label: 'Advisory Panels' },
-  { key: 'panels_grantreview', label: 'Grant Review Panels' },
-  { key: 'patents', label: 'Patents' },
-  { key: 'symposia', label: 'Symposia Organized' },
-  { key: 'committees', label: 'Committee Memberships' },
-  { key: 'editorial', label: 'Editorial Activities' },
-  { key: 'peerrev', label: 'Peer Review' },
-  { key: 'classes', label: 'Teaching' },
-  { key: 'grants', label: 'Grants & Funding' },
-  { key: 'awards', label: 'Honors & Awards' },
-  { key: 'press', label: 'Press Coverage' },
-  { key: 'trainees_advisees', label: 'Graduate Advisees' },
-  { key: 'trainees_postdocs', label: 'Postdoctoral Fellows' },
-  { key: 'mentorship', label: 'Mentorship' },
-  { key: 'seminars', label: 'Invited Seminars & Lectures' },
-  { key: 'publications_papers', label: 'Papers' },
-  { key: 'publications_preprints', label: 'Preprints' },
-  { key: 'publications_chapters', label: 'Book Chapters' },
-  { key: 'publications_letters', label: 'Letters & Commentaries' },
-  { key: 'publications_scimeetings', label: 'Scientific Meeting Presentations' },
-  { key: 'publications_editorials', label: 'Non-Peer-Reviewed Articles & Editorials' },
-  { key: 'software', label: 'Software' },
-  { key: 'policypres', label: 'Policy Presentations' },
-  { key: 'policycons', label: 'Policy Consulting' },
-  { key: 'otherservice', label: 'Other Service' },
-  { key: 'dissertation', label: 'Dissertation' },
-  { key: 'chairedsessions', label: 'Chaired Sessions' },
-  { key: 'citation_metrics', label: 'Citation Metrics' },
-  { key: 'otherpractice', label: 'Other Practice Activities' },
-  { key: 'departmentalOrals', label: 'Departmental Oral Exams' },
-  { key: 'finaldefense', label: 'Final Dissertation Defenses' },
-  { key: 'schoolwideOrals', label: 'School-wide Oral Exams' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -160,110 +115,7 @@ function ItemCurator({ instanceId, sectionKey, curated, onCuratedChange }: {
 }
 
 // ---------------------------------------------------------------------------
-// Sortable section row for the curator view
-// ---------------------------------------------------------------------------
-
-type SectionState = {
-  section_key: string
-  label: string
-  enabled: boolean
-  section_order: number
-  heading_override: string
-  config_overrides: Record<string, unknown> | null
-  curated: boolean
-}
-
-const PUB_CROSSREF_SECTIONS = ['publications_papers', 'publications_preprints']
-
-function SortableSectionRow({
-  section, instanceId,
-  onToggle, onHeadingChange, onConfigOverridesChange, onCuratedChange,
-}: {
-  section: SectionState
-  instanceId: number
-  onToggle: () => void
-  onHeadingChange: (h: string) => void
-  onConfigOverridesChange: (overrides: Record<string, unknown>) => void
-  onCuratedChange: (curated: boolean) => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.section_key })
-  const hasCrossrefOptions = PUB_CROSSREF_SECTIONS.includes(section.section_key)
-  const isPreprints = section.section_key === 'publications_preprints'
-  const overrides = section.config_overrides || {}
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-lg border mb-1.5 ${
-        section.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
-      }`}
-    >
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
-          <GripVertical size={16} />
-        </button>
-        <Checkbox checked={section.enabled} onChange={onToggle} />
-        <button
-          className="text-gray-400 hover:text-gray-600"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-800">{section.label}</p>
-        </div>
-        {section.curated && (
-          <Badge color="purple">Curated</Badge>
-        )}
-        <input
-          className="w-40 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
-          placeholder="Heading override..."
-          value={section.heading_override || ''}
-          onChange={e => onHeadingChange(e.target.value)}
-        />
-      </div>
-      {expanded && section.enabled && (
-        <div className="border-t border-gray-100">
-          {hasCrossrefOptions && (
-            <div className="px-4 py-2 border-b border-gray-100 space-y-1">
-              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300"
-                  checked={overrides.show_crossref !== false}
-                  onChange={e => onConfigOverridesChange({ ...overrides, show_crossref: e.target.checked })}
-                />
-                Show cross-ref DOI
-              </label>
-              {isPreprints && (
-                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300"
-                    checked={!!overrides.hide_if_published}
-                    onChange={e => onConfigOverridesChange({ ...overrides, hide_if_published: e.target.checked })}
-                  />
-                  Hide if published version exists
-                </label>
-              )}
-            </div>
-          )}
-          <ItemCurator
-            instanceId={instanceId}
-            sectionKey={section.section_key}
-            curated={section.curated}
-            onCuratedChange={onCuratedChange}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// CV Instance Curator — full editing view
+// Style Override Editor
 // ---------------------------------------------------------------------------
 
 function StyleOverrideEditor({ overrides, onChange }: { overrides: Record<string, string>; onChange: (o: Record<string, string>) => void }) {
@@ -328,6 +180,10 @@ function StyleOverrideEditor({ overrides, onChange }: { overrides: Record<string
   )
 }
 
+// ---------------------------------------------------------------------------
+// CV Instance Curator — full editing view
+// ---------------------------------------------------------------------------
+
 function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClose: () => void }) {
   const qc = useQueryClient()
   const [name, setName] = useState(instance.name)
@@ -336,45 +192,29 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
   const [sortOverride, setSortOverride] = useState(instance.sort_direction_override || '')
   const [preview, setPreview] = useState(false)
 
-  const initialSections: SectionState[] = (() => {
-    const existing = new Map(instance.sections.map(s => [s.section_key, s]))
-    const orderedKeys = instance.sections
-      .sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0))
-      .map(s => s.section_key)
-    const missingKeys = ALL_SECTIONS.map(s => s.key).filter(k => !existing.has(k))
-    const allKeys = [...orderedKeys, ...missingKeys]
-    return allKeys.map((key, i) => {
-      const sec = existing.get(key)
-      const meta = ALL_SECTIONS.find(s => s.key === key)
+  const sorted = [...instance.sections].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0))
+  const initialSections = buildInitialSections(
+    sorted,
+    (s, i): SectionEntry => {
+      const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
       return {
-        section_key: key,
-        label: meta?.label || key,
-        enabled: sec?.enabled ?? false,
-        section_order: sec?.section_order ?? i,
-        heading_override: sec?.heading_override || '',
-        config_overrides: sec?.config_overrides || null,
-        curated: sec?.curated ?? false,
+        section_key: s.section_key,
+        label: s.section_key === 'group_heading'
+          ? (s.heading_override || 'Group Heading')
+          : (meta?.label || s.section_key),
+        enabled: s.enabled ?? false,
+        section_order: s.section_order ?? i,
+        heading: s.heading_override || '',
+        config: s.config_overrides || {},
+        extra: { curated: s.curated ?? false },
       }
-    })
-  })()
+    },
+  )
 
   const [sections, setSections] = useState(initialSections)
-  const sensors = useSensors(useSensor(PointerSensor))
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (over && active.id !== over.id) {
-      setSections(items => {
-        const oldIndex = items.findIndex(i => i.section_key === active.id)
-        const newIndex = items.findIndex(i => i.section_key === over.id)
-        return arrayMove(items, oldIndex, newIndex)
-      })
-    }
-  }
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      // Update instance metadata
       // Filter out empty style override values
       const cleanOverrides: Record<string, string> = {}
       for (const [k, v] of Object.entries(styleOverrides)) {
@@ -386,15 +226,14 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
         style_overrides: Object.keys(cleanOverrides).length > 0 ? cleanOverrides : null,
         sort_direction_override: sortOverride || null,
       })
-      // Update sections
       await api.put(`/cv-instances/${instance.id}/sections`, {
         sections: sections.map((s, i) => ({
           section_key: s.section_key,
           enabled: s.enabled,
           section_order: i,
-          heading_override: s.heading_override || null,
-          config_overrides: s.config_overrides,
-          curated: s.curated,
+          heading_override: s.heading || null,
+          config_overrides: Object.keys(s.config).length > 0 ? s.config : null,
+          curated: !!s.extra.curated,
         })),
       })
     },
@@ -417,32 +256,24 @@ function CVInstanceCurator({ instance, onClose }: { instance: CVInstance; onClos
           Template: {instance.template_name || 'Unknown'}
         </div>
 
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Sections (drag to reorder, expand to curate items)</p>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sections.map(s => s.section_key)} strategy={verticalListSortingStrategy}>
-              {sections.map(sec => (
-                <SortableSectionRow
-                  key={sec.section_key}
-                  section={sec}
-                  instanceId={instance.id}
-                  onToggle={() => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key ? { ...s, enabled: !s.enabled } : s)
-                  )}
-                  onHeadingChange={h => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key ? { ...s, heading_override: h } : s)
-                  )}
-                  onConfigOverridesChange={overrides => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key ? { ...s, config_overrides: overrides } : s)
-                  )}
-                  onCuratedChange={curated => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key ? { ...s, curated } : s)
-                  )}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        </div>
+        <SectionComposer
+          sections={sections}
+          onChange={setSections}
+          sectionLabel="Sections (drag to reorder, expand to curate items)"
+          renderExpandedContent={(sec, idx) => (
+            <ItemCurator
+              instanceId={instance.id}
+              sectionKey={sec.section_key}
+              curated={!!sec.extra.curated}
+              onCuratedChange={curated => setSections(ss =>
+                ss.map((s, i) => i === idx ? { ...s, extra: { ...s.extra, curated } } : s)
+              )}
+            />
+          )}
+          renderBadges={(sec) => (
+            sec.extra.curated ? <Badge color="purple">Curated</Badge> : null
+          )}
+        />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
           <Button variant="secondary" onClick={() => setPreview(true)}>

@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken } from '../lib/api'
-import type { CVTemplate, TemplateSection } from '../lib/api'
-import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Checkbox, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
-import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-} from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
-import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import type { CVTemplate } from '../lib/api'
+import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Select } from '../components/ui'
+import { Plus, Trash2, Edit2, Eye } from 'lucide-react'
+import { ALL_SECTIONS, SectionComposer, buildInitialSections } from '../components/SectionComposer'
+import type { SectionEntry } from '../components/SectionComposer'
 
 const SORT_DIRECTIONS = [
   { value: 'desc', label: 'Newest first' },
@@ -123,45 +117,6 @@ const THEME_PRESETS: Record<string, Record<string, string>> = {
   },
 }
 
-const ALL_SECTIONS = [
-  { key: 'education', label: 'Education' },
-  { key: 'experience', label: 'Experience' },
-  { key: 'consulting', label: 'Consulting' },
-  { key: 'memberships', label: 'Professional Memberships' },
-  { key: 'panels_advisory', label: 'Advisory Panels' },
-  { key: 'panels_grantreview', label: 'Grant Review Panels' },
-  { key: 'patents', label: 'Patents' },
-  { key: 'symposia', label: 'Symposia Organized' },
-  { key: 'committees', label: 'Committee Memberships' },
-  { key: 'editorial', label: 'Editorial Activities' },
-  { key: 'peerrev', label: 'Peer Review' },
-  { key: 'classes', label: 'Teaching' },
-  { key: 'grants', label: 'Grants & Funding' },
-  { key: 'awards', label: 'Honors & Awards' },
-  { key: 'press', label: 'Press Coverage' },
-  { key: 'trainees_advisees', label: 'Graduate Advisees' },
-  { key: 'trainees_postdocs', label: 'Postdoctoral Fellows' },
-  { key: 'mentorship', label: 'Mentorship' },
-  { key: 'seminars', label: 'Invited Seminars & Lectures' },
-  { key: 'publications_papers', label: 'Papers' },
-  { key: 'publications_preprints', label: 'Preprints' },
-  { key: 'publications_chapters', label: 'Book Chapters' },
-  { key: 'publications_letters', label: 'Letters & Commentaries' },
-  { key: 'publications_scimeetings', label: 'Scientific Meeting Presentations' },
-  { key: 'publications_editorials', label: 'Non-Peer-Reviewed Articles & Editorials' },
-  { key: 'software', label: 'Software' },
-  { key: 'policypres', label: 'Policy Presentations' },
-  { key: 'policycons', label: 'Policy Consulting' },
-  { key: 'otherservice', label: 'Other Service' },
-  { key: 'dissertation', label: 'Dissertation' },
-  { key: 'chairedsessions', label: 'Chaired Sessions' },
-  { key: 'citation_metrics', label: 'Citation Metrics' },
-  { key: 'otherpractice', label: 'Other Practice Activities' },
-  { key: 'departmentalOrals', label: 'Departmental Oral Exams' },
-  { key: 'finaldefense', label: 'Final Dissertation Defenses' },
-  { key: 'schoolwideOrals', label: 'School-wide Oral Exams' },
-]
-
 function ColorInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
@@ -269,78 +224,6 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
   )
 }
 
-const PUB_CROSSREF_SECTIONS = ['publications_papers', 'publications_preprints']
-
-function SortableRow({
-  section, onToggle, onConfigChange,
-}: {
-  section: TemplateSection & { label: string }
-  onToggle: () => void
-  onConfigChange: (config: Record<string, unknown>) => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.section_key })
-  const hasCrossrefOptions = PUB_CROSSREF_SECTIONS.includes(section.section_key)
-  const isPreprints = section.section_key === 'publications_preprints'
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-lg border mb-1.5 ${
-        section.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
-      }`}
-    >
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
-          <GripVertical size={16} />
-        </button>
-        <Checkbox checked={section.enabled} onChange={onToggle} />
-        {hasCrossrefOptions && (
-          <button
-            className="text-gray-400 hover:text-gray-600"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-800">{section.label}</p>
-        </div>
-        <input
-          className="w-40 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
-          placeholder="Section heading..."
-          value={section.config?.heading || ''}
-          onChange={e => onConfigChange({ ...section.config, heading: e.target.value })}
-        />
-      </div>
-      {expanded && hasCrossrefOptions && (
-        <div className="border-t border-gray-100 px-4 py-2 space-y-1">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-            <input
-              type="checkbox"
-              className="rounded border-gray-300"
-              checked={section.config?.show_crossref !== false}
-              onChange={e => onConfigChange({ ...section.config, show_crossref: e.target.checked })}
-            />
-            Show cross-ref DOI
-          </label>
-          {isPreprints && (
-            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={!!section.config?.hide_if_published}
-                onChange={e => onConfigChange({ ...section.config, hide_if_published: e.target.checked })}
-              />
-              Hide if published version exists
-            </label>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose: () => void }) {
   const qc = useQueryClient()
   const [name, setName] = useState(template.name)
@@ -348,41 +231,26 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
   const [style, setStyle] = useState<Record<string, string>>(template.style || THEME_PRESETS.academic)
   const [sortDirection, setSortDirection] = useState(template.sort_direction ?? 'desc')
 
-  // Build sections list with labels
-  const initialSections = (() => {
-    const existing = new Map(template.sections.map(s => [s.section_key, s]))
-    const orderedKeys = template.sections.map(s => s.section_key)
-    const missingKeys = ALL_SECTIONS.map(s => s.key).filter(k => !existing.has(k))
-    const allKeys = [...orderedKeys, ...missingKeys]
-    return allKeys.map((key, i) => {
-      const sec = existing.get(key)
-      const meta = ALL_SECTIONS.find(s => s.key === key)
+  const initialSections = buildInitialSections(
+    template.sections,
+    (s, i): SectionEntry => {
+      const meta = ALL_SECTIONS.find(m => m.key === s.section_key)
       return {
-        section_key: key,
-        label: meta?.label || key,
-        enabled: sec?.enabled ?? false,
-        section_order: sec?.section_order ?? i,
-        config: sec?.config || {},
-        id: sec?.id ?? 0,
+        section_key: s.section_key,
+        label: s.section_key === 'group_heading'
+          ? (s.config?.heading as string || 'Group Heading')
+          : (meta?.label || s.section_key),
+        enabled: s.enabled,
+        section_order: s.section_order ?? i,
+        heading: (s.config?.heading as string) || '',
+        config: { ...s.config },
+        extra: { id: s.id ?? 0 },
       }
-    })
-  })()
+    },
+  )
 
   const [sections, setSections] = useState(initialSections)
   const [preview, setPreview] = useState(false)
-
-  const sensors = useSensors(useSensor(PointerSensor))
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (over && active.id !== over.id) {
-      setSections(items => {
-        const oldIndex = items.findIndex(i => i.section_key === active.id)
-        const newIndex = items.findIndex(i => i.section_key === over.id)
-        return arrayMove(items, oldIndex, newIndex)
-      })
-    }
-  }
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/templates/${template.id}`, {
@@ -392,7 +260,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
         section_key: s.section_key,
         enabled: s.enabled,
         section_order: i,
-        config: s.config,
+        config: { ...s.config, heading: s.heading },
       })),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); onClose() },
@@ -410,26 +278,7 @@ function TemplateComposer({ template, onClose }: { template: CVTemplate; onClose
 
         <StyleEditor style={style} onChange={setStyle} />
 
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Sections (drag to reorder)</p>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sections.map(s => s.section_key)} strategy={verticalListSortingStrategy}>
-              {sections.map(sec => (
-                <SortableRow
-                  key={sec.section_key}
-                  section={sec as TemplateSection & { label: string }}
-                  onToggle={() => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key ? { ...s, enabled: !s.enabled } : s)
-                  )}
-                  onConfigChange={config => setSections(ss =>
-                    ss.map(s => s.section_key === sec.section_key
-                      ? { ...s, config } : s)
-                  )}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        </div>
+        <SectionComposer sections={sections} onChange={setSections} />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
           <Button variant="secondary" onClick={() => setPreview(true)}>
