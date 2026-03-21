@@ -238,7 +238,8 @@ async def import_yaml_upload(
         if cv_file:
             raw = await cv_file.read()
             # Detect combined backup format (has top-level 'cv' and/or 'refs' keys)
-            parsed = yaml.safe_load(raw)
+            # Use safe_load_all to handle files with trailing '---' or multiple documents
+            parsed = next(yaml.safe_load_all(raw))
             if isinstance(parsed, dict) and ("cv" in parsed or "refs" in parsed):
                 # Combined format — split into separate files
                 if parsed.get("cv"):
