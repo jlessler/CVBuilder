@@ -126,6 +126,8 @@ def create_template(
     tmpl = models.CVTemplate(
         name=data.name, description=data.description, style=data.style,
         sort_direction=data.sort_direction, user_id=current_user.id,
+        author=data.author, author_contact=data.author_contact,
+        guidance_url=data.guidance_url,
     )
     db.add(tmpl)
     db.flush()
@@ -157,6 +159,9 @@ def update_template(
     tmpl.description = data.description
     tmpl.style = data.style
     tmpl.sort_direction = data.sort_direction
+    tmpl.author = data.author
+    tmpl.author_contact = data.author_contact
+    tmpl.guidance_url = data.guidance_url
     if data.sections is not None:
         db.query(models.TemplateSection).filter(
             models.TemplateSection.template_id == template_id

@@ -231,6 +231,9 @@ class CVTemplateBase(BaseModel):
     description: Optional[str] = None
     style: Optional[dict] = None
     sort_direction: str = "desc"
+    author: Optional[str] = None
+    author_contact: Optional[str] = None
+    guidance_url: Optional[str] = None
 
 class CVTemplateCreate(CVTemplateBase):
     sections: list[TemplateSectionCreate] = []

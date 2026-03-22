@@ -264,6 +264,9 @@ export interface CVTemplate {
   description: string | null
   style: Record<string, string> | null
   sort_direction: string
+  author: string | null
+  author_contact: string | null
+  guidance_url: string | null
   created_at: string
   updated_at: string
   sections: TemplateSection[]

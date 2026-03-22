@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken, listSectionDefinitions } from '../lib/api'
 import type { CVTemplate, SectionDefinition } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, Settings } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, Settings, ExternalLink } from 'lucide-react'
 import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
 import type { PickerSection } from '../components/SectionPickerModal'
@@ -115,6 +115,146 @@ const THEME_PRESETS: Record<string, Record<string, string>> = {
     header_bg_color: '#7c3aed',
     name_font_weight: 'bold', name_letter_spacing: '0.02em',
     section_margin_bottom: '1.2em', heading_letter_spacing: '0.1em',
+    line_height: '1.45',
+  },
+  harvard_fas: {
+    primary_color: '#A51C30', accent_color: '#A51C30',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Times New Roman", Times, serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#A51C30',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0',
+    line_height: '1.15',
+  },
+  harvard_med: {
+    primary_color: '#111111', accent_color: '#111111',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Times New Roman", Times, serif',
+    body_font_size: '12pt', heading_font_size: '12pt',
+    name_font_size: '12pt', header_alignment: 'left',
+    section_decoration: 'none', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#aaaaaa',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0',
+    section_margin_bottom: '1.0em', heading_letter_spacing: '0',
+    line_height: '1.3',
+  },
+  stanford_med: {
+    primary_color: '#8C1515', accent_color: '#8C1515',
+    font_body: '"Source Sans Pro", Helvetica, Arial, sans-serif',
+    font_heading: '"Source Sans Pro", Helvetica, Arial, sans-serif',
+    body_font_size: '11pt', heading_font_size: '11pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#111111', muted_color: '#555555', border_color: '#8C1515',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.06em',
+    line_height: '1.45',
+  },
+  mit: {
+    primary_color: '#750014', accent_color: '#750014',
+    font_body: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    font_heading: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'none', heading_transform: 'uppercase',
+    text_color: '#111111', muted_color: '#555555', border_color: '#cccccc',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.06em',
+    line_height: '1.45',
+  },
+  michigan_eng: {
+    primary_color: '#00274C', accent_color: '#FFCB05',
+    font_body: '"Georgia", serif',
+    font_heading: '"Arial", Helvetica, sans-serif',
+    body_font_size: '11pt', heading_font_size: '14pt',
+    name_font_size: '16pt', header_alignment: 'center',
+    section_decoration: 'none', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#00274C',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0',
+    line_height: '1.5',
+  },
+  columbia_cuimc: {
+    primary_color: '#1D4F91', accent_color: '#1D4F91',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Times New Roman", Times, serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'none', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#1D4F91',
+    page_width: '8.5in', page_padding: '1in',
+    date_column_width: '1.3in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.0em', heading_letter_spacing: '0',
+    line_height: '1.4',
+  },
+  imperial: {
+    primary_color: '#003E74', accent_color: '#003E74',
+    font_body: '"Arial", Helvetica, sans-serif',
+    font_heading: '"Arial", Helvetica, sans-serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '16pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#111111', muted_color: '#555555', border_color: '#003E74',
+    page_width: '8.27in', page_padding: '1in 0.75in',
+    date_column_width: '1.2in', header_border_style: '2px solid',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.04em',
+    line_height: '1.4',
+  },
+  oxford: {
+    primary_color: '#002147', accent_color: '#002147',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Times New Roman", Times, serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'uppercase',
+    text_color: '#111111', muted_color: '#555555', border_color: '#002147',
+    page_width: '8.27in', page_padding: '1in 0.75in',
+    date_column_width: '1.2in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0',
+    line_height: '1.4',
+  },
+  hku: {
+    primary_color: '#005A32', accent_color: '#005A32',
+    font_body: '"Arial", Helvetica, sans-serif',
+    font_heading: '"Arial", Helvetica, sans-serif',
+    body_font_size: '11pt', heading_font_size: '12pt',
+    name_font_size: '14pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#005A32',
+    page_width: '8.27in', page_padding: '1in 0.75in',
+    date_column_width: '1.2in', header_border_style: 'none',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.1em', heading_letter_spacing: '0',
+    line_height: '1.4',
+  },
+  melbourne: {
+    primary_color: '#094183', accent_color: '#094183',
+    font_body: '"Times New Roman", Times, serif',
+    font_heading: '"Arial", Helvetica, sans-serif',
+    body_font_size: '12pt', heading_font_size: '12pt',
+    name_font_size: '16pt', header_alignment: 'left',
+    section_decoration: 'bottom-border', heading_transform: 'none',
+    text_color: '#111111', muted_color: '#555555', border_color: '#094183',
+    page_width: '8.27in', page_padding: '0.79in',
+    date_column_width: '1.2in', header_border_style: '2px solid',
+    name_font_weight: 'bold', name_letter_spacing: '0.02em',
+    section_margin_bottom: '1.2em', heading_letter_spacing: '0.04em',
     line_height: '1.45',
   },
 }
@@ -234,6 +374,9 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
   const [description, setDescription] = useState(template.description || '')
   const [style, setStyle] = useState<Record<string, string>>(template.style || THEME_PRESETS.academic)
   const [sortDirection, setSortDirection] = useState(template.sort_direction ?? 'desc')
+  const [author, setAuthor] = useState(template.author || '')
+  const [authorContact, setAuthorContact] = useState(template.author_contact || '')
+  const [guidanceUrl, setGuidanceUrl] = useState(template.guidance_url || '')
 
   const initialSections = toSectionEntries(
     template.sections,
@@ -261,6 +404,8 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
     mutationFn: () => api.put(`/templates/${template.id}`, {
       name, description: description || null, style,
       sort_direction: sortDirection,
+      author: author || null, author_contact: authorContact || null,
+      guidance_url: guidanceUrl || null,
       sections: sections.map((s, i) => ({
         section_key: s.section_key,
         enabled: true,
@@ -281,6 +426,20 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
           <Select label="Item Sort Order" options={SORT_DIRECTIONS} value={sortDirection} onChange={e => setSortDirection(e.target.value)} />
         </div>
         <Input label="Description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description of this template..." />
+
+        <details className="border border-gray-200 rounded-lg">
+          <summary className="px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50">Template Metadata</summary>
+          <div className="px-3 pb-3 space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Author" value={author} onChange={e => setAuthor(e.target.value)} placeholder="e.g. CVBuilder" />
+              <Input label="Author Contact" value={authorContact} onChange={e => setAuthorContact(e.target.value)} placeholder="e.g. email or URL" />
+            </div>
+            <Input label="Guidance URL" value={guidanceUrl} onChange={e => setGuidanceUrl(e.target.value)} placeholder="URL to institutional CV guidelines" />
+            {template.created_at && (
+              <p className="text-xs text-gray-500">Created: {new Date(template.created_at).toLocaleDateString()}</p>
+            )}
+          </div>
+        </details>
 
         <StyleEditor style={style} onChange={setStyle} />
 
@@ -396,6 +555,16 @@ export function Templates() {
               </button>
             </div>
             {tmpl.description && <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>}
+            {(tmpl.author || tmpl.guidance_url) && (
+              <div className="text-xs text-gray-400 mb-3 space-y-0.5">
+                {tmpl.author && <p>By {tmpl.author}{tmpl.author_contact ? ` · ${tmpl.author_contact}` : ''}</p>}
+                {tmpl.guidance_url && (
+                  <a href={tmpl.guidance_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:underline">
+                    Guidance <ExternalLink size={10} />
+                  </a>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={() => setComposing(tmpl)}>
                 <Edit2 size={12} /> Edit

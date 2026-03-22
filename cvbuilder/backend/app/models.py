@@ -384,6 +384,9 @@ class CVTemplate(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     style: Mapped[Optional[dict]] = mapped_column(JSON)
     sort_direction: Mapped[str] = mapped_column(String(20), default="desc")
+    author: Mapped[Optional[str]] = mapped_column(String(200))
+    author_contact: Mapped[Optional[str]] = mapped_column(String(300))
+    guidance_url: Mapped[Optional[str]] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     sections: Mapped[list["TemplateSection"]] = relationship(
