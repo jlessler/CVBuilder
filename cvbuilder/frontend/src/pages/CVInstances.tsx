@@ -191,7 +191,6 @@ function CVInstanceCurator({ instance, onClose, customSections }: { instance: CV
   const [description, setDescription] = useState(instance.description || '')
   const [styleOverrides, setStyleOverrides] = useState<Record<string, string>>(instance.style_overrides || {})
   const [sortOverride, setSortOverride] = useState(instance.sort_direction_override || '')
-  const [preview, setPreview] = useState(false)
 
   const sorted = [...instance.sections].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0))
   const initialSections = toSectionEntries(
@@ -280,28 +279,16 @@ function CVInstanceCurator({ instance, onClose, customSections }: { instance: CV
         />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
-          <Button variant="secondary" onClick={() => setPreview(true)}>
-            <Eye size={14} /> Preview
-          </Button>
+          <a href={`/api/cv-instances/${instance.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
+            <Button variant="secondary">
+              <Eye size={14} /> Preview
+            </Button>
+          </a>
           <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
             Save CV
           </Button>
         </div>
       </div>
-
-      {preview && (
-        <div className="w-96 border border-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-100 border-b border-gray-200">
-            <span className="text-xs font-medium text-gray-600">Preview</span>
-            <button onClick={() => setPreview(false)} className="text-xs text-gray-500 hover:text-gray-700">Hide</button>
-          </div>
-          <iframe
-            src={`/api/cv-instances/${instance.id}/preview?token=${encodeURIComponent(getToken() || '')}`}
-            className="w-full h-[600px]"
-            title="CV Preview"
-          />
-        </div>
-      )}
     </div>
   )
 }
