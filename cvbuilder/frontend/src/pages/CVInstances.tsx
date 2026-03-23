@@ -156,13 +156,21 @@ function StyleOverrideEditor({ overrides, onChange }: { overrides: Record<string
             <input type="text" value={overrides.font_heading || ''} onChange={e => set('font_heading', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded" placeholder="(inherit)" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Header alignment</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Identity block alignment</label>
             <select value={overrides.header_alignment || ''} onChange={e => set('header_alignment', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded">
               {HEADER_ALIGNMENTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Heading alignment</label>
+            <select value={overrides.heading_alignment || ''} onChange={e => set('heading_alignment', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded">
+              {HEADER_ALIGNMENTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Section decoration</label>
             <select value={overrides.section_decoration || ''} onChange={e => set('section_decoration', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded">
@@ -279,11 +287,6 @@ function CVInstanceCurator({ instance, onClose, customSections }: { instance: CV
         />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
-          <a href={`/api/cv-instances/${instance.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
-            <Button variant="secondary">
-              <Eye size={14} /> Preview
-            </Button>
-          </a>
           <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
             Save CV
           </Button>

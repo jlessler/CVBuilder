@@ -22,6 +22,7 @@ DEFAULT_STYLE: dict[str, str] = {
     "heading_font_size": "12pt",
     "name_font_size": "20pt",
     "header_alignment": "center",
+    "heading_alignment": "left",
     "section_decoration": "bottom-border",
     "heading_transform": "uppercase",
     "text_color": "#222222",
@@ -410,6 +411,7 @@ body {{
   font-size: {s['heading_font_size']};
   font-weight: bold;
   color: {s['primary_color']};
+  text-align: {s['heading_alignment']};
   {heading_transform}
   letter-spacing: {s['heading_letter_spacing']};
   {heading_border}

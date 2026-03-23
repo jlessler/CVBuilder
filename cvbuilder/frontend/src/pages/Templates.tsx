@@ -295,7 +295,7 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
           <input type="text" value={style.font_heading || ''} onChange={e => set('font_heading', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Body size</label>
           <input type="text" value={style.body_font_size || ''} onChange={e => set('body_font_size', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
@@ -304,9 +304,17 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
           <label className="block text-xs font-medium text-gray-600 mb-1">Name size</label>
           <input type="text" value={style.name_font_size || ''} onChange={e => set('name_font_size', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
         </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Header alignment</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Identity block alignment</label>
           <select value={style.header_alignment || 'center'} onChange={e => set('header_alignment', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
+            {HEADER_ALIGNMENTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Heading alignment</label>
+          <select value={style.heading_alignment || 'left'} onChange={e => set('heading_alignment', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
             {HEADER_ALIGNMENTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -445,11 +453,6 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
         <SectionComposer sections={sections} onChange={setSections} customSections={customSections} templateId={template.id} />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
-          <a href={`/api/templates/${template.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
-            <Button variant="secondary">
-              <Eye size={14} /> Preview
-            </Button>
-          </a>
           <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
             Save Template
           </Button>
