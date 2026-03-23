@@ -121,3 +121,59 @@ def test_rate_limit_triggers(unauth_client, monkeypatch):
     })
     assert resp.status_code == 429
     assert "Too many" in resp.json()["detail"]
+
+
+# ── Change password ────────────────────────────────────────────────────
+
+def test_change_password_success(unauth_client, test_user):
+    _clear_rate_limit()
+    login = unauth_client.post("/api/auth/login", data={
+        "username": "test@test.com", "password": "testpass",
+    })
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = unauth_client.post("/api/auth/change-password", json={
+        "current_password": "testpass",
+        "new_password": "newpass123",
+    }, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["detail"] == "Password updated"
+
+    # Can login with new password
+    _clear_rate_limit()
+    resp2 = unauth_client.post("/api/auth/login", data={
+        "username": "test@test.com", "password": "newpass123",
+    })
+    assert resp2.status_code == 200
+
+
+def test_change_password_wrong_current(unauth_client, test_user):
+    _clear_rate_limit()
+    login = unauth_client.post("/api/auth/login", data={
+        "username": "test@test.com", "password": "testpass",
+    })
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = unauth_client.post("/api/auth/change-password", json={
+        "current_password": "wrongpass",
+        "new_password": "newpass123",
+    }, headers=headers)
+    assert resp.status_code == 400
+    assert "incorrect" in resp.json()["detail"].lower()
+
+
+def test_change_password_too_short(unauth_client, test_user):
+    _clear_rate_limit()
+    login = unauth_client.post("/api/auth/login", data={
+        "username": "test@test.com", "password": "testpass",
+    })
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = unauth_client.post("/api/auth/change-password", json={
+        "current_password": "testpass",
+        "new_password": "short",
+    }, headers=headers)
+    assert resp.status_code == 422

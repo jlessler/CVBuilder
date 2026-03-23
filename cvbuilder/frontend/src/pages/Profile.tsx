@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../lib/api'
+import { api, changePassword } from '../lib/api'
 import type { Profile as ProfileType } from '../lib/api'
 import { Button, Card, Input, PageHeader, Spinner } from '../components/ui'
 import { Plus, Trash2 } from 'lucide-react'
@@ -132,8 +132,53 @@ export function Profile() {
               </div>
             ))}
           </Card>
+
+          <ChangePasswordCard />
         </div>
       </div>
     </div>
+  )
+}
+
+function ChangePasswordCard() {
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [error, setError] = useState('')
+
+  const mut = useMutation({
+    mutationFn: () => changePassword(currentPw, newPw),
+    onSuccess: () => { setCurrentPw(''); setNewPw(''); setConfirmPw(''); setError('') },
+    onError: (err: any) => setError(err?.response?.data?.detail || 'Failed to change password'),
+  })
+
+  const mismatch = confirmPw !== '' && newPw !== confirmPw
+  const tooShort = newPw !== '' && newPw.length < 6
+  const canSubmit = currentPw && newPw && confirmPw && !mismatch && !tooShort
+
+  return (
+    <Card className="p-6 space-y-3">
+      <h3 className="font-semibold text-gray-900">Change Password</h3>
+      {mut.isSuccess && (
+        <div className="px-3 py-2 bg-green-50 text-green-800 rounded text-sm border border-green-200">
+          Password updated successfully.
+        </div>
+      )}
+      {error && (
+        <div className="px-3 py-2 bg-red-50 text-red-800 rounded text-sm border border-red-200">
+          {error}
+        </div>
+      )}
+      <Input label="Current Password" type="password" value={currentPw} onChange={e => { setCurrentPw(e.target.value); setError('') }} />
+      <Input label="New Password" type="password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+      {tooShort && <p className="text-xs text-red-500">Password must be at least 6 characters</p>}
+      <Input label="Confirm New Password" type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+      {mismatch && <p className="text-xs text-red-500">Passwords do not match</p>}
+      <div className="flex justify-end">
+        <Button onClick={() => mut.mutate()} loading={mut.isPending} disabled={!canSubmit}>
+          Update Password
+        </Button>
+      </div>
+    </Card>
   )
 }

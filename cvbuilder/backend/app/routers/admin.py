@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_admin
+from app.auth import get_current_admin, get_password_hash
 from app.models import (
     User, Profile, Address, Work, WorkAuthor, CVItem,
     CVTemplate, TemplateSection, CVInstance, CVInstanceSection, CVInstanceItem,
@@ -11,7 +11,7 @@ from app.models import (
     Education, Experience, Consulting, Membership, Panel, Patent, PatentAuthor,
     Symposium, Class, Grant, Award, Press, Trainee, Seminar, Committee,
 )
-from app.schemas import UserOut, AdminUserUpdate
+from app.schemas import UserOut, AdminUserUpdate, AdminPasswordReset
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -52,6 +52,21 @@ def update_user(
     db.commit()
     db.refresh(target)
     return target
+
+
+@router.post("/users/{user_id}/reset-password")
+def reset_password(
+    user_id: int,
+    body: AdminPasswordReset,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.hashed_password = get_password_hash(body.new_password)
+    db.commit()
+    return {"detail": "Password reset"}
 
 
 @router.delete("/users/{user_id}", status_code=204)

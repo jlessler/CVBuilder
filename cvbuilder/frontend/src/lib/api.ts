@@ -80,6 +80,14 @@ export async function getCurrentUser(): Promise<UserOut> {
   return data
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+}
+
+export async function adminResetPassword(userId: number, newPassword: string): Promise<void> {
+  await api.post(`/admin/users/${userId}/reset-password`, { new_password: newPassword })
+}
+
 // ---- Types ----
 
 export interface Profile {

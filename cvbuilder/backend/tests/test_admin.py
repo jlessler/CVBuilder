@@ -209,3 +209,42 @@ def test_delete_nonexistent_user_404(admin_client):
 def test_delete_non_admin_403(nonadmin_client, admin_user):
     resp = nonadmin_client.delete(f"/api/admin/users/{admin_user.id}")
     assert resp.status_code == 403
+
+
+# ── Reset password ────────────────────────────────────────────────────
+
+def test_reset_password(admin_client, regular_user):
+    resp = admin_client.post(
+        f"/api/admin/users/{regular_user.id}/reset-password",
+        json={"new_password": "resetpass123"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["detail"] == "Password reset"
+
+    # Verify new password works via hash check
+    from app.auth import verify_password
+    assert verify_password("resetpass123", regular_user.hashed_password)
+
+
+def test_reset_password_non_admin_403(nonadmin_client, admin_user):
+    resp = nonadmin_client.post(
+        f"/api/admin/users/{admin_user.id}/reset-password",
+        json={"new_password": "newpass"},
+    )
+    assert resp.status_code == 403
+
+
+def test_reset_password_nonexistent_user_404(admin_client):
+    resp = admin_client.post(
+        "/api/admin/users/99999/reset-password",
+        json={"new_password": "newpass123"},
+    )
+    assert resp.status_code == 404
+
+
+def test_reset_password_too_short(admin_client, regular_user):
+    resp = admin_client.post(
+        f"/api/admin/users/{regular_user.id}/reset-password",
+        json={"new_password": "short"},
+    )
+    assert resp.status_code == 422
