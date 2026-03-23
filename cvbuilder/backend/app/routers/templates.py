@@ -1,7 +1,8 @@
-"""CV Template CRUD, preview, and PDF export endpoints."""
+"""CV Template CRUD, preview, PDF export, copy, and YAML export endpoints."""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,6 +11,24 @@ from app.auth import get_current_user, get_current_user_from_token_qs, get_optio
 from app.services.sort import sort_items
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
+
+
+def _get_template(db: Session, template_id: int, user_id: int) -> models.CVTemplate:
+    """Fetch a template visible to this user (owned or system)."""
+    tmpl = db.query(models.CVTemplate).filter(
+        models.CVTemplate.id == template_id,
+        or_(models.CVTemplate.user_id == user_id, models.CVTemplate.user_id.is_(None)),
+    ).first()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return tmpl
+
+
+def _serialize_template(tmpl: models.CVTemplate) -> schemas.CVTemplateOut:
+    """Convert a CVTemplate model to the output schema, setting is_system."""
+    out = schemas.CVTemplateOut.model_validate(tmpl)
+    out.is_system = tmpl.user_id is None
+    return out
 
 
 def _build_cv_data(db: Session, user_id: int, sort_direction: str = "desc") -> dict:
@@ -102,7 +121,10 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return db.query(models.CVTemplate).filter_by(user_id=current_user.id).all()
+    tmpls = db.query(models.CVTemplate).filter(
+        or_(models.CVTemplate.user_id == current_user.id, models.CVTemplate.user_id.is_(None))
+    ).all()
+    return [_serialize_template(t) for t in tmpls]
 
 
 @router.get("/{template_id}", response_model=schemas.CVTemplateOut)
@@ -111,10 +133,8 @@ def get_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
-    if not tmpl:
-        raise HTTPException(status_code=404, detail="Template not found")
-    return tmpl
+    tmpl = _get_template(db, template_id, current_user.id)
+    return _serialize_template(tmpl)
 
 
 @router.post("", response_model=schemas.CVTemplateOut)
@@ -142,7 +162,74 @@ def create_template(
         ))
     db.commit()
     db.refresh(tmpl)
-    return tmpl
+    return _serialize_template(tmpl)
+
+
+@router.post("/import-definition", response_model=schemas.CVTemplateOut)
+def import_template_definition(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Import a template from a YAML definition file."""
+    from app.main import parse_template_yaml, _HEADINGS
+    from app.services.pdf import THEME_PRESETS
+
+    content = file.file.read().decode("utf-8")
+    parsed = parse_template_yaml(content)
+    if not parsed:
+        raise HTTPException(status_code=400, detail="Invalid template YAML: missing 'name' field")
+
+    # Resolve preset to style dict
+    preset_name = parsed["preset"]
+    style = THEME_PRESETS.get(preset_name, THEME_PRESETS.get("academic", {}))
+
+    # Look up valid section keys (built-in + user's custom definitions)
+    custom_keys = {
+        d.section_key
+        for d in db.query(models.SectionDefinition).filter_by(user_id=current_user.id).all()
+    }
+    valid_keys = set(_HEADINGS.keys()) | custom_keys | {"group_heading"}
+
+    # Filter sections, skipping unknown keys
+    valid_sections = []
+    skipped = []
+    for key, config, depth in parsed["sections"]:
+        if key in valid_keys:
+            valid_sections.append((key, config, depth))
+        else:
+            skipped.append(key)
+
+    meta = parsed["metadata"]
+    tmpl = models.CVTemplate(
+        name=parsed["name"],
+        description=parsed["description"],
+        style=style,
+        sort_direction="desc",
+        user_id=current_user.id,
+        author=meta.get("author") or None,
+        author_contact=meta.get("author_contact") or None,
+        guidance_url=meta.get("guidance_url") or None,
+    )
+    db.add(tmpl)
+    db.flush()
+
+    for i, (key, config, depth) in enumerate(valid_sections):
+        if key != "group_heading" and config is None:
+            heading = _HEADINGS.get(key, key)
+            config = {"heading": heading}
+        db.add(models.TemplateSection(
+            template_id=tmpl.id,
+            section_key=key,
+            enabled=True,
+            section_order=i,
+            config=config,
+            depth=depth,
+        ))
+
+    db.commit()
+    db.refresh(tmpl)
+    return _serialize_template(tmpl)
 
 
 @router.put("/{template_id}", response_model=schemas.CVTemplateOut)
@@ -152,8 +239,10 @@ def update_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
-    if not tmpl:
+    tmpl = _get_template(db, template_id, current_user.id)
+    if tmpl.user_id is None:
+        raise HTTPException(status_code=403, detail="System templates cannot be edited")
+    if tmpl.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Template not found")
     tmpl.name = data.name
     tmpl.description = data.description
@@ -177,7 +266,7 @@ def update_template(
             ))
     db.commit()
     db.refresh(tmpl)
-    return tmpl
+    return _serialize_template(tmpl)
 
 
 @router.delete("/{template_id}")
@@ -186,8 +275,10 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
-    if not tmpl:
+    tmpl = _get_template(db, template_id, current_user.id)
+    if tmpl.user_id is None:
+        raise HTTPException(status_code=403, detail="System templates cannot be deleted")
+    if tmpl.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Template not found")
     # Prevent deletion if CV instances reference this template
     instance_count = db.query(models.CVInstance).filter_by(template_id=template_id).count()
@@ -199,6 +290,92 @@ def delete_template(
     db.delete(tmpl)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{template_id}/copy", response_model=schemas.CVTemplateOut)
+def copy_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Copy any template (system or user-owned) to a new user-owned template."""
+    source = _get_template(db, template_id, current_user.id)
+    new_tmpl = models.CVTemplate(
+        name=f"{source.name} (Copy)",
+        description=source.description,
+        style=source.style,
+        sort_direction=source.sort_direction,
+        user_id=current_user.id,
+        author=source.author,
+        author_contact=source.author_contact,
+        guidance_url=source.guidance_url,
+    )
+    db.add(new_tmpl)
+    db.flush()
+    for s in source.sections:
+        db.add(models.TemplateSection(
+            template_id=new_tmpl.id,
+            section_key=s.section_key,
+            enabled=s.enabled,
+            section_order=s.section_order,
+            config=s.config,
+            depth=s.depth,
+        ))
+    db.commit()
+    db.refresh(new_tmpl)
+    return _serialize_template(new_tmpl)
+
+
+@router.get("/{template_id}/export-definition")
+def export_template_definition(
+    template_id: int,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_optional_current_user),
+):
+    """Export a template as a YAML definition file."""
+    import yaml
+    from app.services.pdf import THEME_PRESETS
+
+    user = current_user
+    if user is None and token:
+        user = get_current_user_from_token_qs(token, db)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    tmpl = _get_template(db, template_id, user.id)
+
+    # Find the preset name that matches the template's style
+    preset_name = "academic"
+    if tmpl.style:
+        for name, preset_style in THEME_PRESETS.items():
+            if preset_style == tmpl.style:
+                preset_name = name
+                break
+
+    sections = []
+    for s in sorted(tmpl.sections, key=lambda x: x.section_order):
+        entry: dict = {"key": s.section_key, "depth": s.depth or 0}
+        if s.section_key == "group_heading" and s.config:
+            entry["heading"] = s.config.get("heading", "")
+        sections.append(entry)
+
+    data = {
+        "name": tmpl.name,
+        "description": tmpl.description or "",
+        "preset": preset_name,
+        "author": tmpl.author or "",
+        "author_contact": tmpl.author_contact or "",
+        "guidance_url": tmpl.guidance_url or "",
+        "sections": sections,
+    }
+
+    yaml_content = yaml.dump(data, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    safe_name = tmpl.name.lower().replace(" ", "_").replace("(", "").replace(")", "")
+    return Response(
+        content=yaml_content,
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.yml"'},
+    )
 
 
 @router.get("/{template_id}/preview", response_class=HTMLResponse)
@@ -214,7 +391,10 @@ def preview_template(
         user = get_current_user_from_token_qs(token, db)
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=user.id).first()
+    tmpl = db.query(models.CVTemplate).filter(
+        models.CVTemplate.id == template_id,
+        or_(models.CVTemplate.user_id == user.id, models.CVTemplate.user_id.is_(None)),
+    ).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
     cv_data = _build_cv_data(db, user_id=user.id, sort_direction=tmpl.sort_direction)
@@ -233,9 +413,7 @@ def export_pdf(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    tmpl = db.query(models.CVTemplate).filter_by(id=template_id, user_id=current_user.id).first()
-    if not tmpl:
-        raise HTTPException(status_code=404, detail="Template not found")
+    tmpl = _get_template(db, template_id, current_user.id)
     cv_data = _build_cv_data(db, user_id=current_user.id, sort_direction=tmpl.sort_direction)
     enabled_sections = [
         {"key": s.section_key, "config": s.config or {}, "depth": s.depth or 0}

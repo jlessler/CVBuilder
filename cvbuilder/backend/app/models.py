@@ -379,7 +379,7 @@ class PubAuthor(Base):
 class CVTemplate(Base):
     __tablename__ = "cv_templates"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(Text)
     style: Mapped[Optional[dict]] = mapped_column(JSON)

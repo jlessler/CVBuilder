@@ -2,6 +2,7 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -128,9 +129,10 @@ def create_cv_instance(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Verify template exists and belongs to user
-    tmpl = db.query(models.CVTemplate).filter_by(
-        id=data.template_id, user_id=current_user.id
+    # Verify template exists and is accessible (owned or system)
+    tmpl = db.query(models.CVTemplate).filter(
+        models.CVTemplate.id == data.template_id,
+        or_(models.CVTemplate.user_id == current_user.id, models.CVTemplate.user_id.is_(None)),
     ).first()
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")

@@ -1,0 +1,95 @@
+name: "Imperial College CV"
+description: >-
+  Imperial College London — Arial sans-serif, Imperial navy headings,
+  A4 format, per Postdoc & Fellows Development Centre tip sheet
+preset: imperial
+author: CVBuilder
+author_contact: ""
+guidance_url: "https://www.imperial.ac.uk/media/imperial-college/administration-and-support-services/staff-development/public/postdocs/tipsheets/Academic-CVs-v2019.pdf"
+
+sections:
+  - key: education
+    depth: 0
+  - key: experience
+    depth: 0
+  - key: group_heading
+    heading: "Publications"
+    depth: 0
+  - key: publications_papers
+    depth: 1
+  - key: publications_chapters
+    depth: 1
+  - key: publications_editorials
+    depth: 1
+  - key: publications_letters
+    depth: 1
+  - key: publications_preprints
+    depth: 1
+  - key: dissertation
+    depth: 0
+  - key: group_heading
+    heading: "Grants and Awards"
+    depth: 0
+  - key: grants
+    depth: 1
+  - key: awards
+    depth: 1
+  - key: patents
+    depth: 1
+  - key: group_heading
+    heading: "Teaching and Supervision"
+    depth: 0
+  - key: classes
+    depth: 1
+  - key: trainees_advisees
+    depth: 1
+  - key: trainees_postdocs
+    depth: 1
+  - key: mentorship
+    depth: 1
+  - key: departmentalOrals
+    depth: 1
+  - key: finaldefense
+    depth: 1
+  - key: schoolwideOrals
+    depth: 1
+  - key: group_heading
+    heading: "Evidence of Esteem"
+    depth: 0
+  - key: seminars
+    depth: 1
+  - key: publications_scimeetings
+    depth: 1
+  - key: chairedsessions
+    depth: 1
+  - key: panels_advisory
+    depth: 1
+  - key: panels_grantreview
+    depth: 1
+  - key: editorial
+    depth: 1
+  - key: peerrev
+    depth: 1
+  - key: committees
+    depth: 1
+  - key: otherservice
+    depth: 1
+  - key: group_heading
+    heading: "Outreach and Engagement"
+    depth: 0
+  - key: press
+    depth: 1
+  - key: policypres
+    depth: 1
+  - key: policycons
+    depth: 1
+  - key: otherpractice
+    depth: 1
+  - key: consulting
+    depth: 1
+  - key: software
+    depth: 1
+  - key: memberships
+    depth: 0
+  - key: citation_metrics
+    depth: 0

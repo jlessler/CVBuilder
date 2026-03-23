@@ -244,6 +244,7 @@ class CVTemplateUpdate(CVTemplateBase):
 class CVTemplateOut(CVTemplateBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    is_system: bool = False
     created_at: datetime
     updated_at: datetime
     sections: list[TemplateSectionOut] = []

@@ -35,9 +35,7 @@ def register(data: schemas.UserCreate, request: Request, db: Session = Depends(g
     db.commit()
     db.refresh(user)
 
-    # Seed default templates for the new user
-    from app.main import _seed_templates
-    _seed_templates(db, user_id=user.id)
+    # System templates (user_id=NULL) are already visible to all users — no seeding needed
 
     return user
 

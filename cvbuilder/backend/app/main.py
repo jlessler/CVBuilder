@@ -49,10 +49,7 @@ def startup():
         _migrate_works_data(db)
         _migrate_cv_items_data(db)
         _migrate_press_outlets(db)
-        # Seed templates for all existing users (not just user 1)
-        all_users = db.query(models.User).all()
-        for u in all_users:
-            _seed_templates(db, user_id=u.id)
+        _seed_templates(db)
     finally:
         db.close()
 
@@ -730,869 +727,144 @@ _HEADINGS = {
     "citation_metrics":           "Citation Metrics",
 }
 
-# ---------------------------------------------------------------------------
-# Template definitions: name → (description, style_preset_name, ordered sections)
-# Each section is a tuple of (section_key, config_override_or_None, depth).
-# Group headings use section_key="group_heading" with {"heading": "..."}.
-# depth: 0 = top-level, 1 = child of nearest depth-0 heading, 2 = grandchild
-# ---------------------------------------------------------------------------
-_TEMPLATES = {
-    "Academic CV": (
-        "Full academic CV with all sections",
-        "academic",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": ""},
-        [
-            ("group_heading", {"heading": "Education and Training"}, 0),
-            ("education", None, 1),
-            ("experience", None, 1),
-            ("group_heading", {"heading": "Professional Activities"}, 0),
-            ("memberships", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("symposia", None, 1),
-            ("patents", None, 1),
-            ("group_heading", {"heading": "Editorial and Other Peer Review Activities"}, 0),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("group_heading", {"heading": "Honors and Awards"}, 0),
-            ("awards", None, 1),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_preprints", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_letters", None, 1),
-            ("group_heading", {"heading": "Practice Activities"}, 0),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("press", None, 1),
-            ("software", None, 1),
-            ("otherpractice", None, 1),
-            ("group_heading", {"heading": "Teaching"}, 0),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Oral Exam Participation"}, 1),
-            ("departmentalOrals", None, 2),
-            ("finaldefense", None, 2),
-            ("schoolwideOrals", None, 2),
-            ("classes", None, 1),
-            ("group_heading", {"heading": "Research Grant Participation"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Academic Service"}, 0),
-            ("committees", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("seminars", None, 1),
-            ("consulting", None, 1),
-            ("dissertation", None, 0),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    "UNC CV": (
-        "University of North Carolina format — sans-serif, Carolina Blue accents, "
-        "bibliography-forward section order",
-        "unc",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": ""},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("group_heading", {"heading": "Honors and Awards"}, 0),
-            ("awards", None, 1),
-            ("group_heading", {"heading": "Memberships"}, 0),
-            ("memberships", None, 1),
-            ("group_heading", {"heading": "Bibliography and Products of Scholarship"}, 0),
-            ("publications_papers", None, 1),
-            ("patents", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_preprints", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("seminars", None, 1),
-            ("software", None, 1),
-            ("dissertation", None, 1),
-            ("group_heading", {"heading": "Teaching Record"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("group_heading", {"heading": "Contracts and Grants"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Professional Service"}, 0),
-            ("committees", None, 1),
-            ("otherservice", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("symposia", None, 1),
-            ("chairedsessions", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("consulting", None, 1),
-            ("group_heading", {"heading": "Public Health Practice and Communication"}, 0),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("press", None, 1),
-            ("otherpractice", None, 1),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    "Hopkins CV": (
-        "Johns Hopkins format — Times New Roman serif, Heritage Blue headings, "
-        "centered CURRICULUM VITAE title, practice-activities section",
-        "hopkins",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": ""},
-        [
-            ("group_heading", {"heading": "Education and Training"}, 0),
-            ("education", None, 1),
-            ("experience", None, 1),
-            ("group_heading", {"heading": "Professional Activities"}, 0),
-            ("memberships", None, 1),
-            ("panels_advisory", None, 1),
-            ("symposia", None, 1),
-            ("patents", None, 1),
-            ("panels_grantreview", None, 1),
-            ("group_heading", {"heading": "Editorial and Other Peer Review Activities"}, 0),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("group_heading", {"heading": "Honors and Awards"}, 0),
-            ("awards", None, 1),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_letters", None, 1),
-            ("group_heading", {"heading": "Practice Activities"}, 0),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("press", None, 1),
-            ("software", None, 1),
-            ("otherpractice", None, 1),
-            ("group_heading", {"heading": "Teaching"}, 0),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Oral Exam Participation"}, 1),
-            ("departmentalOrals", None, 2),
-            ("finaldefense", None, 2),
-            ("schoolwideOrals", None, 2),
-            ("classes", None, 1),
-            ("group_heading", {"heading": "Research Grant Participation"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Academic Service"}, 0),
-            ("committees", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("seminars", None, 1),
-            ("publications_preprints", None, 1),
-            ("dissertation", None, 0),
-            ("consulting", None, 0),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    "UNIGE CV": (
-        "University of Geneva format — sans-serif, RedViolet section headings, "
-        "research-supervision-forward structure",
-        "unige",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": ""},
-        [
-            ("group_heading", {"heading": "Personal Data"}, 0),
-            ("education", None, 1),
-            ("experience", None, 1),
-            ("group_heading", {"heading": "Research Outputs"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_preprints", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_editorials", None, 1),
-            ("group_heading", {"heading": "Research Funding and Grants"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Research Supervision and Mentoring"}, 0),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Other Scientific Activities"}, 0),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("press", None, 1),
-            ("otherpractice", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("symposia", None, 1),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("classes", None, 1),
-            ("awards", None, 1),
-            ("patents", None, 1),
-            ("software", None, 1),
-            ("dissertation", None, 1),
-            ("committees", None, 1),
-            ("otherservice", None, 1),
-            ("consulting", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Harvard FAS — based on GSAS CVs and Cover Letters guide
-    # Left-aligned, serif, flexible sections, reverse chronological
-    # Source: hwpi.harvard.edu/files/ocs/files/gsas-cvs-and-cover-letters.pdf
-    # -------------------------------------------------------------------
-    "Harvard FAS CV": (
-        "Harvard Faculty of Arts & Sciences — serif, crimson accents, "
-        "traditional section order per GSAS guide",
-        "harvard_fas",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://careerservices.fas.harvard.edu/resources/gsas-cv-cover-letter-guide/"},
-        [
-            ("education", None, 0),
-            ("dissertation", None, 0),
-            ("experience", None, 0),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("awards", None, 0),
-            ("grants", None, 0),
-            ("group_heading", {"heading": "Teaching"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Service to the Field"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Harvard Medical School — strict HMS Faculty of Medicine CV format
-    # 18 fixed sections, chronological (ascending) order, ICMJE citations
-    # Source: fa.hms.harvard.edu/faculty-medicine-cv-guidelines
-    # -------------------------------------------------------------------
-    "Harvard Medical CV": (
-        "Harvard Medical School — strict HMS Faculty of Medicine format, "
-        "all-black, bold headings, per Jena/Hadland example CVs",
-        "harvard_med",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://fa.hms.harvard.edu/faculty-medicine-cv-guidelines"},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("group_heading", {"heading": "Committee Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("memberships", None, 0),
-            ("editorial", None, 0),
-            ("peerrev", None, 0),
-            ("group_heading", {"heading": "Teaching"}, 0),
-            ("classes", None, 1),
-            ("group_heading", {"heading": "Mentoring"}, 0),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Peer-Reviewed Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("group_heading", {"heading": "Reviews, Chapters & Monographs"}, 0),
-            ("publications_chapters", None, 1),
-            ("group_heading", {"heading": "Editorials & Letters"}, 0),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations & Lectures"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("awards", None, 0),
-            ("grants", None, 0),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("otherservice", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Stanford Medicine — Office of Academic Affairs guide
-    # Pubs split peer-reviewed vs non-peer-reviewed; no citation metrics
-    # Source: med.stanford.edu/academicaffairs/faculty/promotion-reappointment/
-    # -------------------------------------------------------------------
-    "Stanford Medicine CV": (
-        "Stanford School of Medicine — OAA format, sans-serif, "
-        "publications split by peer-review status",
-        "stanford_med",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://med.stanford.edu/academicaffairs/faculty/promotion-reappointment/how-to-organize-your-cv-candidate-s-statement.html"},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("awards", None, 0),
-            ("grants", None, 0),
-            ("group_heading", {"heading": "Peer-Reviewed Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("group_heading", {"heading": "Reviews, Chapters & Other Publications"}, 0),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Invited Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("group_heading", {"heading": "Teaching & Mentoring"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # MIT — EECS CommLab + CAPD guidance
-    # Conservative sans-serif, research-first, no rigid format
-    # Source: mitcommlab.mit.edu/eecs/commkit/faculty-application-cv/
-    # -------------------------------------------------------------------
-    "MIT CV": (
-        "MIT — clean sans-serif, research-first layout "
-        "per EECS CommLab and CAPD guidance",
-        "mit",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://mitcommlab.mit.edu/eecs/commkit/faculty-application-cv/"},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("patents", None, 0),
-            ("software", None, 0),
-            ("grants", None, 0),
-            ("awards", None, 0),
-            ("group_heading", {"heading": "Teaching & Mentoring"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Professional Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Outreach"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Michigan Engineering — ADAA promotion & tenure CV template
-    # Fixed section order, patents + grants (current/pending/completed) prominent
-    # Source: adaa.engin.umich.edu/admin/ptr/
-    # -------------------------------------------------------------------
-    "Michigan Engineering CV": (
-        "U-M College of Engineering — ADAA promotion format, "
-        "centered navy header, teaching before research",
-        "michigan_eng",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://adaa.engin.umich.edu/admin/ptr/"},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("awards", None, 0),
-            ("group_heading", {"heading": "Teaching"}, 0),
-            ("classes", None, 1),
-            ("group_heading", {"heading": "Students Advised"}, 0),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Research"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("patents", None, 0),
-            ("software", None, 0),
-            ("group_heading", {"heading": "Professional Service"}, 0),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "University Service"}, 0),
-            ("committees", None, 1),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Columbia CUIMC — Irving Medical Center CV format (2022)
-    # Numbered sections 1–12, reverse chronological, comprehensive
-    # Source: vagelos.columbia.edu cuimc_cv_format-2.17.22.pdf
-    # -------------------------------------------------------------------
-    "Columbia CUIMC CV": (
-        "Columbia University Irving Medical Center — CUIMC promotion format, "
-        "blue bold headings, work experience before education",
-        "columbia_cuimc",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://www.vagelos.columbia.edu/sites/default/files/media/documents/2022-02/cuimc_cv_format-2.17.22.pdf"},
-        [
-            ("experience", None, 0),
-            ("education", None, 0),
-            ("awards", None, 0),
-            ("group_heading", {"heading": "Administrative Leadership & Academic Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("group_heading", {"heading": "Professional Organizations & Societies"}, 0),
-            ("memberships", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("grants", None, 0),
-            ("group_heading", {"heading": "Educational Contributions"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("group_heading", {"heading": "Peer-Reviewed Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("group_heading", {"heading": "Reviews, Chapters & Editorials"}, 0),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("otherservice", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # Imperial College London — UK academic CV
-    # A4 page, sans-serif, research-heavy layout
-    # Source: imperial.ac.uk academic promotions guidance
-    # -------------------------------------------------------------------
-    "Imperial College CV": (
-        "Imperial College London — Arial sans-serif, Imperial navy headings, "
-        "A4 format, per Postdoc & Fellows Development Centre tip sheet",
-        "imperial",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://www.imperial.ac.uk/media/imperial-college/administration-and-support-services/staff-development/public/postdocs/tipsheets/Academic-CVs-v2019.pdf"},
-        [
-            # Tip sheet order: Qualifications → Employment → Publications →
-            # Grants & Awards → Teaching & Supervision → Evidence of Esteem →
-            # Outreach → Memberships
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("dissertation", None, 0),
-            ("group_heading", {"heading": "Grants and Awards"}, 0),
-            ("grants", None, 1),
-            ("awards", None, 1),
-            ("patents", None, 1),
-            ("group_heading", {"heading": "Teaching and Supervision"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("group_heading", {"heading": "Evidence of Esteem"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("committees", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Outreach and Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("consulting", None, 1),
-            ("software", None, 1),
-            ("memberships", None, 0),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # University of Oxford — traditional UK academic CV
-    # A4 page, serif, reverse chronological, publications-forward
-    # Source: Academic Division promotions guidance
-    # -------------------------------------------------------------------
-    "Oxford CV": (
-        "University of Oxford — serif, Oxford Blue, UPPERCASE headings, "
-        "A4 format, per Careers Service guidance and example CV",
-        "oxford",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://www.careers.ox.ac.uk/academic-applications"},
-        [
-            # Oxford example CV order: Research Experience → Awards →
-            # Education → Teaching → Publications → Conference Papers →
-            # Memberships → Referees.
-            # Careers Service guidance: Education, Experience, Research,
-            # Publications, Presentations, Memberships, References.
-            # Merged for senior academic CV:
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("dissertation", None, 0),
-            ("awards", None, 0),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Conference Papers and Presentations"}, 0),
-            ("publications_scimeetings", None, 1),
-            ("seminars", None, 1),
-            ("chairedsessions", None, 1),
-            ("grants", None, 0),
-            ("group_heading", {"heading": "Teaching Experience"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("group_heading", {"heading": "Professional Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("otherservice", None, 1),
-            ("memberships", None, 0),
-            ("group_heading", {"heading": "Public Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("patents", None, 0),
-            ("software", None, 0),
-            ("consulting", None, 0),
-            ("citation_metrics", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # University of Hong Kong — RAE/P&T CV format
-    # A4 page, sans-serif, grants and research impact prominent
-    # Source: HKU Academic Staff Review procedures
-    # -------------------------------------------------------------------
-    "HKU CV": (
-        "University of Hong Kong — sans-serif, HKU Green headings, "
-        "A4 format, validated against HKU faculty CV examples",
-        "hku",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://www.cedars.hku.hk/careers/cv"},
-        [
-            # Validated against Prof Wong (Science Faculty) 2018 CV:
-            # Personal Particulars → Education → Position →
-            # Membership of Professional Societies →
-            # Editorship/Editorial Board → Awards →
-            # Research Grants → Research Interests →
-            # Publications (with h-index summary) → Conference Proceedings
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("memberships", None, 0),
-            ("group_heading", {"heading": "Editorship and Editorial Board Membership"}, 0),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("group_heading", {"heading": "Scholarship, Research and Teaching Awards"}, 0),
-            ("awards", None, 1),
-            ("group_heading", {"heading": "Research Grants Awarded"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Research Performance: Publications"}, 0),
-            ("citation_metrics", None, 1),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("chairedsessions", None, 1),
-            ("group_heading", {"heading": "Teaching and Supervision"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("group_heading", {"heading": "Professional Activities and Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Community Engagement"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("patents", None, 0),
-            ("software", None, 0),
-            ("consulting", None, 0),
-            ("dissertation", None, 0),
-        ],
-    ),
-    # -------------------------------------------------------------------
-    # University of Melbourne — Australian academic CV
-    # A4 page, mixed serif/sans, ARC-style emphasis on grants and impact
-    # Source: Melbourne academic promotions guidance
-    # -------------------------------------------------------------------
-    "Melbourne CV": (
-        "University of Melbourne — 12pt serif body with sans-serif headings, "
-        "A4 format, 2cm margins, grants-and-impact-forward per promotions guidelines",
-        "melbourne",
-        {"author": "CVBuilder", "author_contact": "", "guidance_url": "https://about.unimelb.edu.au/__data/assets/pdf_file/0032/418496/academic-promotions-guidelines-2024.pdf"},
-        [
-            ("education", None, 0),
-            ("experience", None, 0),
-            ("awards", None, 0),
-            ("group_heading", {"heading": "Research Grants & Funding"}, 0),
-            ("grants", None, 1),
-            ("group_heading", {"heading": "Publications"}, 0),
-            ("publications_papers", None, 1),
-            ("publications_chapters", None, 1),
-            ("publications_editorials", None, 1),
-            ("publications_letters", None, 1),
-            ("publications_preprints", None, 1),
-            ("citation_metrics", None, 0),
-            ("group_heading", {"heading": "Presentations"}, 0),
-            ("seminars", None, 1),
-            ("publications_scimeetings", None, 1),
-            ("chairedsessions", None, 1),
-            ("group_heading", {"heading": "Teaching & Supervision"}, 0),
-            ("classes", None, 1),
-            ("trainees_advisees", None, 1),
-            ("trainees_postdocs", None, 1),
-            ("mentorship", None, 1),
-            ("departmentalOrals", None, 1),
-            ("finaldefense", None, 1),
-            ("schoolwideOrals", None, 1),
-            ("patents", None, 0),
-            ("software", None, 0),
-            ("group_heading", {"heading": "Professional Service"}, 0),
-            ("committees", None, 1),
-            ("panels_advisory", None, 1),
-            ("panels_grantreview", None, 1),
-            ("editorial", None, 1),
-            ("peerrev", None, 1),
-            ("memberships", None, 1),
-            ("otherservice", None, 1),
-            ("group_heading", {"heading": "Engagement & Impact"}, 0),
-            ("press", None, 1),
-            ("policypres", None, 1),
-            ("policycons", None, 1),
-            ("otherpractice", None, 1),
-            ("consulting", None, 0),
-            ("dissertation", None, 0),
-        ],
-    ),
-}
+def parse_template_yaml(yaml_str: str) -> dict | None:
+    """Parse a template definition YAML string.
+
+    Returns a dict with keys: name, description, preset, metadata, sections.
+    Returns None if the YAML is invalid or missing a name.
+    """
+    import yaml
+
+    data = yaml.safe_load(yaml_str)
+    if not data or "name" not in data:
+        return None
+    sections = []
+    for s in data.get("sections", []):
+        key = s["key"]
+        depth = s.get("depth", 0)
+        config = None
+        if key == "group_heading":
+            config = {"heading": s.get("heading", "")}
+        sections.append((key, config, depth))
+    return {
+        "name": data["name"],
+        "description": data.get("description", ""),
+        "preset": data.get("preset", "academic"),
+        "metadata": {
+            "author": data.get("author", ""),
+            "author_contact": data.get("author_contact", ""),
+            "guidance_url": data.get("guidance_url", ""),
+        },
+        "sections": sections,
+    }
 
 
-def _seed_templates(db, user_id: int = 1):
-    """Insert new templates and add any missing sections to existing templates.
+def _load_template_library():
+    """Load template definitions from YAML files in template_library/."""
+    from pathlib import Path
 
-    Each entry in the sections list is a tuple of (section_key, config_override_or_None, depth).
-    Group headings (section_key="group_heading") are always appended since multiple
-    can exist; regular sections are only added if not already present.
+    lib_dir = Path(__file__).resolve().parent.parent / "template_library"
+    templates = {}
+    if not lib_dir.is_dir():
+        return templates
+
+    for yml_path in sorted(lib_dir.glob("*.yml")):
+        with open(yml_path, "r", encoding="utf-8") as f:
+            parsed = parse_template_yaml(f.read())
+        if not parsed:
+            continue
+        templates[parsed["name"]] = (
+            parsed["description"],
+            parsed["preset"],
+            parsed["metadata"],
+            parsed["sections"],
+        )
+    return templates
+
+
+def _seed_templates(db):
+    """Upsert system templates (user_id=NULL) from the YAML template library.
+
+    Also migrates per-user seeded copies: if a per-user template has the same
+    name as a system template and no CV instances reference it, delete it.
     """
     from app.services.pdf import THEME_PRESETS
+    import logging
 
-    existing_tmpls = {
+    log = logging.getLogger("cvbuilder.seed")
+
+    library = _load_template_library()
+    if not library:
+        return
+
+    # Existing system templates (user_id IS NULL)
+    existing_system = {
         t.name: t for t in
-        db.query(models.CVTemplate).filter_by(user_id=user_id).all()
+        db.query(models.CVTemplate).filter(models.CVTemplate.user_id.is_(None)).all()
     }
-    for name, (description, preset_name, metadata, sections) in _TEMPLATES.items():
-        if name not in existing_tmpls:
+
+    for name, (description, preset_name, metadata, sections) in library.items():
+        style = THEME_PRESETS.get(preset_name, THEME_PRESETS["academic"])
+
+        if name in existing_system:
+            # Update existing system template
+            tmpl = existing_system[name]
+            tmpl.description = description
+            tmpl.style = style
+            tmpl.author = metadata.get("author") or None
+            tmpl.author_contact = metadata.get("author_contact") or None
+            tmpl.guidance_url = metadata.get("guidance_url") or None
+            # Replace sections to match YAML definition
+            db.query(models.TemplateSection).filter(
+                models.TemplateSection.template_id == tmpl.id
+            ).delete()
+            db.flush()
+        else:
+            # Create new system template
             tmpl = models.CVTemplate(
-                name=name, description=description,
-                style=THEME_PRESETS.get(preset_name, THEME_PRESETS["academic"]),
-                user_id=user_id,
-                author=metadata.get("author"),
+                name=name,
+                description=description,
+                style=style,
+                user_id=None,
+                author=metadata.get("author") or None,
                 author_contact=metadata.get("author_contact") or None,
                 guidance_url=metadata.get("guidance_url") or None,
             )
             db.add(tmpl)
             db.flush()
-        else:
-            tmpl = existing_tmpls[name]
-            # Update metadata on existing seeded templates if not yet set
-            if not tmpl.author:
-                tmpl.author = metadata.get("author")
-            if not tmpl.guidance_url and metadata.get("guidance_url"):
-                tmpl.guidance_url = metadata["guidance_url"]
 
-        existing_rows = (
-            db.query(models.TemplateSection)
-            .filter_by(template_id=tmpl.id)
-            .all()
-        )
-        existing_keys = {s.section_key for s in existing_rows}
-        has_group_headings = any(
-            s.section_key == "group_heading" for s in existing_rows
-        )
-
-        # If the template already has group headings, skip re-seeding entirely
-        if has_group_headings:
-            continue
-
-        # For brand-new templates, add all sections in order.
-        # For existing templates, append only missing regular sections.
-        next_order = len(existing_rows)
-        for key, config_override, depth in sections:
+        # Add sections from YAML definition
+        for i, (key, config_override, depth) in enumerate(sections):
             if key == "group_heading":
-                # Group headings are always new rows (multiple allowed)
-                db.add(models.TemplateSection(
-                    template_id=tmpl.id,
-                    section_key="group_heading",
-                    enabled=True,
-                    section_order=next_order,
-                    config=config_override or {},
-                    depth=depth,
-                ))
-                next_order += 1
-            elif key not in existing_keys:
+                config = config_override or {}
+            else:
                 heading = (
                     (config_override or {}).get("heading")
                     or _HEADINGS.get(key, key.replace("_", " ").title())
                 )
-                db.add(models.TemplateSection(
-                    template_id=tmpl.id,
-                    section_key=key,
-                    enabled=True,
-                    section_order=next_order,
-                    config={"heading": heading},
-                    depth=depth,
-                ))
-                existing_keys.add(key)
-                next_order += 1
+                config = {"heading": heading}
+            db.add(models.TemplateSection(
+                template_id=tmpl.id,
+                section_key=key,
+                enabled=True,
+                section_order=i,
+                config=config,
+                depth=depth,
+            ))
 
-        # For existing templates that just got group headings added,
-        # reorder all sections to match the canonical template order.
-        if name in existing_tmpls:
-            all_rows = (
-                db.query(models.TemplateSection)
-                .filter_by(template_id=tmpl.id)
-                .order_by(models.TemplateSection.section_order)
-                .all()
-            )
-            # Build target order from _TEMPLATES definition
-            target_keys = [k for k, _, _ in sections]
-            # Build depth map for target sections
-            target_depths = {}
-            gh_depths = []
-            for k, _, d in sections:
-                if k == "group_heading":
-                    gh_depths.append(d)
-                else:
-                    target_depths[k] = d
-            # Index existing rows by key (group_headings: collect in order)
-            keyed_rows: dict[str, list] = {}
-            for row in all_rows:
-                keyed_rows.setdefault(row.section_key, []).append(row)
-            # Assign new order following the template definition
-            order = 0
-            used_group_idx = 0
-            for tkey in target_keys:
-                if tkey == "group_heading":
-                    gh_rows = keyed_rows.get("group_heading", [])
-                    if used_group_idx < len(gh_rows):
-                        gh_rows[used_group_idx].section_order = order
-                        if used_group_idx < len(gh_depths):
-                            gh_rows[used_group_idx].depth = gh_depths[used_group_idx]
-                        used_group_idx += 1
-                        order += 1
-                else:
-                    rows = keyed_rows.get(tkey, [])
-                    if rows:
-                        rows[0].section_order = order
-                        rows[0].depth = target_depths.get(tkey, 0)
-                        order += 1
-            # Any remaining rows not in the template definition go at the end
-            placed = set()
-            for tkey in target_keys:
-                if tkey == "group_heading":
-                    continue
-                placed.add(tkey)
-            for row in all_rows:
-                if row.section_key not in placed and row.section_key != "group_heading":
-                    row.section_order = order
-                    order += 1
+    # Migrate per-user copies: delete seeded copies that have no CV instances
+    library_names = set(library.keys())
+    per_user_copies = db.query(models.CVTemplate).filter(
+        models.CVTemplate.user_id.isnot(None),
+        models.CVTemplate.name.in_(library_names),
+    ).all()
+    for tmpl in per_user_copies:
+        instance_count = db.query(models.CVInstance).filter_by(
+            template_id=tmpl.id
+        ).count()
+        if instance_count == 0:
+            log.info("Removing per-user seeded template '%s' (user_id=%s)", tmpl.name, tmpl.user_id)
+            db.delete(tmpl)
 
     db.commit()
 

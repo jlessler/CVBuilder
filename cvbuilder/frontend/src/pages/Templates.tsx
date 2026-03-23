@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, getToken, listSectionDefinitions } from '../lib/api'
 import type { CVTemplate, SectionDefinition } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Select } from '../components/ui'
-import { Plus, Trash2, Edit2, Eye, Settings, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Edit2, Eye, Settings, ExternalLink, Copy, Download, Upload } from 'lucide-react'
 import { ALL_SECTIONS, SectionComposer, toSectionEntries } from '../components/SectionComposer'
 import type { SectionEntry } from '../components/SectionComposer'
 import type { PickerSection } from '../components/SectionPickerModal'
@@ -480,6 +480,7 @@ export function Templates() {
   const [newName, setNewName] = useState('')
   const [copyStyleFrom, setCopyStyleFrom] = useState('')
   const [managingCustom, setManagingCustom] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
 
   const { data = [], isLoading } = useQuery<CVTemplate[]>({
     queryKey: ['templates'],
@@ -518,7 +519,39 @@ export function Templates() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
   })
 
+  const copyMut = useMutation({
+    mutationFn: (id: number) => api.post(`/templates/${id}/copy`).then(r => r.data as CVTemplate),
+    onSuccess: (newTmpl) => {
+      qc.invalidateQueries({ queryKey: ['templates'] })
+      setComposing(newTmpl)
+    },
+  })
+
+  const exportYaml = (id: number) => {
+    const token = getToken()
+    window.open(`/api/templates/${id}/export-definition?token=${encodeURIComponent(token || '')}`, '_blank')
+  }
+
+  const importMut = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return api.post('/templates/import-definition', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data as CVTemplate)
+    },
+    onSuccess: (newTmpl) => {
+      qc.invalidateQueries({ queryKey: ['templates'] })
+      setCreating(false)
+      setImportFile(null)
+      setComposing(newTmpl)
+    },
+  })
+
   if (isLoading) return <div className="p-8"><Spinner /></div>
+
+  const systemTemplates = data.filter(t => t.is_system)
+  const userTemplates = data.filter(t => !t.is_system)
 
   return (
     <div className="p-8">
@@ -533,58 +566,114 @@ export function Templates() {
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.map(tmpl => (
-          <Card key={tmpl.id} className="p-5">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
-                <div className="flex gap-1 mt-1 items-center">
-                  {tmpl.style?.primary_color && (
-                    <span className="inline-block w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: tmpl.style.primary_color }} />
-                  )}
-                  <Badge color="gray">{tmpl.sections.filter(s => s.section_key !== 'group_heading').length} sections</Badge>
-                  <Badge color="blue">{tmpl.sort_direction === 'desc' ? 'Newest first' : 'Oldest first'}</Badge>
+      {/* User templates */}
+      {userTemplates.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">My Templates</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {userTemplates.map(tmpl => (
+              <Card key={tmpl.id} className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
+                    <div className="flex gap-1 mt-1 items-center">
+                      {tmpl.style?.primary_color && (
+                        <span className="inline-block w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: tmpl.style.primary_color }} />
+                      )}
+                      <Badge color="gray">{tmpl.sections.filter(s => s.section_key !== 'group_heading').length} sections</Badge>
+                      <Badge color="blue">{tmpl.sort_direction === 'desc' ? 'Newest first' : 'Oldest first'}</Badge>
+                    </div>
+                  </div>
+                  <button
+                    className="text-red-400 hover:text-red-600"
+                    onClick={() => { if (confirm('Delete template?')) deleteMut.mutate(tmpl.id) }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-              </div>
-              <button
-                className="text-red-400 hover:text-red-600"
-                onClick={() => { if (confirm('Delete template?')) deleteMut.mutate(tmpl.id) }}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-            {tmpl.description && <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>}
-            {(tmpl.author || tmpl.guidance_url) && (
-              <div className="text-xs text-gray-400 mb-3 space-y-0.5">
-                {tmpl.author && <p>By {tmpl.author}{tmpl.author_contact ? ` · ${tmpl.author_contact}` : ''}</p>}
-                {tmpl.guidance_url && (
-                  <a href={tmpl.guidance_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:underline">
-                    Guidance <ExternalLink size={10} />
-                  </a>
+                {tmpl.description && <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>}
+                {(tmpl.author || tmpl.guidance_url) && (
+                  <div className="text-xs text-gray-400 mb-3 space-y-0.5">
+                    {tmpl.author && <p>By {tmpl.author}{tmpl.author_contact ? ` · ${tmpl.author_contact}` : ''}</p>}
+                    {tmpl.guidance_url && (
+                      <a href={tmpl.guidance_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:underline">
+                        Guidance <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setComposing(tmpl)}>
-                <Edit2 size={12} /> Edit
-              </Button>
-              <a href={`/api/templates/${tmpl.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
-                <Button variant="ghost" size="sm"><Eye size={12} /> Preview</Button>
-              </a>
-            </div>
-          </Card>
-        ))}
-
-        {data.length === 0 && (
-          <div className="col-span-3 py-16 text-center text-gray-400 text-sm">
-            No templates yet. Create one to get started.
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setComposing(tmpl)}>
+                    <Edit2 size={12} /> Edit
+                  </Button>
+                  <a href={`/api/templates/${tmpl.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
+                    <Button variant="ghost" size="sm"><Eye size={12} /> Preview</Button>
+                  </a>
+                  <Button variant="ghost" size="sm" onClick={() => exportYaml(tmpl.id)}>
+                    <Download size={12} /> YAML
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* System templates */}
+      {systemTemplates.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">System Templates</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {systemTemplates.map(tmpl => (
+              <Card key={tmpl.id} className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
+                    <div className="flex gap-1 mt-1 items-center">
+                      {tmpl.style?.primary_color && (
+                        <span className="inline-block w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: tmpl.style.primary_color }} />
+                      )}
+                      <Badge color="purple">System</Badge>
+                      <Badge color="gray">{tmpl.sections.filter(s => s.section_key !== 'group_heading').length} sections</Badge>
+                    </div>
+                  </div>
+                </div>
+                {tmpl.description && <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>}
+                {(tmpl.author || tmpl.guidance_url) && (
+                  <div className="text-xs text-gray-400 mb-3 space-y-0.5">
+                    {tmpl.author && <p>By {tmpl.author}{tmpl.author_contact ? ` · ${tmpl.author_contact}` : ''}</p>}
+                    {tmpl.guidance_url && (
+                      <a href={tmpl.guidance_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:underline">
+                        Guidance <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => copyMut.mutate(tmpl.id)} loading={copyMut.isPending}>
+                    <Copy size={12} /> Copy
+                  </Button>
+                  <a href={`/api/templates/${tmpl.id}/preview?token=${encodeURIComponent(getToken() || '')}`} target="_blank" rel="noreferrer">
+                    <Button variant="ghost" size="sm"><Eye size={12} /> Preview</Button>
+                  </a>
+                  <Button variant="ghost" size="sm" onClick={() => exportYaml(tmpl.id)}>
+                    <Download size={12} /> YAML
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.length === 0 && (
+        <div className="py-16 text-center text-gray-400 text-sm">
+          No templates yet. Create one to get started.
+        </div>
+      )}
 
       {/* Create modal */}
-      <Modal open={creating} onClose={() => setCreating(false)} title="New Template">
+      <Modal open={creating} onClose={() => { setCreating(false); setImportFile(null) }} title="New Template">
         <div className="space-y-4">
           <Input label="Template Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Full Academic CV" />
           {data.length > 0 && (
@@ -607,6 +696,30 @@ export function Templates() {
               Create Template
             </Button>
           </div>
+
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-gray-300" />
+            <span className="mx-3 text-xs text-gray-400">or</span>
+            <div className="flex-grow border-t border-gray-300" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Import from YAML file</label>
+            <input
+              type="file"
+              accept=".yml,.yaml"
+              onChange={e => setImportFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+          </div>
+          {importFile && (
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" onClick={() => setImportFile(null)}>Cancel</Button>
+              <Button onClick={() => importMut.mutate(importFile)} loading={importMut.isPending}>
+                <Upload size={14} /> Import Template
+              </Button>
+            </div>
+          )}
         </div>
       </Modal>
 

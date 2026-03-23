@@ -262,6 +262,7 @@ export interface CVTemplate {
   id: number
   name: string
   description: string | null
+  is_system: boolean
   style: Record<string, string> | null
   sort_direction: string
   author: string | null

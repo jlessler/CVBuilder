@@ -1,0 +1,113 @@
+name: "Academic CV"
+description: "Full academic CV with all sections"
+preset: academic
+author: CVBuilder
+author_contact: ""
+guidance_url: ""
+
+sections:
+  - key: group_heading
+    heading: "Education and Training"
+    depth: 0
+  - key: education
+    depth: 1
+  - key: experience
+    depth: 1
+  - key: group_heading
+    heading: "Professional Activities"
+    depth: 0
+  - key: memberships
+    depth: 1
+  - key: panels_advisory
+    depth: 1
+  - key: panels_grantreview
+    depth: 1
+  - key: symposia
+    depth: 1
+  - key: patents
+    depth: 1
+  - key: group_heading
+    heading: "Editorial and Other Peer Review Activities"
+    depth: 0
+  - key: editorial
+    depth: 1
+  - key: peerrev
+    depth: 1
+  - key: group_heading
+    heading: "Honors and Awards"
+    depth: 0
+  - key: awards
+    depth: 1
+  - key: group_heading
+    heading: "Publications"
+    depth: 0
+  - key: publications_papers
+    depth: 1
+  - key: publications_editorials
+    depth: 1
+  - key: publications_preprints
+    depth: 1
+  - key: publications_chapters
+    depth: 1
+  - key: publications_letters
+    depth: 1
+  - key: group_heading
+    heading: "Practice Activities"
+    depth: 0
+  - key: policypres
+    depth: 1
+  - key: policycons
+    depth: 1
+  - key: press
+    depth: 1
+  - key: software
+    depth: 1
+  - key: otherpractice
+    depth: 1
+  - key: group_heading
+    heading: "Teaching"
+    depth: 0
+  - key: trainees_advisees
+    depth: 1
+  - key: trainees_postdocs
+    depth: 1
+  - key: mentorship
+    depth: 1
+  - key: group_heading
+    heading: "Oral Exam Participation"
+    depth: 1
+  - key: departmentalOrals
+    depth: 2
+  - key: finaldefense
+    depth: 2
+  - key: schoolwideOrals
+    depth: 2
+  - key: classes
+    depth: 1
+  - key: group_heading
+    heading: "Research Grant Participation"
+    depth: 0
+  - key: grants
+    depth: 1
+  - key: group_heading
+    heading: "Academic Service"
+    depth: 0
+  - key: committees
+    depth: 1
+  - key: otherservice
+    depth: 1
+  - key: group_heading
+    heading: "Presentations"
+    depth: 0
+  - key: publications_scimeetings
+    depth: 1
+  - key: chairedsessions
+    depth: 1
+  - key: seminars
+    depth: 1
+  - key: consulting
+    depth: 1
+  - key: dissertation
+    depth: 0
+  - key: citation_metrics
+    depth: 0
