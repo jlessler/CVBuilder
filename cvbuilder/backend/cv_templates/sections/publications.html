@@ -5,6 +5,8 @@
 {% endif %}
 {% if pubs %}
 {% set profile_name = (cv.profile.name or '') if cv.profile else '' %}
+{% set citation_style = style.citation_style | default('display') %}
+{% set citation_max_authors = style.citation_max_authors | default('0') | int %}
 {% set ns = namespace(has_students=false, has_corr=false, has_cofirst=false, has_cosenior=false) %}
 {% for p in pubs %}
   {% for a in p.authors %}{% if a.corresponding %}{% set ns.has_corr = true %}{% endif %}{% if a.student %}{% set ns.has_students = true %}{% endif %}{% if a.cofirst %}{% set ns.has_cofirst = true %}{% endif %}{% if a.cosenior %}{% set ns.has_cosenior = true %}{% endif %}{% endfor %}
@@ -14,7 +16,12 @@
   {% for p in pubs %}
   <div class="pub-entry">
     <span class="pub-number">{{ loop.index }}.</span>
-    {% for a in p.authors %}{% if not loop.first %}, {% endif %}{{ a.author_name | bold_self(profile_name) | safe }}{% if a.student %}<sup>&dagger;</sup>{% endif %}{% if a.cofirst %}<sup>&#8225;</sup>{% endif %}{% if a.cosenior %}<sup>&sect;</sup>{% endif %}{% endfor %}{% if p.authors | selectattr('corresponding') | list %}<sup>*</sup>{% endif %}.
+    {% set formatted_citation = p | format_citation(profile_name, citation_style, citation_max_authors) %}
+    {% if formatted_citation %}
+    {{ formatted_citation | safe }}
+    {% else %}
+    {{ p.authors | format_author_list(profile_name, citation_style, citation_max_authors) | safe }}.
+    {% if p.year %}({{ p.year }}){% endif %}
     {% if p.title %}&ldquo;<span class="pub-title">{{ p.title }}</span>.&rdquo;{% endif %}
     {% if pub_type == 'scimeetings' %}
       {% if p.conference %}<em>{{ p.conference }}</em>{% endif %}
@@ -25,8 +32,8 @@
       {% if p.journal %}<em>{{ p.journal }}</em>{% endif %}
       {% if p.volume %}{{ p.volume }}{% endif %}{% if p.issue %}({{ p.issue }}){% endif %}{% if p.pages %}: {{ p.pages }}{% endif %}.
     {% endif %}
-    {% if p.year %}({{ p.year }}){% endif %}
     {% if p.doi %}<a href="https://doi.org/{{ p.doi }}">doi:{{ p.doi }}</a>{% endif %}
+    {% endif %}
     {% if config.get('show_crossref', true) %}
     {% if p.preprint_doi %} (preprinted as <a href="https://doi.org/{{ p.preprint_doi }}">doi:{{ p.preprint_doi }}</a>){% endif %}
     {% if p.published_doi %} (published as <a href="https://doi.org/{{ p.published_doi }}">doi:{{ p.published_doi }}</a>){% endif %}

@@ -9,6 +9,35 @@ from pathlib import Path
 import yaml
 
 
+def _author_fields(entry) -> dict:
+    """Extract structured name fields from a YAML author entry.
+
+    Accepts either a plain string or a dict with name/family/given/middle/suffix keys.
+    Returns kwargs suitable for WorkAuthor constructor (author_name + optional structured fields).
+    """
+    from app.services.name_parser import parse_author_name
+
+    if isinstance(entry, dict):
+        name = entry.get("name", "")
+        return {
+            "author_name": _clean(name),
+            "given_name": entry.get("given"),
+            "family_name": entry.get("family"),
+            "middle_name": entry.get("middle"),
+            "suffix": entry.get("suffix"),
+        }
+    # Plain string — parse into structured fields
+    cleaned = _clean(str(entry))
+    parsed = parse_author_name(cleaned)
+    return {
+        "author_name": cleaned,
+        "given_name": parsed.get("given_name"),
+        "family_name": parsed.get("family_name"),
+        "middle_name": parsed.get("middle_name"),
+        "suffix": parsed.get("suffix"),
+    }
+
+
 def _clean(value):
     """Remove LaTeX markup, normalise whitespace."""
     if not isinstance(value, str):
@@ -223,7 +252,8 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         session.add(work)
         session.flush()
         for j, author in enumerate(item.get("authors", [])):
-            session.add(WorkAuthor(work_id=work.id, author_name=_clean(author), author_order=j))
+            fields = _author_fields(author)
+            session.add(WorkAuthor(work_id=work.id, author_order=j, **fields))
 
     # ------------------------------------------------------------------
     # Symposia
@@ -436,10 +466,15 @@ def import_cv_yaml(cv_path: str, session, user_id: int = 1) -> None:
         )
         session.add(work)
         session.flush()
-        authors_str = item.get("authors", "")
-        if isinstance(authors_str, str) and authors_str:
-            for j, name in enumerate(a.strip() for a in authors_str.split(",") if a.strip()):
-                session.add(WorkAuthor(work_id=work.id, author_name=_clean(name), author_order=j))
+        authors_raw = item.get("authors", "")
+        if isinstance(authors_raw, list):
+            for j, author in enumerate(authors_raw):
+                fields = _author_fields(author)
+                session.add(WorkAuthor(work_id=work.id, author_order=j, **fields))
+        elif isinstance(authors_raw, str) and authors_raw:
+            for j, name in enumerate(a.strip() for a in authors_raw.split(",") if a.strip()):
+                fields = _author_fields(name)
+                session.add(WorkAuthor(work_id=work.id, author_order=j, **fields))
 
     # Dissertation (stored as Work with work_type='dissertation')
     _delete_works_by_type(session, user_id, "dissertation")
@@ -551,11 +586,12 @@ def import_refs_yaml(refs_path: str, session, user_id: int = 1) -> None:
             for j, author in enumerate(authors_raw):
                 raw = str(author)
                 student = bool(re.search(r'\$\^[\*\{]', raw))
+                fields = _author_fields(author)
                 wa = WorkAuthor(
                     work_id=work.id,
-                    author_name=_clean(raw),
                     author_order=j,
                     student=student,
+                    **fields,
                 )
                 session.add(wa)
             session.flush()

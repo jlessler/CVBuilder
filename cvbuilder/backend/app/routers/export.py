@@ -12,6 +12,20 @@ from app.auth import get_current_user
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
+def _export_author(a: models.WorkAuthor):
+    """Export author as dict with structured fields or plain string."""
+    if a.family_name:
+        d = {"name": a.author_name, "family": a.family_name}
+        if a.given_name:
+            d["given"] = a.given_name
+        if a.middle_name:
+            d["middle"] = a.middle_name
+        if a.suffix:
+            d["suffix"] = a.suffix
+        return d
+    return a.author_name
+
+
 @router.get("/yaml")
 def export_yaml(
     db: Session = Depends(get_db),
@@ -66,7 +80,7 @@ def export_yaml(
     for p in db.query(models.Work).filter_by(user_id=uid, work_type="patents").order_by(models.Work.id).all():
         cv_data["patent"].append({
             "name": p.title, "number": p.identifier, "status": p.status,
-            "authors": [a.author_name for a in p.authors],
+            "authors": [_export_author(a) for a in p.authors],
         })
     cv_data["symposium"] = _cv_item_dicts("symposia", ["title", "meeting", "date", "role"])
     cv_data["classes"] = [
@@ -148,7 +162,7 @@ def export_yaml(
             # Reconstruct year string for YAML (prefer year_raw, else integer year)
             year_val = d.get("year_raw") or (str(w.year) if w.year else "")
             entry = {
-                "authors": [a.author_name for a in w.authors],
+                "authors": [_export_author(a) for a in w.authors],
                 "title": w.title,
                 "year": year_val,
                 "journal": d.get("journal", ""),

@@ -41,6 +41,8 @@ DEFAULT_STYLE: dict[str, str] = {
     "subgroup_font_size": "",
     "section_indent_per_level": "0",
     "custom_css": "",
+    "citation_style": "display",
+    "citation_max_authors": "0",
 }
 
 
@@ -660,12 +662,24 @@ def _bold_self(author_name: str, profile_name: str) -> str:
 
 
 def _get_jinja_env() -> Environment:
+    from app.services.name_format import format_author_list as _fmt_author_list
+    from app.services.name_format import format_citation as _fmt_citation
+
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES_DIR)),
         autoescape=False,
     )
     env.filters["combine"] = _combine
     env.filters["bold_self"] = _bold_self
+
+    def _format_author_list_filter(authors, profile_name="", citation_style="display", max_authors=0):
+        return _fmt_author_list(authors, citation_style, int(max_authors), profile_name)
+
+    def _format_citation_filter(work, profile_name="", citation_style="display", max_authors=0):
+        return _fmt_citation(work, citation_style, int(max_authors), profile_name)
+
+    env.filters["format_author_list"] = _format_author_list_filter
+    env.filters["format_citation"] = _format_citation_filter
     return env
 
 

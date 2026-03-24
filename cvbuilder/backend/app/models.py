@@ -38,6 +38,10 @@ class Profile(Base):
     orcid: Mapped[Optional[str]] = mapped_column(String(100))
     semantic_scholar_id: Mapped[Optional[str]] = mapped_column(String(200))
     linkedin: Mapped[Optional[str]] = mapped_column(String(200))
+    given_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    family_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    middle_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    suffix: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     addresses: Mapped[list["Address"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan", order_by="Address.line_order"
     )
@@ -326,6 +330,10 @@ class WorkAuthor(Base):
     corresponding: Mapped[bool] = mapped_column(Boolean, default=False)
     cofirst: Mapped[bool] = mapped_column(Boolean, default=False)
     cosenior: Mapped[bool] = mapped_column(Boolean, default=False)
+    given_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    family_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    middle_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    suffix: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     work: Mapped["Work"] = relationship(back_populates="authors")
 
 

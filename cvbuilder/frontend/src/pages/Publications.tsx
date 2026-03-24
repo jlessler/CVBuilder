@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
 import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
-import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3 } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 import { CitationMetrics } from './Citations'
 
 type AuthorRow = {
@@ -13,6 +13,140 @@ type AuthorRow = {
   corresponding: boolean
   cofirst: boolean
   cosenior: boolean
+  given_name: string
+  family_name: string
+  middle_name: string
+  suffix: string
+  expanded: boolean
+}
+
+// Surname particles for name parsing
+const PARTICLES = new Set([
+  'van', 'von', 'de', 'del', 'della', 'di', 'du', 'des', 'der', 'den',
+  'la', 'le', 'el', 'al', 'bin', 'ibn', 'ben', 'st', 'st.', 'mac', 'mc',
+])
+const SUFFIXES = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v', 'phd', 'md'])
+
+function isInitials(token: string): boolean {
+  const cleaned = token.replace(/\./g, '')
+  return cleaned.length <= 3 && cleaned.length > 0 && /^[A-Z]+$/.test(cleaned)
+}
+
+function splitInitials(token: string): [string, string | null] {
+  const cleaned = token.replace(/\./g, '')
+  if (cleaned.length === 1) return [cleaned, null]
+  return [cleaned[0], cleaned.slice(1)]
+}
+
+function parseAuthorName(name: string): { given_name: string; family_name: string; middle_name: string; suffix: string } {
+  const result = { given_name: '', family_name: '', middle_name: '', suffix: '' }
+  if (!name?.trim()) return result
+  const trimmed = name.trim().replace(/\s+/g, ' ')
+
+  // Extract suffix from end
+  const extractSuffix = (tokens: string[]): [string[], string] => {
+    if (tokens.length > 0 && SUFFIXES.has(tokens[tokens.length - 1].replace(/[.,]/g, '').toLowerCase())) {
+      return [tokens.slice(0, -1), tokens[tokens.length - 1].replace(/,/, '')]
+    }
+    return [tokens, '']
+  }
+
+  // Comma format
+  if (trimmed.includes(',')) {
+    const [famPart, ...rest] = trimmed.split(',').map(s => s.trim())
+    let givenPart = rest[0] || ''
+    // Check if second part is a suffix
+    if (SUFFIXES.has(givenPart.replace(/[.,]/g, '').toLowerCase())) {
+      result.suffix = givenPart.replace(/,/, '')
+      givenPart = rest[1]?.trim() || ''
+    }
+    // Check suffix in family part
+    const famTokens = famPart.split(' ')
+    if (famTokens.length > 1 && SUFFIXES.has(famTokens[famTokens.length - 1].replace(/[.,]/g, '').toLowerCase())) {
+      result.suffix = famTokens[famTokens.length - 1].replace(/,/, '')
+      result.family_name = famTokens.slice(0, -1).join(' ')
+    } else {
+      result.family_name = famPart
+    }
+    const givenTokens = givenPart ? givenPart.split(' ') : []
+    if (givenTokens.length === 1) {
+      const tok = givenTokens[0].replace(/\.$/, '')
+      if (isInitials(tok)) {
+        const [f, m] = splitInitials(tok)
+        result.given_name = f + '.'
+        if (m) result.middle_name = [...m].join('.') + '.'
+      } else {
+        result.given_name = givenTokens[0]
+      }
+    } else if (givenTokens.length > 1) {
+      result.given_name = givenTokens[0]
+      result.middle_name = givenTokens.slice(1).join(' ')
+    }
+    return result
+  }
+
+  // No comma
+  let tokens = trimmed.split(' ')
+  let suffix = ''
+  ;[tokens, suffix] = extractSuffix(tokens)
+  result.suffix = suffix
+
+  if (tokens.length === 1) {
+    result.family_name = tokens[0]
+    return result
+  }
+
+  if (tokens.length === 2) {
+    if (isInitials(tokens[1])) {
+      result.family_name = tokens[0]
+      const [f, m] = splitInitials(tokens[1])
+      result.given_name = f + '.'
+      if (m) result.middle_name = [...m].join('.') + '.'
+    } else if (isInitials(tokens[0])) {
+      const [f, m] = splitInitials(tokens[0])
+      result.given_name = f + '.'
+      if (m) result.middle_name = [...m].join('.') + '.'
+      result.family_name = tokens[1]
+    } else {
+      result.given_name = tokens[0]
+      result.family_name = tokens[1]
+    }
+    return result
+  }
+
+  // 3+ tokens: "Given Middle Family" or "Family G M"
+  if (isInitials(tokens[0]) && !isInitials(tokens[tokens.length - 1])) {
+    result.given_name = tokens[0].includes('.') ? tokens[0] : tokens[0] + '.'
+    let famStart = tokens.length - 1
+    while (famStart > 1 && PARTICLES.has(tokens[famStart - 1].toLowerCase().replace(/,/, ''))) famStart--
+    result.family_name = tokens.slice(famStart).join(' ')
+    const midTokens = tokens.slice(1, famStart)
+    if (midTokens.length) result.middle_name = midTokens.join(' ')
+  } else {
+    result.given_name = tokens[0]
+    let famStart = tokens.length - 1
+    while (famStart > 1 && PARTICLES.has(tokens[famStart - 1].toLowerCase().replace(/,/, ''))) famStart--
+    result.family_name = tokens.slice(famStart).join(' ')
+    const midTokens = tokens.slice(1, famStart)
+    if (midTokens.length) result.middle_name = midTokens.join(' ')
+  }
+
+  return result
+}
+
+function composeAuthorName(given: string, family: string, middle: string, suffix: string): string {
+  if (!family) return given || ''
+  let initials = ''
+  if (given) initials += given[0].toUpperCase()
+  if (middle) {
+    for (const part of middle.replace(/\./g, ' ').split(/\s+/)) {
+      if (part) initials += part[0].toUpperCase()
+    }
+  }
+  let name = family
+  if (initials) name += ' ' + initials
+  if (suffix) name += ' ' + suffix
+  return name
 }
 
 const WORK_TYPES = [
@@ -78,7 +212,7 @@ function blankWork(): WorkForm {
     identifier: '', status: '',
     institution: '', conference: '', location: '',
     publisher: '', url: '',
-    authorRows: [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }],
+    authorRows: [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }],
   }
 }
 
@@ -110,8 +244,13 @@ function workToForm(work: Work): WorkForm {
           corresponding: a.corresponding,
           cofirst: a.cofirst,
           cosenior: a.cosenior,
+          given_name: a.given_name || '',
+          family_name: a.family_name || '',
+          middle_name: a.middle_name || '',
+          suffix: a.suffix || '',
+          expanded: false,
         }))
-      : [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }],
+      : [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }],
   }
 }
 
@@ -160,6 +299,10 @@ function formToPayload(form: WorkForm) {
       corresponding: r.corresponding,
       cofirst: r.cofirst,
       cosenior: r.cosenior,
+      given_name: r.given_name || null,
+      family_name: r.family_name || null,
+      middle_name: r.middle_name || null,
+      suffix: r.suffix || null,
     }))
 
   return {
@@ -311,7 +454,10 @@ export function Publications() {
         pages: d.pages || f.pages,
         doi: d.doi || f.doi,
         authorRows: d.authors.length
-          ? d.authors.map(n => ({ author_name: n, student: false, corresponding: false, cofirst: false, cosenior: false }))
+          ? d.authors.map(n => {
+              const parsed = parseAuthorName(n)
+              return { author_name: n, student: false, corresponding: false, cofirst: false, cosenior: false, ...parsed, expanded: false }
+            })
           : f.authorRows,
       }))
     } catch {
@@ -431,67 +577,131 @@ export function Publications() {
         </div>
         <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
           {form.authorRows.map((row, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <GripVertical size={14} className="text-gray-300 flex-shrink-0" />
-              <input
-                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                placeholder="Smith J"
-                value={row.author_name}
-                onChange={e => setForm(f => {
-                  const rows = [...f.authorRows]
-                  rows[i] = { ...rows[i], author_name: e.target.value }
-                  return { ...f, authorRows: rows }
-                })}
-              />
-              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Student/trainee">
-                <input type="checkbox" checked={row.student} className="rounded"
-                  onChange={e => setForm(f => {
-                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], student: e.target.checked }
+            <div key={i}>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => {
+                    const rows = [...f.authorRows]
+                    rows[i] = { ...rows[i], expanded: !rows[i].expanded }
                     return { ...f, authorRows: rows }
-                  })} />
-                <sup>&dagger;</sup>
-              </label>
-              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Corresponding">
-                <input type="checkbox" checked={row.corresponding} className="rounded"
+                  })}
+                  className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  title={row.expanded ? 'Hide name fields' : 'Edit name parts'}
+                >
+                  {row.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                <GripVertical size={14} className="text-gray-300 flex-shrink-0" />
+                <input
+                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  placeholder="Smith J"
+                  value={row.author_name}
                   onChange={e => setForm(f => {
-                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], corresponding: e.target.checked }
+                    const rows = [...f.authorRows]
+                    rows[i] = { ...rows[i], author_name: e.target.value }
                     return { ...f, authorRows: rows }
-                  })} />
-                <span>*</span>
-              </label>
-              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-first author">
-                <input type="checkbox" checked={row.cofirst} className="rounded"
-                  onChange={e => setForm(f => {
-                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], cofirst: e.target.checked }
+                  })}
+                  onBlur={() => setForm(f => {
+                    const rows = [...f.authorRows]
+                    const parsed = parseAuthorName(rows[i].author_name)
+                    rows[i] = { ...rows[i], ...parsed }
                     return { ...f, authorRows: rows }
-                  })} />
-                <span>1</span>
-              </label>
-              <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-senior author">
-                <input type="checkbox" checked={row.cosenior} className="rounded"
-                  onChange={e => setForm(f => {
-                    const rows = [...f.authorRows]; rows[i] = { ...rows[i], cosenior: e.target.checked }
-                    return { ...f, authorRows: rows }
-                  })} />
-                <span>S</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setForm(f => ({
-                  ...f,
-                  authorRows: f.authorRows.filter((_, j) => j !== i),
-                }))}
-                className="text-gray-300 hover:text-red-400 flex-shrink-0"
-                disabled={form.authorRows.length === 1}
-              >
-                <Trash2 size={13} />
-              </button>
+                  })}
+                />
+                <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Student/trainee">
+                  <input type="checkbox" checked={row.student} className="rounded"
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]; rows[i] = { ...rows[i], student: e.target.checked }
+                      return { ...f, authorRows: rows }
+                    })} />
+                  <sup>&dagger;</sup>
+                </label>
+                <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Corresponding">
+                  <input type="checkbox" checked={row.corresponding} className="rounded"
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]; rows[i] = { ...rows[i], corresponding: e.target.checked }
+                      return { ...f, authorRows: rows }
+                    })} />
+                  <span>*</span>
+                </label>
+                <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-first author">
+                  <input type="checkbox" checked={row.cofirst} className="rounded"
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]; rows[i] = { ...rows[i], cofirst: e.target.checked }
+                      return { ...f, authorRows: rows }
+                    })} />
+                  <span>1</span>
+                </label>
+                <label className="flex items-center gap-0.5 text-xs text-gray-500 cursor-pointer" title="Co-senior author">
+                  <input type="checkbox" checked={row.cosenior} className="rounded"
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]; rows[i] = { ...rows[i], cosenior: e.target.checked }
+                      return { ...f, authorRows: rows }
+                    })} />
+                  <span>S</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({
+                    ...f,
+                    authorRows: f.authorRows.filter((_, j) => j !== i),
+                  }))}
+                  className="text-gray-300 hover:text-red-400 flex-shrink-0"
+                  disabled={form.authorRows.length === 1}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+              {row.expanded && (
+                <div className="ml-8 mt-1 mb-1 grid grid-cols-4 gap-1">
+                  <input
+                    className="px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Given name"
+                    value={row.given_name}
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]
+                      rows[i] = { ...rows[i], given_name: e.target.value, author_name: composeAuthorName(e.target.value, rows[i].family_name, rows[i].middle_name, rows[i].suffix) }
+                      return { ...f, authorRows: rows }
+                    })}
+                  />
+                  <input
+                    className="px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Middle"
+                    value={row.middle_name}
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]
+                      rows[i] = { ...rows[i], middle_name: e.target.value, author_name: composeAuthorName(rows[i].given_name, rows[i].family_name, e.target.value, rows[i].suffix) }
+                      return { ...f, authorRows: rows }
+                    })}
+                  />
+                  <input
+                    className="px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Family name"
+                    value={row.family_name}
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]
+                      rows[i] = { ...rows[i], family_name: e.target.value, author_name: composeAuthorName(rows[i].given_name, e.target.value, rows[i].middle_name, rows[i].suffix) }
+                      return { ...f, authorRows: rows }
+                    })}
+                  />
+                  <input
+                    className="px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Suffix"
+                    value={row.suffix}
+                    onChange={e => setForm(f => {
+                      const rows = [...f.authorRows]
+                      rows[i] = { ...rows[i], suffix: e.target.value, author_name: composeAuthorName(rows[i].given_name, rows[i].family_name, rows[i].middle_name, e.target.value) }
+                      return { ...f, authorRows: rows }
+                    })}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
         <button
           type="button"
-          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false }] }))}
+          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }] }))}
           className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
         >
           <Plus size={12} /> Add author

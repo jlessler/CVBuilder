@@ -44,7 +44,7 @@ class RawCandidate:
     issue: str | None = None
     pages: str | None = None
     doi: str | None = None
-    authors: list[str] = field(default_factory=list)
+    authors: list[dict] = field(default_factory=list)  # [{name, given_name, family_name, middle_name?}]
     source: str = ""
     pmid: str | None = None
     pub_type: str = "papers"
@@ -276,7 +276,11 @@ def _matches_profile_name(author_str: str, profile_name: str) -> bool:
 
 def _any_author_matches(c: RawCandidate, profile_name: str) -> bool:
     """Return True if at least one author in the candidate matches profile_name."""
-    return any(_matches_profile_name(a, profile_name) for a in c.authors)
+    for a in c.authors:
+        name = a.get("name", "") if isinstance(a, dict) else a
+        if _matches_profile_name(name, profile_name):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -424,7 +428,13 @@ async def _fetch_pubmed(name: str, client: httpx.AsyncClient) -> tuple[list[RawC
                 doi = aid.get("value")
                 break
 
-        authors = [a.get("name", "") for a in doc.get("authors", []) if a.get("name")]
+        authors = []
+        for a in doc.get("authors", []):
+            aname = a.get("name", "")
+            if aname:
+                from app.services.name_parser import parse_author_name
+                parsed = parse_author_name(aname)
+                authors.append({"name": aname, **{k: v for k, v in parsed.items() if v}})
 
         c = RawCandidate(
             title=title, year=year, journal=journal, volume=volume,
@@ -475,7 +485,16 @@ async def _fetch_crossref(name: str, client: httpx.AsyncClient) -> tuple[list[Ra
             given = a.get("given", "")
             full = f"{family} {given}".strip()
             if full:
-                authors.append(full)
+                ad: dict = {"name": full, "family_name": family}
+                if given:
+                    # Split "Justin K" into given + middle
+                    gparts = given.split()
+                    ad["given_name"] = gparts[0]
+                    if len(gparts) > 1:
+                        ad["middle_name"] = " ".join(gparts[1:])
+                if a.get("suffix"):
+                    ad["suffix"] = a["suffix"]
+                authors.append(ad)
 
         c = RawCandidate(
             title=str(title), year=year,
@@ -522,7 +541,15 @@ async def _enrich_via_crossref(
                     given = a.get("given", "")
                     full = f"{family} {given}".strip()
                     if full:
-                        authors.append(full)
+                        ad: dict = {"name": full, "family_name": family}
+                        if given:
+                            gparts = given.split()
+                            ad["given_name"] = gparts[0]
+                            if len(gparts) > 1:
+                                ad["middle_name"] = " ".join(gparts[1:])
+                        if a.get("suffix"):
+                            ad["suffix"] = a["suffix"]
+                        authors.append(ad)
                 if authors:
                     c.authors = authors
             if not c.journal:
@@ -602,7 +629,8 @@ async def fetch_new_publications(db, name: str | None, orcid: str | None) -> dic
                 "issue": c.issue,
                 "pages": c.pages,
                 "doi": c.doi,
-                "authors": c.authors,
+                "authors": [a.get("name", "") if isinstance(a, dict) else a for a in c.authors],
+                "authors_structured": c.authors,
                 "source": c.source,
                 "pmid": c.pmid,
                 "pub_type": c.pub_type,

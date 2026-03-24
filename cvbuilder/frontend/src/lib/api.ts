@@ -99,6 +99,10 @@ export interface Profile {
   orcid: string | null
   semantic_scholar_id: string | null
   linkedin: string | null
+  given_name?: string | null
+  family_name?: string | null
+  middle_name?: string | null
+  suffix?: string | null
   addresses: Address[]
 }
 
@@ -243,6 +247,10 @@ export interface WorkAuthor {
   corresponding: boolean
   cofirst: boolean
   cosenior: boolean
+  given_name?: string | null
+  family_name?: string | null
+  middle_name?: string | null
+  suffix?: string | null
 }
 
 export interface Work {

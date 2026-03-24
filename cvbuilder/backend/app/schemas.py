@@ -67,6 +67,10 @@ class ProfileBase(BaseModel):
     orcid: Optional[str] = None
     semantic_scholar_id: Optional[str] = None
     linkedin: Optional[str] = None
+    given_name: Optional[str] = None
+    family_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    suffix: Optional[str] = None
 
 class ProfileCreate(ProfileBase):
     addresses: list[AddressCreate] = []
@@ -91,6 +95,10 @@ class WorkAuthorBase(BaseModel):
     corresponding: bool = False
     cofirst: bool = False
     cosenior: bool = False
+    given_name: Optional[str] = None
+    family_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    suffix: Optional[str] = None
 
 class WorkAuthorCreate(WorkAuthorBase):
     pass
@@ -170,6 +178,7 @@ class PublicationCandidate(BaseModel):
     pages: Optional[str] = None
     doi: Optional[str] = None
     authors: list[str] = []
+    authors_structured: list[dict] = []  # [{name, given_name, family_name, ...}]
     source: str
     pmid: Optional[str] = None
     pub_type: str = "papers"

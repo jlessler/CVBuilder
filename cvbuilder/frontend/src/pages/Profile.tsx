@@ -3,7 +3,54 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, changePassword } from '../lib/api'
 import type { Profile as ProfileType } from '../lib/api'
 import { Button, Card, Input, PageHeader, Spinner } from '../components/ui'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+
+const PARTICLES = new Set(['van','von','de','del','della','di','du','des','der','den','la','le','el','al','bin','ibn','ben','st','st.','mac','mc'])
+const SUFFIXES = new Set(['jr','jr.','sr','sr.','ii','iii','iv','v','phd','md'])
+
+function isInitials(t: string) { const c = t.replace(/\./g,''); return c.length>0 && c.length<=3 && /^[A-Z]+$/.test(c) }
+function splitInit(t: string): [string, string|null] { const c=t.replace(/\./g,''); return c.length===1?[c,null]:[c[0],c.slice(1)] }
+
+function parseProfileName(name: string) {
+  const r = { given_name:'', family_name:'', middle_name:'', suffix:'' }
+  if (!name?.trim()) return r
+  const s = name.trim().replace(/\s+/g,' ')
+  const extractSuffix = (ts: string[]): [string[],string] => {
+    if (ts.length>0 && SUFFIXES.has(ts[ts.length-1].replace(/[.,]/g,'').toLowerCase())) return [ts.slice(0,-1), ts[ts.length-1].replace(/,/,'')]
+    return [ts,'']
+  }
+  if (s.includes(',')) {
+    const [fam,...rest] = s.split(',').map(p=>p.trim())
+    let gp = rest[0]||''
+    if (SUFFIXES.has(gp.replace(/[.,]/g,'').toLowerCase())) { r.suffix=gp.replace(/,/,''); gp=rest[1]?.trim()||'' }
+    const ft=fam.split(' ')
+    if (ft.length>1 && SUFFIXES.has(ft[ft.length-1].replace(/[.,]/g,'').toLowerCase())) { r.suffix=ft[ft.length-1].replace(/,/,''); r.family_name=ft.slice(0,-1).join(' ') } else r.family_name=fam
+    const gt=gp?gp.split(' '):[]
+    if (gt.length===1) { const t=gt[0].replace(/\.$/,''); if(isInitials(t)){const[f,m]=splitInit(t);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.'} else r.given_name=gt[0] }
+    else if (gt.length>1) { r.given_name=gt[0]; r.middle_name=gt.slice(1).join(' ') }
+    return r
+  }
+  let tokens=s.split(' '); let sfx=''; [tokens,sfx]=extractSuffix(tokens); r.suffix=sfx
+  if (tokens.length<=1) { r.family_name=tokens[0]||''; return r }
+  if (tokens.length===2) {
+    if (isInitials(tokens[1])){r.family_name=tokens[0];const[f,m]=splitInit(tokens[1]);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.'}
+    else if(isInitials(tokens[0])){const[f,m]=splitInit(tokens[0]);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.';r.family_name=tokens[1]}
+    else{r.given_name=tokens[0];r.family_name=tokens[1]}
+    return r
+  }
+  r.given_name=tokens[0]
+  let fs=tokens.length-1; while(fs>1&&PARTICLES.has(tokens[fs-1].toLowerCase().replace(/,/,'')))fs--
+  r.family_name=tokens.slice(fs).join(' '); const mt=tokens.slice(1,fs); if(mt.length)r.middle_name=mt.join(' ')
+  return r
+}
+
+function composeProfileName(given: string, family: string, middle: string, suffix: string) {
+  if (!family && !given) return ''
+  const parts = [given, middle, family].filter(Boolean)
+  let name = parts.join(' ')
+  if (suffix) name += ' ' + suffix
+  return name
+}
 
 export function Profile() {
   const qc = useQueryClient()
@@ -15,8 +62,10 @@ export function Profile() {
 
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', orcid: '', semantic_scholar_id: '', linkedin: '',
+    given_name: '', family_name: '', middle_name: '', suffix: '',
     homeAddr: [''], workAddr: [''],
   })
+  const [showNameParts, setShowNameParts] = useState(false)
 
   useEffect(() => {
     if (data) {
@@ -28,6 +77,10 @@ export function Profile() {
         orcid: data.orcid || '',
         semantic_scholar_id: data.semantic_scholar_id || '',
         linkedin: data.linkedin || '',
+        given_name: data.given_name || '',
+        family_name: data.family_name || '',
+        middle_name: data.middle_name || '',
+        suffix: data.suffix || '',
         homeAddr: data.addresses.filter(a => a.type === 'home').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
         workAddr: data.addresses.filter(a => a.type === 'work').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
       })
@@ -44,7 +97,12 @@ export function Profile() {
         name: form.name, email: form.email, phone: form.phone,
         website: form.website, orcid: form.orcid,
         semantic_scholar_id: form.semantic_scholar_id,
-        linkedin: form.linkedin, addresses,
+        linkedin: form.linkedin,
+        given_name: form.given_name || null,
+        family_name: form.family_name || null,
+        middle_name: form.middle_name || null,
+        suffix: form.suffix || null,
+        addresses,
       })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
@@ -89,7 +147,26 @@ export function Profile() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 space-y-4">
           <h3 className="font-semibold text-gray-900">Personal Information</h3>
-          <Input label="Full Name" value={form.name} onChange={e => set('name', e.target.value)} />
+          <Input label="Full Name" value={form.name}
+            onChange={e => set('name', e.target.value)}
+            onBlur={() => setForm(f => ({ ...f, ...parseProfileName(f.name) }))}
+          />
+          <button
+            type="button"
+            onClick={() => setShowNameParts(!showNameParts)}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 -mt-2"
+          >
+            {showNameParts ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            Name parts (for citation formatting)
+          </button>
+          {showNameParts && (
+            <div className="grid grid-cols-4 gap-2 -mt-2">
+              <Input label="Given" value={form.given_name} onChange={e => setForm(f => ({ ...f, given_name: e.target.value, name: composeProfileName(e.target.value, f.family_name, f.middle_name, f.suffix) }))} />
+              <Input label="Middle" value={form.middle_name} onChange={e => setForm(f => ({ ...f, middle_name: e.target.value, name: composeProfileName(f.given_name, f.family_name, e.target.value, f.suffix) }))} />
+              <Input label="Family" value={form.family_name} onChange={e => setForm(f => ({ ...f, family_name: e.target.value, name: composeProfileName(f.given_name, e.target.value, f.middle_name, f.suffix) }))} />
+              <Input label="Suffix" value={form.suffix} onChange={e => setForm(f => ({ ...f, suffix: e.target.value, name: composeProfileName(f.given_name, f.family_name, f.middle_name, e.target.value) }))} />
+            </div>
+          )}
           <Input label="Email" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
           <Input label="Phone" value={form.phone} onChange={e => set('phone', e.target.value)} />
           <Input label="Website / Homepage" value={form.website} onChange={e => set('website', e.target.value)} />

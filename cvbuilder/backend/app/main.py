@@ -97,6 +97,11 @@ def _run_migrations():
         "ALTER TABLE work_authors ADD COLUMN cofirst INTEGER DEFAULT 0",
         "ALTER TABLE work_authors ADD COLUMN cosenior INTEGER DEFAULT 0",
         "ALTER TABLE work_authors ADD COLUMN work_id INTEGER REFERENCES works(id)",
+        # Structured author name fields
+        "ALTER TABLE work_authors ADD COLUMN given_name VARCHAR(200)",
+        "ALTER TABLE work_authors ADD COLUMN family_name VARCHAR(200)",
+        "ALTER TABLE work_authors ADD COLUMN middle_name VARCHAR(200)",
+        "ALTER TABLE work_authors ADD COLUMN suffix VARCHAR(50)",
         "ALTER TABLE cv_items ADD COLUMN section VARCHAR(100)",
         "ALTER TABLE cv_items ADD COLUMN data TEXT",
         "ALTER TABLE cv_items ADD COLUMN sort_order INTEGER DEFAULT 0",
@@ -107,6 +112,11 @@ def _run_migrations():
         "ALTER TABLE cv_templates ADD COLUMN author TEXT",
         "ALTER TABLE cv_templates ADD COLUMN author_contact TEXT",
         "ALTER TABLE cv_templates ADD COLUMN guidance_url TEXT",
+        # Structured profile name fields
+        "ALTER TABLE profile ADD COLUMN given_name VARCHAR(200)",
+        "ALTER TABLE profile ADD COLUMN family_name VARCHAR(200)",
+        "ALTER TABLE profile ADD COLUMN middle_name VARCHAR(200)",
+        "ALTER TABLE profile ADD COLUMN suffix VARCHAR(50)",
     ]
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
@@ -132,6 +142,58 @@ def _run_migrations():
                         text("UPDATE cv_templates SET style = :style WHERE id = :id"),
                         {"style": json.dumps(preset), "id": row[0]},
                     )
+            conn.commit()
+        except Exception:
+            pass
+
+        # Backfill structured author name fields from author_name
+        try:
+            from app.services.name_parser import parse_author_name
+            rows = conn.execute(text(
+                "SELECT id, author_name FROM work_authors "
+                "WHERE family_name IS NULL AND author_name IS NOT NULL"
+            )).fetchall()
+            for row in rows:
+                parsed = parse_author_name(row[1])
+                conn.execute(
+                    text(
+                        "UPDATE work_authors SET given_name = :gn, family_name = :fn, "
+                        "middle_name = :mn, suffix = :sx WHERE id = :id"
+                    ),
+                    {
+                        "gn": parsed.get("given_name"),
+                        "fn": parsed.get("family_name"),
+                        "mn": parsed.get("middle_name"),
+                        "sx": parsed.get("suffix"),
+                        "id": row[0],
+                    },
+                )
+            conn.commit()
+        except Exception:
+            pass
+
+        # Backfill structured profile name fields from name
+        try:
+            from app.services.name_parser import parse_author_name
+            rows = conn.execute(text(
+                "SELECT id, name FROM profile "
+                "WHERE family_name IS NULL AND name IS NOT NULL"
+            )).fetchall()
+            for row in rows:
+                parsed = parse_author_name(row[1])
+                conn.execute(
+                    text(
+                        "UPDATE profile SET given_name = :gn, family_name = :fn, "
+                        "middle_name = :mn, suffix = :sx WHERE id = :id"
+                    ),
+                    {
+                        "gn": parsed.get("given_name"),
+                        "fn": parsed.get("family_name"),
+                        "mn": parsed.get("middle_name"),
+                        "sx": parsed.get("suffix"),
+                        "id": row[0],
+                    },
+                )
             conn.commit()
         except Exception:
             pass

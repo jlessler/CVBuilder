@@ -368,7 +368,9 @@ class TestRoundTrip:
         # EPR paper authors round-trip
         epr = next(p for p in data["refs"]["papers"]
                    if "Quantum-Mechanical" in p["title"])
-        assert epr["authors"] == ["Einstein A", "Podolsky B", "Rosen N"]
+        # Authors now exported as structured dicts with name/family/given keys
+        author_names = [a["name"] if isinstance(a, dict) else a for a in epr["authors"]]
+        assert author_names == ["Einstein A", "Podolsky B", "Rosen N"]
         assert epr["doi"] == "10.1103/PhysRev.47.777"
 
     def test_export_contains_education(self, client, db_session):

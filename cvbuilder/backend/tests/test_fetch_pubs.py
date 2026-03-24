@@ -137,13 +137,17 @@ class TestEnrichAuthorsViaCrossref:
             }
         })
         self._run(_enrich_via_crossref(candidates, mock_client))
-        assert candidates[0].authors == ["Smith John", "Doe Jane"]
+        assert len(candidates[0].authors) == 2
+        assert candidates[0].authors[0]["name"] == "Smith John"
+        assert candidates[0].authors[0]["family_name"] == "Smith"
+        assert candidates[0].authors[0]["given_name"] == "John"
+        assert candidates[0].authors[1]["name"] == "Doe Jane"
 
     def test_skips_candidates_with_existing_authors(self):
         candidates = [
             RawCandidate(
                 title="Paper", doi="10.1234/test",
-                authors=["Already Here"], source="pubmed",
+                authors=[{"name": "Already Here", "family_name": "Here", "given_name": "Already"}], source="pubmed",
             ),
         ]
         mock_client = self._mock_client({
@@ -155,7 +159,8 @@ class TestEnrichAuthorsViaCrossref:
         })
         self._run(_enrich_via_crossref(candidates, mock_client))
         # Should NOT overwrite existing authors
-        assert candidates[0].authors == ["Already Here"]
+        assert len(candidates[0].authors) == 1
+        assert candidates[0].authors[0]["name"] == "Already Here"
 
     def test_skips_candidates_without_doi(self):
         candidates = [
@@ -178,13 +183,13 @@ class TestEnrichAuthorsViaCrossref:
         candidates = [
             RawCandidate(title="Paper A", doi="10.1/a", source="orcid"),
             RawCandidate(title="Paper B", doi="10.1/b", source="orcid"),
-            RawCandidate(title="Paper C", doi="10.1/c", authors=["Has Author"], source="crossref"),
+            RawCandidate(title="Paper C", doi="10.1/c", authors=[{"name": "Has Author"}], source="crossref"),
         ]
         mock_client = self._mock_client({
             "10.1/a": {"message": {"author": [{"family": "Alpha", "given": "A"}]}},
             "10.1/b": {"message": {"author": [{"family": "Beta", "given": "B"}]}},
         })
         self._run(_enrich_via_crossref(candidates, mock_client))
-        assert candidates[0].authors == ["Alpha A"]
-        assert candidates[1].authors == ["Beta B"]
-        assert candidates[2].authors == ["Has Author"]  # untouched
+        assert candidates[0].authors[0]["name"] == "Alpha A"
+        assert candidates[1].authors[0]["name"] == "Beta B"
+        assert candidates[2].authors[0]["name"] == "Has Author"  # untouched

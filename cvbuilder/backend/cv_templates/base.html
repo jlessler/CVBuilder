@@ -94,7 +94,7 @@
           <span class="cv-entry-title">{{ p.title or '' }}</span>
           {% if p.identifier %} (No. {{ p.identifier }}){% endif %}
           {% if p.authors %}
-          <br><span class="cv-entry-detail">{{ p.authors | map(attribute='author_name') | join(', ') }}</span>
+          <br><span class="cv-entry-detail">{{ p.authors | format_author_list('', style.citation_style | default('display'), style.citation_max_authors | default('0') | int) | safe }}</span>
           {% endif %}
         </div>
       </div>
@@ -285,7 +285,7 @@
         <div class="cv-entry-date">{{ s.year or '' }}</div>
         <div class="cv-entry-body">
           <span class="cv-entry-title">{{ s.title or '' }}</span>
-          {% if s.authors %}<br><span class="cv-entry-detail">{{ s.authors | map(attribute='author_name') | join(', ') }}</span>{% endif %}
+          {% if s.authors %}<br><span class="cv-entry-detail">{{ s.authors | format_author_list('', style.citation_style | default('display'), style.citation_max_authors | default('0') | int) | safe }}</span>{% endif %}
           {% if s.publisher %}<br><span class="cv-entry-org">{{ s.publisher }}</span>{% endif %}
           {% if s.url %}<br><a href="{{ s.url }}">{{ s.url }}</a>{% endif %}
         </div>

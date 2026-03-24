@@ -334,6 +334,23 @@ function StyleEditor({ style, onChange }: { style: Record<string, string>; onCha
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Citation Style</label>
+          <select value={style.citation_style || 'display'} onChange={e => set('citation_style', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400">
+            <option value="display">Default</option>
+            <option value="apa">APA</option>
+            <option value="vancouver">Vancouver / NLM</option>
+            <option value="chicago">Chicago</option>
+            <option value="full">Full Name</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Max Authors (0 = all)</label>
+          <input type="number" min="0" value={style.citation_max_authors || '0'} onChange={e => set('citation_max_authors', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400" />
+        </div>
+      </div>
+
       <details open={showAdvanced} onToggle={e => setShowAdvanced((e.target as HTMLDetailsElement).open)}>
         <summary className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">
           Advanced style options
@@ -407,6 +424,7 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
 
   const [sections, setSections] = useState(initialSections)
 
+  const [openPreviewAfterSave, setOpenPreviewAfterSave] = useState(false)
   const saveMut = useMutation({
     mutationFn: () => api.put(`/templates/${template.id}`, {
       name, description: description || null, style,
@@ -421,7 +439,15 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
         depth: s.depth,
       })),
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); onClose() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] })
+      if (openPreviewAfterSave) {
+        setOpenPreviewAfterSave(false)
+        window.open(`/api/templates/${template.id}/preview?token=${encodeURIComponent(getToken() || '')}`, '_blank')
+      } else {
+        onClose()
+      }
+    },
   })
 
   return (
@@ -453,7 +479,10 @@ function TemplateComposer({ template, onClose, customSections }: { template: CVT
         <SectionComposer sections={sections} onChange={setSections} customSections={customSections} templateId={template.id} />
 
         <div className="flex gap-2 pt-2 border-t justify-end">
-          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending}>
+          <Button variant="secondary" onClick={() => { setOpenPreviewAfterSave(true); saveMut.mutate() }} loading={saveMut.isPending && openPreviewAfterSave}>
+            <Eye size={14} /> Save & Preview
+          </Button>
+          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending && !openPreviewAfterSave}>
             Save Template
           </Button>
         </div>
