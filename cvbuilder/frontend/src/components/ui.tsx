@@ -3,7 +3,7 @@
  * No external component library required.
  */
 import React from 'react'
-import { Loader2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react'
 
 // ---- Button ----
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -152,6 +152,69 @@ export function Modal({
             <X size={20} />
           </button>
         </div>
+        <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ---- Navigable Modal ----
+interface NavigationProps {
+  currentIndex: number
+  total: number
+  canPrev: boolean
+  canNext: boolean
+  goPrev: () => void
+  goNext: () => void
+  isSaving: boolean
+  saveError: string | null
+  label?: string
+}
+
+export function NavigableModal({
+  open, onClose, title, children, navigation,
+}: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; navigation?: NavigationProps }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-3">
+            {navigation && navigation.total > 0 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={navigation.goPrev}
+                  disabled={!navigation.canPrev || navigation.isSaving}
+                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Previous (Left Arrow)"
+                >
+                  {navigation.isSaving ? <Loader2 size={16} className="animate-spin" /> : <ChevronLeft size={16} />}
+                </button>
+                <span className="text-xs text-gray-500 tabular-nums min-w-[4rem] text-center">
+                  {navigation.label || `${navigation.currentIndex + 1} of ${navigation.total}`}
+                </span>
+                <button
+                  onClick={navigation.goNext}
+                  disabled={!navigation.canNext || navigation.isSaving}
+                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Next (Right Arrow)"
+                >
+                  {navigation.isSaving ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
+                </button>
+              </div>
+            )}
+            <h3 className="font-semibold text-gray-900">{title}</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+        {navigation?.saveError && (
+          <div className="px-6 py-2 bg-red-50 text-red-700 text-xs border-b border-red-100">
+            Save failed: {navigation.saveError} — fix errors before navigating
+          </div>
+        )}
         <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
       </div>
     </div>

@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, listSectionDefinitions } from '../lib/api'
 import type { SectionDefinition } from '../lib/api'
-import { Button, Card, Input, Modal, PageHeader, Spinner } from '../components/ui'
+import { Button, Card, Input, Modal, NavigableModal, PageHeader, Spinner } from '../components/ui'
+import { useItemNavigation } from '../hooks/useItemNavigation'
 import { Plus, Trash2, Edit2, Copy, Search, Settings } from 'lucide-react'
 import { SectionDefinitionEditor } from '../components/SectionDefinitionEditor'
 
@@ -433,7 +434,38 @@ export function Sections() {
     setModal({ open: true, item })
   }
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data
+    const q = search.toLowerCase()
+    return data.filter(item =>
+      Object.values(item).some(v =>
+        (typeof v === 'string' && v.toLowerCase().includes(q))
+        || (typeof v === 'number' && String(v).includes(q))
+      )
+    )
+  }, [data, search])
+
+  const nav = useItemNavigation({
+    items: filtered as Array<{ id: number; [key: string]: unknown }>,
+    currentId: modal.item ? (modal.item.id as number) : null,
+    onSave: async () => {
+      const res = await api.put(`/cv/${form.id}`, { data: buildData(form) })
+      const updated = res.data
+      // Update the cached data so navigating back shows saved values
+      qc.setQueryData([tab], (old: Record<string, unknown>[] | undefined) =>
+        old?.map(item => (item.id as number) === (form.id as number)
+          ? { ...updated, ...((updated.data as Record<string, unknown>) || {}) }
+          : item
+        )
+      )
+    },
+    onNavigate: (item) => openEdit(item as Record<string, unknown>),
+  })
+
   function closeModal() {
+    if (nav.dirtyRef.current) {
+      qc.invalidateQueries({ queryKey: [tab] })
+    }
     setModal({ open: false, item: null })
     setForm({})
   }
@@ -503,50 +535,39 @@ export function Sections() {
         />
       </div>
 
-      {(() => {
-        const filtered = search.trim()
-          ? data.filter(item => {
-              const q = search.toLowerCase()
-              return Object.values(item).some(v =>
-                (typeof v === 'string' && v.toLowerCase().includes(q))
-                || (typeof v === 'number' && String(v).includes(q))
-              )
-            })
-          : data
+      {isLoading ? <Spinner /> : (
+        <Card>
+          <div className="divide-y divide-gray-100">
+            {filtered.map((item) => (
+              <ItemRow
+                key={item.id as number}
+                item={item}
+                onEdit={() => openEdit(item)}
+                onCopy={() => openCopy(item)}
+                onDelete={() => {
+                  if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
+                }}
+              />
+            ))}
+            {data.length === 0 && !search && (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                No entries yet. Click "Add Entry" to add one.
+              </div>
+            )}
+            {filtered.length === 0 && search.trim() && (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                No entries match "{search}".
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
-        return isLoading ? <Spinner /> : (
-          <Card>
-            <div className="divide-y divide-gray-100">
-              {filtered.map((item) => (
-                <ItemRow
-                  key={item.id as number}
-                  item={item}
-                  onEdit={() => openEdit(item)}
-                  onCopy={() => openCopy(item)}
-                  onDelete={() => {
-                    if (confirm('Delete this entry?')) deleteMut.mutate(item.id as number)
-                  }}
-                />
-              ))}
-              {data.length === 0 && !search && (
-                <div className="py-12 text-center text-gray-400 text-sm">
-                  No entries yet. Click "Add Entry" to add one.
-                </div>
-              )}
-              {filtered.length === 0 && search.trim() && (
-                <div className="py-12 text-center text-gray-400 text-sm">
-                  No entries match "{search}".
-                </div>
-              )}
-            </div>
-          </Card>
-        )
-      })()}
-
-      <Modal
+      <NavigableModal
         open={modal.open}
         onClose={closeModal}
         title={modal.item ? 'Edit Entry' : 'Add Entry'}
+        navigation={modal.item ? nav : undefined}
       >
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {fields.map(field => (
@@ -613,7 +634,7 @@ export function Sections() {
             </Button>
           </div>
         </div>
-      </Modal>
+      </NavigableModal>
 
       <SectionDefinitionEditor open={managingCustom} onClose={() => setManagingCustom(false)} />
     </div>

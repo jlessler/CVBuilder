@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
-import { Button, Card, Input, Modal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
+import { Button, Card, Input, Modal, NavigableModal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
+import { useItemNavigation } from '../hooks/useItemNavigation'
 import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 import { CitationMetrics } from './Citations'
 
@@ -339,6 +340,10 @@ export function Publications() {
   const [editingCandidate, setEditingCandidate] = useState<number | null>(null)
   const [candidateForm, setCandidateForm] = useState<PublicationCandidate | null>(null)
 
+  // Mass review state
+  const [reviewSelection, setReviewSelection] = useState<Set<number>>(new Set())
+  const [reviewMode, setReviewMode] = useState(false)
+
   const { data: profile } = useQuery<Profile>({
     queryKey: ['profile'],
     queryFn: () => api.get('/profile').then(r => r.data),
@@ -436,6 +441,50 @@ export function Publications() {
     setEditing(work)
     setForm(workToForm(work))
     setDoiInput(work.doi || '')
+  }
+
+  const navItems = useMemo(() => {
+    if (reviewMode) return data.filter(w => reviewSelection.has(w.id))
+    return data
+  }, [data, reviewMode, reviewSelection])
+
+  const nav = useItemNavigation({
+    items: navItems,
+    currentId: editing?.id ?? null,
+    onSave: async () => {
+      if (!editing) return
+      const res = await api.put(`/works/${editing.id}`, formToPayload(form))
+      const updated = res.data as Work
+      // Update the cached data so navigating back shows saved values
+      qc.setQueryData(['works', typeFilter, keyword], (old: Work[] | undefined) =>
+        old?.map(w => w.id === editing.id ? updated : w)
+      )
+    },
+    onNavigate: (work) => openEdit(work),
+  })
+
+  function closeEditModal() {
+    if (nav.dirtyRef.current) {
+      qc.invalidateQueries({ queryKey: ['works'] })
+    }
+    setEditing(null)
+    if (reviewMode) setReviewMode(false)
+  }
+
+  function toggleReviewItem(id: number) {
+    setReviewSelection(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function startReview() {
+    const items = data.filter(w => reviewSelection.has(w.id))
+    if (items.length === 0) return
+    setReviewMode(true)
+    openEdit(items[0])
   }
 
   async function lookupDoi() {
@@ -801,7 +850,7 @@ export function Publications() {
       <Checkbox label="Selected/highlighted" checked={form.select_flag} onChange={e => setForm(f => ({ ...f, select_flag: e.target.checked }))} />
 
       <div className="flex gap-2 justify-end pt-2 border-t">
-        <Button variant="secondary" onClick={() => { setCreating(false); setEditing(null) }}>Cancel</Button>
+        <Button variant="secondary" onClick={() => { setCreating(false); closeEditModal() }}>Cancel</Button>
         <Button
           onClick={() => creating ? createMut.mutate() : updateMut.mutate()}
           loading={createMut.isPending || updateMut.isPending}
@@ -875,11 +924,27 @@ export function Publications() {
 
       {typeFilter === 'citations' ? <CitationMetrics /> : (<>
 
+      {reviewSelection.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-primary-50 border border-primary-200 rounded-lg text-sm">
+          <span className="font-medium text-primary-700">{reviewSelection.size} selected</span>
+          <Button size="sm" onClick={startReview}>Review Selected</Button>
+          <Button variant="ghost" size="sm" onClick={() => setReviewSelection(new Set(data.map(w => w.id)))}>Select All</Button>
+          <Button variant="ghost" size="sm" onClick={() => setReviewSelection(new Set())}>Clear</Button>
+        </div>
+      )}
+
       {isLoading ? <Spinner /> : (
         <Card>
           <div className="divide-y divide-gray-100">
             {data.map(work => (
               <div key={work.id} className="px-5 py-4 hover:bg-gray-50 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={reviewSelection.has(work.id)}
+                    onChange={() => toggleReviewItem(work.id)}
+                    className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge color={TYPE_COLOR[work.work_type] || 'gray'}>{work.work_type}</Badge>
@@ -904,6 +969,7 @@ export function Publications() {
                       <ExternalLink size={10} /> doi:{work.doi}
                     </a>
                   )}
+                </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(work)}>
@@ -932,9 +998,17 @@ export function Publications() {
       <Modal open={creating} onClose={() => setCreating(false)} title="Add Scholarly Work">
         {WorkForm}
       </Modal>
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit Scholarly Work">
+      <NavigableModal
+        open={!!editing}
+        onClose={closeEditModal}
+        title="Edit Scholarly Work"
+        navigation={{
+          ...nav,
+          label: reviewMode ? `Reviewing ${nav.currentIndex + 1} of ${nav.total} selected` : undefined,
+        }}
+      >
         {WorkForm}
-      </Modal>
+      </NavigableModal>
 
       {/* Find New Publications Modal */}
       <Modal
