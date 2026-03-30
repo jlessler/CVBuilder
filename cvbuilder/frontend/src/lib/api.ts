@@ -101,7 +101,6 @@ export interface Profile {
   linkedin: string | null
   given_name?: string | null
   family_name?: string | null
-  middle_name?: string | null
   suffix?: string | null
   addresses: Address[]
 }
@@ -249,7 +248,6 @@ export interface WorkAuthor {
   cosenior: boolean
   given_name?: string | null
   family_name?: string | null
-  middle_name?: string | null
   suffix?: string | null
 }
 
@@ -263,6 +261,43 @@ export interface Work {
   doi: string | null
   data: Record<string, unknown>
   authors: WorkAuthor[]
+}
+
+// Complete Missing Fields (Crossref enrichment)
+export interface FieldDiff {
+  field: string
+  current: string | null
+  proposed: string | null
+}
+
+export interface AuthorDiff {
+  author_order: number
+  current_name: string
+  proposed_name: string
+}
+
+export interface ProposedAuthor {
+  author_name: string
+  author_order: number
+  given_name?: string | null
+  family_name?: string | null
+  suffix?: string | null
+}
+
+export interface WorkDiff {
+  work_id: number
+  title: string | null
+  doi: string | null
+  field_diffs: FieldDiff[]
+  author_diffs: AuthorDiff[]
+  proposed_authors: ProposedAuthor[]
+  additional_authors: ProposedAuthor[]
+}
+
+export interface CompleteFieldsResponse {
+  diffs: WorkDiff[]
+  skipped_no_match: number
+  errors: number
 }
 
 export interface TemplateSection {

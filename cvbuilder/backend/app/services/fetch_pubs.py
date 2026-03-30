@@ -44,7 +44,7 @@ class RawCandidate:
     issue: str | None = None
     pages: str | None = None
     doi: str | None = None
-    authors: list[dict] = field(default_factory=list)  # [{name, given_name, family_name, middle_name?}]
+    authors: list[dict] = field(default_factory=list)  # [{name, given_name, family_name}]
     source: str = ""
     pmid: str | None = None
     pub_type: str = "papers"
@@ -487,11 +487,7 @@ async def _fetch_crossref(name: str, client: httpx.AsyncClient) -> tuple[list[Ra
             if full:
                 ad: dict = {"name": full, "family_name": family}
                 if given:
-                    # Split "Justin K" into given + middle
-                    gparts = given.split()
-                    ad["given_name"] = gparts[0]
-                    if len(gparts) > 1:
-                        ad["middle_name"] = " ".join(gparts[1:])
+                    ad["given_name"] = given
                 if a.get("suffix"):
                     ad["suffix"] = a["suffix"]
                 authors.append(ad)
@@ -543,10 +539,7 @@ async def _enrich_via_crossref(
                     if full:
                         ad: dict = {"name": full, "family_name": family}
                         if given:
-                            gparts = given.split()
-                            ad["given_name"] = gparts[0]
-                            if len(gparts) > 1:
-                                ad["middle_name"] = " ".join(gparts[1:])
+                            ad["given_name"] = given
                         if a.get("suffix"):
                             ad["suffix"] = a["suffix"]
                         authors.append(ad)

@@ -12,9 +12,10 @@ function isInitials(t: string) { const c = t.replace(/\./g,''); return c.length>
 function splitInit(t: string): [string, string|null] { const c=t.replace(/\./g,''); return c.length===1?[c,null]:[c[0],c.slice(1)] }
 
 function parseProfileName(name: string) {
-  const r = { given_name:'', family_name:'', middle_name:'', suffix:'' }
+  const r = { given_name:'', family_name:'', suffix:'' }
   if (!name?.trim()) return r
   const s = name.trim().replace(/\s+/g,' ')
+  const makeGiven = (first: string, mid: string|null) => mid ? `${first} ${mid}` : first
   const extractSuffix = (ts: string[]): [string[],string] => {
     if (ts.length>0 && SUFFIXES.has(ts[ts.length-1].replace(/[.,]/g,'').toLowerCase())) return [ts.slice(0,-1), ts[ts.length-1].replace(/,/,'')]
     return [ts,'']
@@ -26,27 +27,28 @@ function parseProfileName(name: string) {
     const ft=fam.split(' ')
     if (ft.length>1 && SUFFIXES.has(ft[ft.length-1].replace(/[.,]/g,'').toLowerCase())) { r.suffix=ft[ft.length-1].replace(/,/,''); r.family_name=ft.slice(0,-1).join(' ') } else r.family_name=fam
     const gt=gp?gp.split(' '):[]
-    if (gt.length===1) { const t=gt[0].replace(/\.$/,''); if(isInitials(t)){const[f,m]=splitInit(t);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.'} else r.given_name=gt[0] }
-    else if (gt.length>1) { r.given_name=gt[0]; r.middle_name=gt.slice(1).join(' ') }
+    if (gt.length===1) { const t=gt[0].replace(/\.$/,''); if(isInitials(t)){const[f,m]=splitInit(t);r.given_name=makeGiven(f+'.',m?[...m].join('.')+'.':null)} else r.given_name=gt[0] }
+    else if (gt.length>1) { r.given_name=gt.join(' ') }
     return r
   }
   let tokens=s.split(' '); let sfx=''; [tokens,sfx]=extractSuffix(tokens); r.suffix=sfx
   if (tokens.length<=1) { r.family_name=tokens[0]||''; return r }
   if (tokens.length===2) {
-    if (isInitials(tokens[1])){r.family_name=tokens[0];const[f,m]=splitInit(tokens[1]);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.'}
-    else if(isInitials(tokens[0])){const[f,m]=splitInit(tokens[0]);r.given_name=f+'.';if(m)r.middle_name=[...m].join('.')+'.';r.family_name=tokens[1]}
+    if (isInitials(tokens[1])){r.family_name=tokens[0];const[f,m]=splitInit(tokens[1]);r.given_name=makeGiven(f+'.',m?[...m].join('.')+'.':null)}
+    else if(isInitials(tokens[0])){const[f,m]=splitInit(tokens[0]);r.given_name=makeGiven(f+'.',m?[...m].join('.')+'.':null);r.family_name=tokens[1]}
     else{r.given_name=tokens[0];r.family_name=tokens[1]}
     return r
   }
-  r.given_name=tokens[0]
+  const first=tokens[0]
   let fs=tokens.length-1; while(fs>1&&PARTICLES.has(tokens[fs-1].toLowerCase().replace(/,/,'')))fs--
-  r.family_name=tokens.slice(fs).join(' '); const mt=tokens.slice(1,fs); if(mt.length)r.middle_name=mt.join(' ')
+  r.family_name=tokens.slice(fs).join(' '); const mt=tokens.slice(1,fs)
+  r.given_name=mt.length?makeGiven(first,mt.join(' ')):first
   return r
 }
 
-function composeProfileName(given: string, family: string, middle: string, suffix: string) {
+function composeProfileName(given: string, family: string, suffix: string) {
   if (!family && !given) return ''
-  const parts = [given, middle, family].filter(Boolean)
+  const parts = [given, family].filter(Boolean)
   let name = parts.join(' ')
   if (suffix) name += ' ' + suffix
   return name
@@ -62,7 +64,7 @@ export function Profile() {
 
   const [form, setForm] = useState({
     name: '', email: '', phone: '', website: '', orcid: '', semantic_scholar_id: '', linkedin: '',
-    given_name: '', family_name: '', middle_name: '', suffix: '',
+    given_name: '', family_name: '', suffix: '',
     homeAddr: [''], workAddr: [''],
   })
   const [showNameParts, setShowNameParts] = useState(false)
@@ -79,7 +81,6 @@ export function Profile() {
         linkedin: data.linkedin || '',
         given_name: data.given_name || '',
         family_name: data.family_name || '',
-        middle_name: data.middle_name || '',
         suffix: data.suffix || '',
         homeAddr: data.addresses.filter(a => a.type === 'home').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
         workAddr: data.addresses.filter(a => a.type === 'work').sort((a, b) => a.line_order - b.line_order).map(a => a.text),
@@ -100,7 +101,6 @@ export function Profile() {
         linkedin: form.linkedin,
         given_name: form.given_name || null,
         family_name: form.family_name || null,
-        middle_name: form.middle_name || null,
         suffix: form.suffix || null,
         addresses,
       })
@@ -160,11 +160,10 @@ export function Profile() {
             Name parts (for citation formatting)
           </button>
           {showNameParts && (
-            <div className="grid grid-cols-4 gap-2 -mt-2">
-              <Input label="Given" value={form.given_name} onChange={e => setForm(f => ({ ...f, given_name: e.target.value, name: composeProfileName(e.target.value, f.family_name, f.middle_name, f.suffix) }))} />
-              <Input label="Middle" value={form.middle_name} onChange={e => setForm(f => ({ ...f, middle_name: e.target.value, name: composeProfileName(f.given_name, f.family_name, e.target.value, f.suffix) }))} />
-              <Input label="Family" value={form.family_name} onChange={e => setForm(f => ({ ...f, family_name: e.target.value, name: composeProfileName(f.given_name, e.target.value, f.middle_name, f.suffix) }))} />
-              <Input label="Suffix" value={form.suffix} onChange={e => setForm(f => ({ ...f, suffix: e.target.value, name: composeProfileName(f.given_name, f.family_name, f.middle_name, e.target.value) }))} />
+            <div className="grid grid-cols-3 gap-2 -mt-2">
+              <Input label="Given" value={form.given_name} onChange={e => setForm(f => ({ ...f, given_name: e.target.value, name: composeProfileName(e.target.value, f.family_name, f.suffix) }))} />
+              <Input label="Family" value={form.family_name} onChange={e => setForm(f => ({ ...f, family_name: e.target.value, name: composeProfileName(f.given_name, e.target.value, f.suffix) }))} />
+              <Input label="Suffix" value={form.suffix} onChange={e => setForm(f => ({ ...f, suffix: e.target.value, name: composeProfileName(f.given_name, f.family_name, e.target.value) }))} />
             </div>
           )}
           <Input label="Email" type="email" value={form.email} onChange={e => set('email', e.target.value)} />

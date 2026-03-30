@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse } from '../lib/api'
+import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse, WorkDiff, CompleteFieldsResponse } from '../lib/api'
 import { Button, Card, Input, Modal, NavigableModal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
 import { useItemNavigation } from '../hooks/useItemNavigation'
 import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
@@ -16,7 +16,6 @@ type AuthorRow = {
   cosenior: boolean
   given_name: string
   family_name: string
-  middle_name: string
   suffix: string
   expanded: boolean
 }
@@ -39,10 +38,12 @@ function splitInitials(token: string): [string, string | null] {
   return [cleaned[0], cleaned.slice(1)]
 }
 
-function parseAuthorName(name: string): { given_name: string; family_name: string; middle_name: string; suffix: string } {
-  const result = { given_name: '', family_name: '', middle_name: '', suffix: '' }
+function parseAuthorName(name: string): { given_name: string; family_name: string; suffix: string } {
+  const result = { given_name: '', family_name: '', suffix: '' }
   if (!name?.trim()) return result
   const trimmed = name.trim().replace(/\s+/g, ' ')
+
+  const makeGiven = (first: string, mid: string | null) => mid ? `${first} ${mid}` : first
 
   // Extract suffix from end
   const extractSuffix = (tokens: string[]): [string[], string] => {
@@ -74,14 +75,12 @@ function parseAuthorName(name: string): { given_name: string; family_name: strin
       const tok = givenTokens[0].replace(/\.$/, '')
       if (isInitials(tok)) {
         const [f, m] = splitInitials(tok)
-        result.given_name = f + '.'
-        if (m) result.middle_name = [...m].join('.') + '.'
+        result.given_name = makeGiven(f + '.', m ? [...m].join('.') + '.' : null)
       } else {
         result.given_name = givenTokens[0]
       }
     } else if (givenTokens.length > 1) {
-      result.given_name = givenTokens[0]
-      result.middle_name = givenTokens.slice(1).join(' ')
+      result.given_name = givenTokens.join(' ')
     }
     return result
   }
@@ -101,12 +100,10 @@ function parseAuthorName(name: string): { given_name: string; family_name: strin
     if (isInitials(tokens[1])) {
       result.family_name = tokens[0]
       const [f, m] = splitInitials(tokens[1])
-      result.given_name = f + '.'
-      if (m) result.middle_name = [...m].join('.') + '.'
+      result.given_name = makeGiven(f + '.', m ? [...m].join('.') + '.' : null)
     } else if (isInitials(tokens[0])) {
       const [f, m] = splitInitials(tokens[0])
-      result.given_name = f + '.'
-      if (m) result.middle_name = [...m].join('.') + '.'
+      result.given_name = makeGiven(f + '.', m ? [...m].join('.') + '.' : null)
       result.family_name = tokens[1]
     } else {
       result.given_name = tokens[0]
@@ -117,30 +114,29 @@ function parseAuthorName(name: string): { given_name: string; family_name: strin
 
   // 3+ tokens: "Given Middle Family" or "Family G M"
   if (isInitials(tokens[0]) && !isInitials(tokens[tokens.length - 1])) {
-    result.given_name = tokens[0].includes('.') ? tokens[0] : tokens[0] + '.'
+    const firstGiven = tokens[0].includes('.') ? tokens[0] : tokens[0] + '.'
     let famStart = tokens.length - 1
     while (famStart > 1 && PARTICLES.has(tokens[famStart - 1].toLowerCase().replace(/,/, ''))) famStart--
     result.family_name = tokens.slice(famStart).join(' ')
     const midTokens = tokens.slice(1, famStart)
-    if (midTokens.length) result.middle_name = midTokens.join(' ')
+    result.given_name = midTokens.length ? makeGiven(firstGiven, midTokens.join(' ')) : firstGiven
   } else {
-    result.given_name = tokens[0]
+    const firstGiven = tokens[0]
     let famStart = tokens.length - 1
     while (famStart > 1 && PARTICLES.has(tokens[famStart - 1].toLowerCase().replace(/,/, ''))) famStart--
     result.family_name = tokens.slice(famStart).join(' ')
     const midTokens = tokens.slice(1, famStart)
-    if (midTokens.length) result.middle_name = midTokens.join(' ')
+    result.given_name = midTokens.length ? makeGiven(firstGiven, midTokens.join(' ')) : firstGiven
   }
 
   return result
 }
 
-function composeAuthorName(given: string, family: string, middle: string, suffix: string): string {
+function composeAuthorName(given: string, family: string, suffix: string): string {
   if (!family) return given || ''
   let initials = ''
-  if (given) initials += given[0].toUpperCase()
-  if (middle) {
-    for (const part of middle.replace(/\./g, ' ').split(/\s+/)) {
+  if (given) {
+    for (const part of given.replace(/\./g, ' ').split(/\s+/)) {
       if (part) initials += part[0].toUpperCase()
     }
   }
@@ -213,7 +209,7 @@ function blankWork(): WorkForm {
     identifier: '', status: '',
     institution: '', conference: '', location: '',
     publisher: '', url: '',
-    authorRows: [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }],
+    authorRows: [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', suffix: '', expanded: false }],
   }
 }
 
@@ -247,11 +243,10 @@ function workToForm(work: Work): WorkForm {
           cosenior: a.cosenior,
           given_name: a.given_name || '',
           family_name: a.family_name || '',
-          middle_name: a.middle_name || '',
           suffix: a.suffix || '',
           expanded: false,
         }))
-      : [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }],
+      : [{ author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', suffix: '', expanded: false }],
   }
 }
 
@@ -302,7 +297,6 @@ function formToPayload(form: WorkForm) {
       cosenior: r.cosenior,
       given_name: r.given_name || null,
       family_name: r.family_name || null,
-      middle_name: r.middle_name || null,
       suffix: r.suffix || null,
     }))
 
@@ -343,6 +337,15 @@ export function Publications() {
   // Mass review state
   const [reviewSelection, setReviewSelection] = useState<Set<number>>(new Set())
   const [reviewMode, setReviewMode] = useState(false)
+
+  // Complete missing fields state
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [completeLoading, setCompleteLoading] = useState(false)
+  const [completeDiffs, setCompleteDiffs] = useState<WorkDiff[]>([])
+  const [completeStats, setCompleteStats] = useState<{ skipped: number; errors: number }>({ skipped: 0, errors: 0 })
+  const [completeIndex, setCompleteIndex] = useState(0)
+  const [acceptedFields, setAcceptedFields] = useState<Map<number, Set<string>>>(new Map())
+  const [completeSaving, setCompleteSaving] = useState(false)
 
   const { data: profile } = useQuery<Profile>({
     queryKey: ['profile'],
@@ -485,6 +488,177 @@ export function Publications() {
     if (items.length === 0) return
     setReviewMode(true)
     openEdit(items[0])
+  }
+
+  // --- Complete missing fields handlers ---
+  async function handleCompleteFields() {
+    const ids = Array.from(reviewSelection)
+    if (ids.length === 0) return
+    setCompleteOpen(true)
+    setCompleteLoading(true)
+    setCompleteDiffs([])
+    setCompleteIndex(0)
+    setAcceptedFields(new Map())
+    try {
+      const res = await api.post<CompleteFieldsResponse>('/works/complete-fields', { work_ids: ids })
+      const { diffs, skipped_no_match, errors } = res.data
+      setCompleteDiffs(diffs)
+      setCompleteStats({ skipped: skipped_no_match, errors })
+      // Pre-accept: empty fields checked, conflicts unchecked
+      const preAccepted = new Map<number, Set<string>>()
+      for (const diff of diffs) {
+        const accepted = new Set<string>()
+        for (const fd of diff.field_diffs) {
+          if (!fd.current) accepted.add(fd.field)
+        }
+        // Author diffs: pre-check (fuller names almost always wanted)
+        for (const ad of diff.author_diffs) {
+          accepted.add(`author_rename_${ad.author_order}`)
+        }
+        // Proposed/additional authors: pre-check
+        if (diff.proposed_authors.length > 0) accepted.add('proposed_authors')
+        if (diff.additional_authors.length > 0) accepted.add('additional_authors')
+        preAccepted.set(diff.work_id, accepted)
+      }
+      setAcceptedFields(preAccepted)
+    } catch {
+      alert('Failed to fetch field completions.')
+      setCompleteOpen(false)
+    } finally {
+      setCompleteLoading(false)
+    }
+  }
+
+  function toggleCompleteField(workId: number, key: string) {
+    setAcceptedFields(prev => {
+      const next = new Map(prev)
+      const s = new Set(next.get(workId) || [])
+      if (s.has(key)) s.delete(key); else s.add(key)
+      next.set(workId, s)
+      return next
+    })
+  }
+
+  function toggleAllCompleteFields(workId: number, allKeys: string[], checked: boolean) {
+    setAcceptedFields(prev => {
+      const next = new Map(prev)
+      const s = checked ? new Set(allKeys) : new Set<string>()
+      next.set(workId, s)
+      return next
+    })
+  }
+
+  async function saveCurrentCompleteWork() {
+    const diff = completeDiffs[completeIndex]
+    if (!diff) return
+    const accepted = acceptedFields.get(diff.work_id) || new Set()
+    if (accepted.size === 0) { advanceComplete(); return }
+
+    // Find the current work from cache
+    const currentWork = data.find(w => w.id === diff.work_id)
+    if (!currentWork) { advanceComplete(); return }
+
+    setCompleteSaving(true)
+    try {
+      // Build payload from current work, applying accepted diffs
+      const newData = { ...(currentWork.data || {}) } as Record<string, unknown>
+      let title = currentWork.title
+      let year = currentWork.year
+      let doi = currentWork.doi
+
+      for (const fd of diff.field_diffs) {
+        if (!accepted.has(fd.field)) continue
+        if (fd.field === 'title') title = fd.proposed
+        else if (fd.field === 'year') year = fd.proposed ? parseInt(fd.proposed) : null
+        else if (fd.field === 'doi') doi = fd.proposed
+        else newData[fd.field] = fd.proposed // journal, volume, issue, pages
+      }
+
+      // Build authors list
+      let authors = currentWork.authors.map(a => ({
+        author_name: a.author_name,
+        author_order: a.author_order,
+        student: a.student,
+        corresponding: a.corresponding,
+        cofirst: a.cofirst,
+        cosenior: a.cosenior,
+        given_name: a.given_name || null,
+        family_name: a.family_name || null,
+        suffix: a.suffix || null,
+      }))
+
+      // Apply author renames
+      for (const ad of diff.author_diffs) {
+        if (!accepted.has(`author_rename_${ad.author_order}`)) continue
+        const match = authors.find(a => a.author_order === ad.author_order)
+        if (match) {
+          match.author_name = ad.proposed_name
+          // Clear structured names so backend auto-parses from new display name
+          match.given_name = null
+          match.family_name = null
+          match.suffix = null
+        }
+      }
+
+      // Proposed authors (work had 0 authors)
+      if (accepted.has('proposed_authors') && diff.proposed_authors.length > 0) {
+        authors = diff.proposed_authors.map(pa => ({
+          author_name: pa.author_name,
+          author_order: pa.author_order,
+          student: false,
+          corresponding: false,
+          cofirst: false,
+          cosenior: false,
+          given_name: pa.given_name || null,
+          family_name: pa.family_name || null,
+          suffix: pa.suffix || null,
+        }))
+      }
+
+      // Additional authors
+      if (accepted.has('additional_authors') && diff.additional_authors.length > 0) {
+        for (const pa of diff.additional_authors) {
+          authors.push({
+            author_name: pa.author_name,
+            author_order: pa.author_order,
+            student: false,
+            corresponding: false,
+            cofirst: false,
+            cosenior: false,
+            given_name: pa.given_name || null,
+            family_name: pa.family_name || null,
+            suffix: pa.suffix || null,
+          })
+        }
+      }
+
+      await api.put(`/works/${diff.work_id}`, {
+        work_type: currentWork.work_type,
+        title,
+        year,
+        doi,
+        data: Object.keys(newData).length > 0 ? newData : null,
+        authors,
+      })
+      qc.invalidateQueries({ queryKey: ['works'] })
+      advanceComplete()
+    } catch {
+      alert('Failed to save work.')
+    } finally {
+      setCompleteSaving(false)
+    }
+  }
+
+  function advanceComplete() {
+    if (completeIndex < completeDiffs.length - 1) {
+      setCompleteIndex(i => i + 1)
+    } else {
+      setCompleteOpen(false)
+    }
+  }
+
+  function skipCurrentCompleteWork() {
+    advanceComplete()
   }
 
   async function lookupDoi() {
@@ -709,17 +883,7 @@ export function Publications() {
                     value={row.given_name}
                     onChange={e => setForm(f => {
                       const rows = [...f.authorRows]
-                      rows[i] = { ...rows[i], given_name: e.target.value, author_name: composeAuthorName(e.target.value, rows[i].family_name, rows[i].middle_name, rows[i].suffix) }
-                      return { ...f, authorRows: rows }
-                    })}
-                  />
-                  <input
-                    className="px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    placeholder="Middle"
-                    value={row.middle_name}
-                    onChange={e => setForm(f => {
-                      const rows = [...f.authorRows]
-                      rows[i] = { ...rows[i], middle_name: e.target.value, author_name: composeAuthorName(rows[i].given_name, rows[i].family_name, e.target.value, rows[i].suffix) }
+                      rows[i] = { ...rows[i], given_name: e.target.value, author_name: composeAuthorName(e.target.value, rows[i].family_name, rows[i].suffix) }
                       return { ...f, authorRows: rows }
                     })}
                   />
@@ -729,7 +893,7 @@ export function Publications() {
                     value={row.family_name}
                     onChange={e => setForm(f => {
                       const rows = [...f.authorRows]
-                      rows[i] = { ...rows[i], family_name: e.target.value, author_name: composeAuthorName(rows[i].given_name, e.target.value, rows[i].middle_name, rows[i].suffix) }
+                      rows[i] = { ...rows[i], family_name: e.target.value, author_name: composeAuthorName(rows[i].given_name, e.target.value, rows[i].suffix) }
                       return { ...f, authorRows: rows }
                     })}
                   />
@@ -739,7 +903,7 @@ export function Publications() {
                     value={row.suffix}
                     onChange={e => setForm(f => {
                       const rows = [...f.authorRows]
-                      rows[i] = { ...rows[i], suffix: e.target.value, author_name: composeAuthorName(rows[i].given_name, rows[i].family_name, rows[i].middle_name, e.target.value) }
+                      rows[i] = { ...rows[i], suffix: e.target.value, author_name: composeAuthorName(rows[i].given_name, rows[i].family_name, e.target.value) }
                       return { ...f, authorRows: rows }
                     })}
                   />
@@ -750,7 +914,7 @@ export function Publications() {
         </div>
         <button
           type="button"
-          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', middle_name: '', suffix: '', expanded: false }] }))}
+          onClick={() => setForm(f => ({ ...f, authorRows: [...f.authorRows, { author_name: '', student: false, corresponding: false, cofirst: false, cosenior: false, given_name: '', family_name: '', suffix: '', expanded: false }] }))}
           className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
         >
           <Plus size={12} /> Add author
@@ -928,6 +1092,7 @@ export function Publications() {
         <div className="flex items-center gap-3 px-4 py-2 bg-primary-50 border border-primary-200 rounded-lg text-sm">
           <span className="font-medium text-primary-700">{reviewSelection.size} selected</span>
           <Button size="sm" onClick={startReview}>Review Selected</Button>
+          <Button size="sm" variant="secondary" onClick={handleCompleteFields}>Complete Missing Fields</Button>
           <Button variant="ghost" size="sm" onClick={() => setReviewSelection(new Set(data.map(w => w.id)))}>Select All</Button>
           <Button variant="ghost" size="sm" onClick={() => setReviewSelection(new Set())}>Clear</Button>
         </div>
@@ -1225,6 +1390,194 @@ export function Publications() {
           </div>
         )}
       </Modal>
+      {/* Complete Missing Fields Modal */}
+      <Modal
+        open={completeOpen}
+        onClose={() => { if (!completeLoading && !completeSaving) setCompleteOpen(false) }}
+        title="Complete Missing Fields"
+      >
+        {completeLoading && (
+          <div className="py-12 flex flex-col items-center gap-4 text-gray-500">
+            <Spinner />
+            <p className="text-sm">Fetching metadata from Crossref...</p>
+          </div>
+        )}
+
+        {!completeLoading && completeDiffs.length === 0 && (
+          <div className="py-8 text-center">
+            <p className="text-sm text-gray-500">
+              No differences found.
+              {completeStats.skipped > 0 && ` ${completeStats.skipped} work(s) skipped (no DOI).`}
+              {completeStats.errors > 0 && ` ${completeStats.errors} error(s).`}
+            </p>
+            <Button variant="secondary" className="mt-4" onClick={() => setCompleteOpen(false)}>Close</Button>
+          </div>
+        )}
+
+        {!completeLoading && completeDiffs.length > 0 && (() => {
+          const diff = completeDiffs[completeIndex]
+          const accepted = acceptedFields.get(diff.work_id) || new Set<string>()
+          const allKeys: string[] = [
+            ...diff.field_diffs.map(fd => fd.field),
+            ...diff.author_diffs.map(ad => `author_rename_${ad.author_order}`),
+            ...(diff.proposed_authors.length > 0 ? ['proposed_authors'] : []),
+            ...(diff.additional_authors.length > 0 ? ['additional_authors'] : []),
+          ]
+          const allChecked = allKeys.length > 0 && allKeys.every(k => accepted.has(k))
+          const isLast = completeIndex === completeDiffs.length - 1
+
+          return (
+            <div className="space-y-4">
+              {/* Header with navigation */}
+              <div className="flex items-center justify-between">
+                <button
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  disabled={completeIndex === 0}
+                  onClick={() => setCompleteIndex(i => i - 1)}
+                >&#9664;</button>
+                <span className="text-sm text-gray-500 font-medium">{completeIndex + 1} of {completeDiffs.length}</span>
+                <button
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  disabled={isLast}
+                  onClick={() => setCompleteIndex(i => i + 1)}
+                >&#9654;</button>
+              </div>
+
+              {/* Work title */}
+              <div className="text-sm font-medium text-gray-900 truncate">{diff.title || '(untitled)'}</div>
+
+              {completeStats.skipped > 0 && completeIndex === 0 && (
+                <p className="text-xs text-amber-600">{completeStats.skipped} work(s) skipped (no DOI){completeStats.errors > 0 ? `, ${completeStats.errors} error(s)` : ''}</p>
+              )}
+
+              {/* Select all / Deselect all */}
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  checked={allChecked}
+                  onChange={(e) => toggleAllCompleteFields(diff.work_id, allKeys, e.target.checked)}
+                />
+                {allChecked ? 'Deselect all' : 'Select all'}
+              </label>
+
+              {/* Field diffs */}
+              {diff.field_diffs.length > 0 && (
+                <div className="space-y-2">
+                  {diff.field_diffs.map(fd => {
+                    const isConflict = !!fd.current
+                    return (
+                      <label
+                        key={fd.field}
+                        className={`flex items-start gap-2 p-2 rounded border cursor-pointer ${
+                          isConflict ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          checked={accepted.has(fd.field)}
+                          onChange={() => toggleCompleteField(diff.work_id, fd.field)}
+                        />
+                        <div className="flex-1 min-w-0 text-sm">
+                          <span className="font-medium text-gray-700 uppercase text-xs">{fd.field}</span>
+                          {isConflict && <Badge color="yellow" className="ml-2 text-[10px]">differs</Badge>}
+                          <div className="mt-0.5">
+                            <span className="text-gray-400 italic">{fd.current || '(empty)'}</span>
+                            <span className="mx-2 text-gray-300">&rarr;</span>
+                            <span className="text-green-700">{fd.proposed}</span>
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Author diffs */}
+              {diff.author_diffs.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Author Name Updates</p>
+                  {diff.author_diffs.map(ad => (
+                    <label
+                      key={ad.author_order}
+                      className="flex items-start gap-2 p-2 rounded border border-gray-200 bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        checked={accepted.has(`author_rename_${ad.author_order}`)}
+                        onChange={() => toggleCompleteField(diff.work_id, `author_rename_${ad.author_order}`)}
+                      />
+                      <div className="text-sm">
+                        <span className="text-gray-400">{ad.current_name}</span>
+                        <span className="mx-2 text-gray-300">&rarr;</span>
+                        <span className="text-green-700">{ad.proposed_name}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Proposed authors (work had 0) */}
+              {diff.proposed_authors.length > 0 && (
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 p-2 rounded border border-gray-200 bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      checked={accepted.has('proposed_authors')}
+                      onChange={() => toggleCompleteField(diff.work_id, 'proposed_authors')}
+                    />
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-700">Add {diff.proposed_authors.length} author(s)</span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {diff.proposed_authors.map(a => a.author_name).join(', ')}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Additional authors */}
+              {diff.additional_authors.length > 0 && (
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 p-2 rounded border border-gray-200 bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      checked={accepted.has('additional_authors')}
+                      onChange={() => toggleCompleteField(diff.work_id, 'additional_authors')}
+                    />
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-700">Add {diff.additional_authors.length} additional author(s)</span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {diff.additional_authors.map(a => a.author_name).join(', ')}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-3 border-t">
+                <Button variant="ghost" size="sm" onClick={() => setCompleteOpen(false)}>Close</Button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={skipCurrentCompleteWork}>Skip</Button>
+                  <Button
+                    size="sm"
+                    onClick={saveCurrentCompleteWork}
+                    loading={completeSaving}
+                  >
+                    {isLast ? 'Accept & Finish' : 'Accept & Next'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+      </Modal>
+
       </>)}
     </div>
   )

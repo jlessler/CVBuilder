@@ -167,7 +167,6 @@ def sync_add(
                     author_order=i,
                     given_name=ad.get("given_name"),
                     family_name=ad.get("family_name"),
-                    middle_name=ad.get("middle_name"),
                     suffix=ad.get("suffix"),
                 ))
         else:
@@ -178,7 +177,6 @@ def sync_add(
                     work_id=work.id, author_name=name, author_order=i,
                     given_name=parsed.get("given_name"),
                     family_name=parsed.get("family_name"),
-                    middle_name=parsed.get("middle_name"),
                     suffix=parsed.get("suffix"),
                 ))
         _sync_crossref_links(work, db)
@@ -217,14 +215,12 @@ def create_work(
         # Auto-parse structured name fields if not provided
         given = a.given_name
         family = a.family_name
-        middle = a.middle_name
         suffix = a.suffix
         if not family and a.author_name:
             from app.services.name_parser import parse_author_name
             parsed = parse_author_name(a.author_name)
             given = given or parsed.get("given_name")
             family = family or parsed.get("family_name")
-            middle = middle or parsed.get("middle_name")
             suffix = suffix or parsed.get("suffix")
         db.add(models.WorkAuthor(
             work_id=work.id,
@@ -236,7 +232,6 @@ def create_work(
             cosenior=a.cosenior,
             given_name=given,
             family_name=family,
-            middle_name=middle,
             suffix=suffix,
         ))
     _sync_crossref_links(work, db)
@@ -268,14 +263,12 @@ def update_work(
         for i, a in enumerate(payload.authors):
             given = a.given_name
             family = a.family_name
-            middle = a.middle_name
             suffix = a.suffix
             if not family and a.author_name:
                 from app.services.name_parser import parse_author_name
                 parsed = parse_author_name(a.author_name)
                 given = given or parsed.get("given_name")
                 family = family or parsed.get("family_name")
-                middle = middle or parsed.get("middle_name")
                 suffix = suffix or parsed.get("suffix")
             db.add(models.WorkAuthor(
                 work_id=work_id,
@@ -287,7 +280,6 @@ def update_work(
                 cosenior=a.cosenior,
                 given_name=given,
                 family_name=family,
-                middle_name=middle,
                 suffix=suffix,
             ))
 
@@ -371,9 +363,7 @@ def enrich_authors(
         if i < len(db_authors):
             wa = db_authors[i]
             wa.family_name = family
-            wa.given_name = given.split()[0] if given else None
-            gparts = given.split()
-            wa.middle_name = " ".join(gparts[1:]) if len(gparts) > 1 else None
+            wa.given_name = given or None
             wa.suffix = cr_a.get("suffix")
             updated += 1
 
@@ -426,9 +416,7 @@ def enrich_authors_bulk(
                 if wa.family_name:
                     continue  # Already has structured name
                 wa.family_name = family
-                wa.given_name = given.split()[0] if given else None
-                gparts = given.split()
-                wa.middle_name = " ".join(gparts[1:]) if len(gparts) > 1 else None
+                wa.given_name = given or None
                 wa.suffix = cr_a.get("suffix")
                 total_updated += 1
 

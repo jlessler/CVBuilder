@@ -8,13 +8,11 @@ class TestParseAuthorName:
         r = parse_author_name("Lessler J")
         assert r["family_name"] == "Lessler"
         assert r["given_name"] == "J."
-        assert r["middle_name"] is None
 
     def test_family_two_initials(self):
         r = parse_author_name("Lessler JK")
         assert r["family_name"] == "Lessler"
-        assert r["given_name"] == "J."
-        assert r["middle_name"] == "K."
+        assert r["given_name"] == "J. K."
 
     def test_initial_family(self):
         r = parse_author_name("J Lessler")
@@ -24,8 +22,7 @@ class TestParseAuthorName:
     def test_two_initials_family(self):
         r = parse_author_name("JK Lessler")
         assert r["family_name"] == "Lessler"
-        assert r["given_name"] == "J."
-        assert r["middle_name"] == "K."
+        assert r["given_name"] == "J. K."
 
     def test_given_family(self):
         r = parse_author_name("Justin Lessler")
@@ -35,8 +32,7 @@ class TestParseAuthorName:
     def test_given_middle_family(self):
         r = parse_author_name("Justin K Lessler")
         assert r["family_name"] == "Lessler"
-        assert r["given_name"] == "Justin"
-        assert r["middle_name"] == "K"
+        assert r["given_name"] == "Justin K"
 
     def test_comma_format(self):
         r = parse_author_name("Lessler, Justin")
@@ -46,14 +42,13 @@ class TestParseAuthorName:
     def test_comma_format_with_middle(self):
         r = parse_author_name("Lessler, Justin K")
         assert r["family_name"] == "Lessler"
-        assert r["given_name"] == "Justin"
-        assert r["middle_name"] == "K"
+        assert r["given_name"] == "Justin K"
 
     def test_comma_format_initials(self):
         r = parse_author_name("Lessler, J. K.")
         assert r["family_name"] == "Lessler"
-        assert r["given_name"] == "J."
-        assert r["middle_name"] is not None
+        assert "J" in r["given_name"]
+        assert "K" in r["given_name"]
 
     def test_particle_van_der(self):
         r = parse_author_name("van der Berg A")
@@ -91,10 +86,15 @@ class TestParseAuthorName:
         r = parse_author_name("   ")
         assert r["family_name"] is None
 
+    def test_no_middle_name_key(self):
+        """middle_name should not exist in ParsedName anymore."""
+        r = parse_author_name("Lessler JK")
+        assert "middle_name" not in r
+
 
 class TestComposeAuthorName:
     def test_basic(self):
-        assert compose_author_name("Justin", "Lessler", "K") == "Lessler JK"
+        assert compose_author_name("Justin K", "Lessler") == "Lessler JK"
 
     def test_no_middle(self):
         assert compose_author_name("Justin", "Lessler") == "Lessler J"
@@ -110,3 +110,6 @@ class TestComposeAuthorName:
 
     def test_empty(self):
         assert compose_author_name() == ""
+
+    def test_dotted_initials(self):
+        assert compose_author_name("J. K.", "Lessler") == "Lessler JK"

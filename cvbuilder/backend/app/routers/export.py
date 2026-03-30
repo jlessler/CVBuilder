@@ -18,8 +18,6 @@ def _export_author(a: models.WorkAuthor):
         d = {"name": a.author_name, "family": a.family_name}
         if a.given_name:
             d["given"] = a.given_name
-        if a.middle_name:
-            d["middle"] = a.middle_name
         if a.suffix:
             d["suffix"] = a.suffix
         return d

@@ -9,7 +9,6 @@ from typing import Optional, TypedDict
 class ParsedName(TypedDict, total=False):
     given_name: Optional[str]
     family_name: Optional[str]
-    middle_name: Optional[str]
     suffix: Optional[str]
 
 
@@ -70,6 +69,13 @@ def _collect_particle_family(tokens: list[str], start: int) -> tuple[str, int]:
     return " ".join(parts), i
 
 
+def _make_given(first: str, mid: Optional[str]) -> str:
+    """Combine first name and middle parts into a single given_name."""
+    if mid:
+        return f"{first} {mid}"
+    return first
+
+
 def parse_author_name(name: str) -> ParsedName:
     """Parse a free-text author name into structured parts.
 
@@ -85,13 +91,13 @@ def parse_author_name(name: str) -> ParsedName:
     - Suffixes: "Smith Jr, J", "Jones III, Robert"
     """
     if not name or not name.strip():
-        return ParsedName(given_name=None, family_name=None, middle_name=None, suffix=None)
+        return ParsedName(given_name=None, family_name=None, suffix=None)
 
     name = name.strip()
     # Normalise whitespace
     name = re.sub(r"\s+", " ", name)
 
-    result = ParsedName(given_name=None, family_name=None, middle_name=None, suffix=None)
+    result = ParsedName(given_name=None, family_name=None, suffix=None)
 
     # ── Comma format: "Family, Given [Middle]" or "Family Suffix, Given" ──
     if "," in name:
@@ -129,15 +135,12 @@ def parse_author_name(name: str) -> ParsedName:
             tok = given_tokens[0].rstrip(".")
             if _is_initials(tok):
                 first, mid = _split_initials(tok)
-                result["given_name"] = first + "."
-                if mid:
-                    result["middle_name"] = ".".join(mid) + "."
+                mid_str = ".".join(mid) + "." if mid else None
+                result["given_name"] = _make_given(first + ".", mid_str)
             else:
                 result["given_name"] = given_tokens[0]
         else:
-            result["given_name"] = given_tokens[0]
-            mid_parts = given_tokens[1:]
-            result["middle_name"] = " ".join(mid_parts)
+            result["given_name"] = " ".join(given_tokens)
 
         return result
 
@@ -161,16 +164,14 @@ def parse_author_name(name: str) -> ParsedName:
             # "Lessler J" or "Lessler JK"
             result["family_name"] = tokens[0]
             first, mid = _split_initials(tokens[1])
-            result["given_name"] = first + "."
-            if mid:
-                result["middle_name"] = ".".join(mid) + "."
+            mid_str = ".".join(mid) + "." if mid else None
+            result["given_name"] = _make_given(first + ".", mid_str)
             return result
         elif _is_initials(tokens[0]):
             # "J Lessler" or "JK Lessler"
             first, mid = _split_initials(tokens[0])
-            result["given_name"] = first + "."
-            if mid:
-                result["middle_name"] = ".".join(mid) + "."
+            mid_str = ".".join(mid) + "." if mid else None
+            result["given_name"] = _make_given(first + ".", mid_str)
             result["family_name"] = tokens[1]
             return result
         else:
@@ -182,39 +183,45 @@ def parse_author_name(name: str) -> ParsedName:
     # 3+ tokens
     # Check for leading initials: "J K Lessler"
     if _is_initials(tokens[0]) and not _is_initials(tokens[-1]):
-        result["given_name"] = tokens[0] if "." in tokens[0] else tokens[0] + "."
+        first_given = tokens[0] if "." in tokens[0] else tokens[0] + "."
         # Everything between first and last could be middle or particles
         remaining = tokens[1:]
         # Find where family name starts (could have particles)
-        # Walk backwards from end: last non-particle is family, particles before it are part of family
         family_start = len(remaining) - 1
         while family_start > 0 and remaining[family_start - 1].lower().rstrip(",") in _PARTICLES:
             family_start -= 1
         result["family_name"] = " ".join(remaining[family_start:])
         mid_tokens = remaining[:family_start]
         if mid_tokens:
-            result["middle_name"] = " ".join(mid_tokens)
+            result["given_name"] = _make_given(first_given, " ".join(mid_tokens))
+        else:
+            result["given_name"] = first_given
         return result
 
-    # Check for trailing initials: "Lessler J K" — unlikely but handle
+    # Check for trailing initials: "Lessler J K" or "Lessler Justin T"
     if _is_initials(tokens[-1]) and not _is_initials(tokens[0]):
         # Could be "van der Berg J K" — collect particle family from start
         family_name, idx = _collect_particle_family(tokens, 0)
-        # Remaining tokens should be initials
-        init_tokens = tokens[idx:]
-        if init_tokens:
-            first_init = init_tokens[0].replace(".", "")
-            result["given_name"] = first_init[0] + "." if first_init else None
-            if len(first_init) > 1:
-                result["middle_name"] = ".".join(first_init[1:]) + "."
-            elif len(init_tokens) > 1:
-                mid = "".join(t.replace(".", "") for t in init_tokens[1:])
-                result["middle_name"] = ".".join(mid) + "." if mid else None
+        remaining = tokens[idx:]
+        if remaining:
+            # Split remaining into name parts and initials
+            # e.g. ["Justin", "T"] → given="Justin", mid="T"
+            # e.g. ["J", "K"] → given="J.", mid="K."
+            # e.g. ["JK"] → given="J. K."
+            given_parts = []
+            for t in remaining:
+                if _is_initials(t):
+                    cleaned = t.replace(".", "")
+                    for ch in cleaned:
+                        given_parts.append(ch + ".")
+                else:
+                    given_parts.append(t)
+            result["given_name"] = " ".join(given_parts) if given_parts else None
         result["family_name"] = family_name
         return result
 
     # Default: "Given Middle ... Family" — first=given, last=family, middle=rest
-    result["given_name"] = tokens[0]
+    first_given = tokens[0]
     # Walk backwards to find family (with particles)
     family_start = len(tokens) - 1
     while family_start > 1 and tokens[family_start - 1].lower().rstrip(",") in _PARTICLES:
@@ -222,7 +229,9 @@ def parse_author_name(name: str) -> ParsedName:
     result["family_name"] = " ".join(tokens[family_start:])
     mid_tokens = tokens[1:family_start]
     if mid_tokens:
-        result["middle_name"] = " ".join(mid_tokens)
+        result["given_name"] = _make_given(first_given, " ".join(mid_tokens))
+    else:
+        result["given_name"] = first_given
 
     return result
 
@@ -230,7 +239,6 @@ def parse_author_name(name: str) -> ParsedName:
 def compose_author_name(
     given_name: Optional[str] = None,
     family_name: Optional[str] = None,
-    middle_name: Optional[str] = None,
     suffix: Optional[str] = None,
 ) -> str:
     """Compose a display name from structured parts.
@@ -244,9 +252,8 @@ def compose_author_name(
 
     initials = ""
     if given_name:
-        initials += given_name[0].upper()
-    if middle_name:
-        for part in middle_name.replace(".", " ").split():
+        # given_name may contain multiple parts: "Justin K." or "Justin Keith"
+        for part in given_name.replace(".", " ").split():
             if part:
                 initials += part[0].upper()
     if initials:

@@ -35,11 +35,23 @@ def _initials_bare(name: Optional[str]) -> str:
     return cleaned[0].upper()
 
 
+def _split_given(given: str) -> tuple[str, str]:
+    """Split combined given_name into (first, middle_parts).
+
+    'Justin K.' -> ('Justin', 'K.')
+    'Justin'    -> ('Justin', '')
+    'J. K.'     -> ('J.', 'K.')
+    'J.'        -> ('J.', '')
+    """
+    parts = given.split(None, 1)
+    return (parts[0], parts[1]) if len(parts) > 1 else (parts[0], "")
+
+
 def format_author_name(author: Any, style: str = "display") -> str:
     """Format a single author's name according to the given style.
 
     Args:
-        author: Object with author_name, given_name, family_name, middle_name, suffix attributes
+        author: Object with author_name, given_name, family_name, suffix attributes
                (or dict with those keys).
         style: One of 'display', 'apa', 'vancouver', 'chicago', 'full'.
 
@@ -54,22 +66,24 @@ def format_author_name(author: Any, style: str = "display") -> str:
     author_name = _get("author_name")
     family = _get("family_name")
     given = _get("given_name")
-    middle = _get("middle_name")
     suffix = _get("suffix")
 
     # Fallback: no structured fields
     if not family:
         return author_name
 
+    # Split given_name into first + middle parts
+    first, middle = _split_given(given) if given else ("", "")
+
     if style == "display":
         # Default CVBuilder format: "Family GI" (e.g., "Lessler JK")
         from app.services.name_parser import compose_author_name
-        return compose_author_name(given, family, middle, suffix)
+        return compose_author_name(given, family, suffix)
 
     if style == "apa":
         # APA: "Lessler, J. K."
         parts = [family + ","]
-        gi = _initials_dotted(given)
+        gi = _initials_dotted(first)
         mi = _initials_dotted(middle)
         inits = " ".join(filter(None, [gi, mi]))
         if inits:
@@ -80,7 +94,7 @@ def format_author_name(author: Any, style: str = "display") -> str:
 
     if style == "vancouver":
         # Vancouver/NLM: "Lessler JK"
-        gi = _initials_bare(given)
+        gi = _initials_bare(first)
         mi = _initials_bare(middle)
         inits = gi + mi
         result = family
@@ -93,8 +107,8 @@ def format_author_name(author: Any, style: str = "display") -> str:
     if style == "chicago":
         # Chicago: "Lessler, Justin K."
         parts = [family + ","]
-        if given:
-            parts.append(given)
+        if first:
+            parts.append(first)
         if middle:
             mi = _initials_dotted(middle)
             parts.append(mi)
@@ -105,8 +119,8 @@ def format_author_name(author: Any, style: str = "display") -> str:
     if style == "full":
         # Full natural order: "Justin K. Lessler"
         parts = []
-        if given:
-            parts.append(given)
+        if first:
+            parts.append(first)
         if middle:
             mi = _initials_dotted(middle)
             parts.append(mi)

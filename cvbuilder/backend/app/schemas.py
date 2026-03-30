@@ -69,7 +69,6 @@ class ProfileBase(BaseModel):
     linkedin: Optional[str] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
-    middle_name: Optional[str] = None
     suffix: Optional[str] = None
 
 class ProfileCreate(ProfileBase):
@@ -97,7 +96,6 @@ class WorkAuthorBase(BaseModel):
     cosenior: bool = False
     given_name: Optional[str] = None
     family_name: Optional[str] = None
-    middle_name: Optional[str] = None
     suffix: Optional[str] = None
 
 class WorkAuthorCreate(WorkAuthorBase):
@@ -465,7 +463,6 @@ class ProposedAuthor(BaseModel):
     author_order: int
     given_name: str | None = None
     family_name: str | None = None
-    middle_name: str | None = None
     suffix: str | None = None
 
 class WorkDiff(BaseModel):

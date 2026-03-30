@@ -9,7 +9,6 @@ class _Author:
         self.author_name = kwargs.get("author_name", "")
         self.given_name = kwargs.get("given_name")
         self.family_name = kwargs.get("family_name")
-        self.middle_name = kwargs.get("middle_name")
         self.suffix = kwargs.get("suffix")
         self.student = kwargs.get("student", False)
         self.corresponding = kwargs.get("corresponding", False)
@@ -19,26 +18,26 @@ class _Author:
 
 class TestFormatAuthorName:
     def test_display_returns_author_name(self):
-        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin", middle_name="K")
+        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin K")
         assert format_author_name(a, "display") == "Lessler JK"
 
     def test_apa_format(self):
-        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin", middle_name="K")
+        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin K")
         result = format_author_name(a, "apa")
         assert result == "Lessler, J. K."
 
     def test_vancouver_format(self):
-        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin", middle_name="K")
+        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin K")
         result = format_author_name(a, "vancouver")
         assert result == "Lessler JK"
 
     def test_chicago_format(self):
-        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin", middle_name="K")
+        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin K")
         result = format_author_name(a, "chicago")
         assert result == "Lessler, Justin K."
 
     def test_full_format(self):
-        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin", middle_name="K")
+        a = _Author(author_name="Lessler JK", family_name="Lessler", given_name="Justin K")
         result = format_author_name(a, "full")
         assert result == "Justin K. Lessler"
 

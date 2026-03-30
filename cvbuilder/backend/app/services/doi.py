@@ -83,10 +83,10 @@ def _is_fuller_name(current: str, proposed: str) -> bool:
     Returns True if proposed is longer and current looks like an abbreviation/initial.
     """
     c = current.strip().rstrip(".")
-    p = proposed.strip()
+    p = proposed.strip().rstrip(".")
     if not c or not p:
         return False
-    if c == p:
+    if c.lower() == p.lower():
         return False
     # Current is an initial (1-2 chars) and proposed starts with same letter
     if len(c) <= 2 and p.lower().startswith(c[0].lower()):
@@ -148,7 +148,6 @@ def compute_work_diffs(work, raw_crossref: dict) -> dict:
                 "author_order": i,
                 "given_name": a.get("given"),
                 "family_name": a.get("family"),
-                "middle_name": None,
                 "suffix": a.get("suffix"),
             })
     else:
@@ -194,7 +193,6 @@ def compute_work_diffs(work, raw_crossref: dict) -> dict:
                     "author_order": i,
                     "given_name": a.get("given"),
                     "family_name": a.get("family"),
-                    "middle_name": None,
                     "suffix": a.get("suffix"),
                 })
 

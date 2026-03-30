@@ -40,7 +40,6 @@ class Profile(Base):
     linkedin: Mapped[Optional[str]] = mapped_column(String(200))
     given_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     family_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    middle_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     suffix: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     addresses: Mapped[list["Address"]] = relationship(
         back_populates="profile", cascade="all, delete-orphan", order_by="Address.line_order"
@@ -332,7 +331,6 @@ class WorkAuthor(Base):
     cosenior: Mapped[bool] = mapped_column(Boolean, default=False)
     given_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     family_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    middle_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     suffix: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     work: Mapped["Work"] = relationship(back_populates="authors")
 

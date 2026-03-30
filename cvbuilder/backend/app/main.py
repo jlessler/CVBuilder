@@ -158,12 +158,11 @@ def _run_migrations():
                 conn.execute(
                     text(
                         "UPDATE work_authors SET given_name = :gn, family_name = :fn, "
-                        "middle_name = :mn, suffix = :sx WHERE id = :id"
+                        "suffix = :sx WHERE id = :id"
                     ),
                     {
                         "gn": parsed.get("given_name"),
                         "fn": parsed.get("family_name"),
-                        "mn": parsed.get("middle_name"),
                         "sx": parsed.get("suffix"),
                         "id": row[0],
                     },
@@ -184,12 +183,11 @@ def _run_migrations():
                 conn.execute(
                     text(
                         "UPDATE profile SET given_name = :gn, family_name = :fn, "
-                        "middle_name = :mn, suffix = :sx WHERE id = :id"
+                        "suffix = :sx WHERE id = :id"
                     ),
                     {
                         "gn": parsed.get("given_name"),
                         "fn": parsed.get("family_name"),
-                        "mn": parsed.get("middle_name"),
                         "sx": parsed.get("suffix"),
                         "id": row[0],
                     },
@@ -208,6 +206,19 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 pass  # Column already dropped or doesn't exist
+
+        # Merge middle_name into given_name, then drop the column.
+        # DROP COLUMN makes it idempotent — only runs once.
+        for table in ["work_authors", "profile"]:
+            try:
+                conn.execute(text(
+                    f"UPDATE {table} SET given_name = TRIM(COALESCE(given_name, '') || ' ' || middle_name) "
+                    f"WHERE middle_name IS NOT NULL AND middle_name != ''"
+                ))
+                conn.execute(text(f"ALTER TABLE {table} DROP COLUMN middle_name"))
+                conn.commit()
+            except Exception:
+                pass
 
 
 def _ensure_default_user(db):

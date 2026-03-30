@@ -19,11 +19,13 @@ def _author_fields(entry) -> dict:
 
     if isinstance(entry, dict):
         name = entry.get("name", "")
+        given = entry.get("given") or ""
+        middle = entry.get("middle") or ""
+        combined_given = f"{given} {middle}".strip() or None
         return {
             "author_name": _clean(name),
-            "given_name": entry.get("given"),
+            "given_name": combined_given,
             "family_name": entry.get("family"),
-            "middle_name": entry.get("middle"),
             "suffix": entry.get("suffix"),
         }
     # Plain string — parse into structured fields
@@ -33,7 +35,6 @@ def _author_fields(entry) -> dict:
         "author_name": cleaned,
         "given_name": parsed.get("given_name"),
         "family_name": parsed.get("family_name"),
-        "middle_name": parsed.get("middle_name"),
         "suffix": parsed.get("suffix"),
     }
 
