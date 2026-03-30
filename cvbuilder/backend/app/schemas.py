@@ -441,3 +441,43 @@ class DashboardData(BaseModel):
     teaching_mentorship: TeachingMentorshipStats = TeachingMentorshipStats()
     funding: FundingStats = FundingStats()
     service: ServiceStats = ServiceStats()
+
+
+# ---------------------------------------------------------------------------
+# Complete Missing Fields (Crossref enrichment)
+# ---------------------------------------------------------------------------
+
+class CompleteFieldsRequest(BaseModel):
+    work_ids: list[int]
+
+class FieldDiff(BaseModel):
+    field: str              # "doi", "title", "year", "journal", "volume", "issue", "pages"
+    current: str | None = None
+    proposed: str | None = None
+
+class AuthorDiff(BaseModel):
+    author_order: int
+    current_name: str
+    proposed_name: str
+
+class ProposedAuthor(BaseModel):
+    author_name: str
+    author_order: int
+    given_name: str | None = None
+    family_name: str | None = None
+    middle_name: str | None = None
+    suffix: str | None = None
+
+class WorkDiff(BaseModel):
+    work_id: int
+    title: str | None = None
+    doi: str | None = None
+    field_diffs: list[FieldDiff]
+    author_diffs: list[AuthorDiff] = []
+    proposed_authors: list[ProposedAuthor] = []
+    additional_authors: list[ProposedAuthor] = []
+
+class CompleteFieldsResponse(BaseModel):
+    diffs: list[WorkDiff]
+    skipped_no_match: int = 0
+    errors: int = 0

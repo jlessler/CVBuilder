@@ -20,12 +20,10 @@ def _year_from_date_parts(ref: dict) -> str | None:
     return None
 
 
-def lookup_doi(doi: str) -> dict:
+def lookup_doi_raw(doi: str) -> dict:
     """
-    Fetch metadata for a DOI via the Crossref REST API.
+    Fetch the raw Crossref message dict for a DOI.
 
-    Returns a dict with keys:
-        title, year, journal, volume, issue, pages, authors (list of str), doi
     Raises ValueError on not-found, RuntimeError on other errors.
     """
     url = f"https://api.crossref.org/works/{doi.strip()}"
@@ -39,14 +37,16 @@ def lookup_doi(doi: str) -> dict:
     if response.status_code != 200:
         raise RuntimeError(f"Crossref returned status {response.status_code}")
 
-    ref = response.json().get("message", {})
+    return response.json().get("message", {})
 
+
+def _parse_crossref_message(ref: dict, doi: str) -> dict:
+    """Parse a raw Crossref message dict into our standard metadata dict."""
     authors = [
         f"{a.get('family', '')} {a.get('given', '')}".strip()
         for a in ref.get("author", [])
         if a.get("family")
     ]
-
     return {
         "title": _scalar(ref.get("title")),
         "year": _year_from_date_parts(ref),
@@ -56,4 +56,151 @@ def lookup_doi(doi: str) -> dict:
         "pages": _scalar(ref.get("page")),
         "authors": authors,
         "doi": doi.strip(),
+    }
+
+
+def lookup_doi(doi: str) -> dict:
+    """
+    Fetch metadata for a DOI via the Crossref REST API.
+
+    Returns a dict with keys:
+        title, year, journal, volume, issue, pages, authors (list of str), doi
+    Raises ValueError on not-found, RuntimeError on other errors.
+    """
+    ref = lookup_doi_raw(doi)
+    return _parse_crossref_message(ref, doi)
+
+
+def _normalize(val: str | None) -> str:
+    """Lowercase and strip whitespace for comparison."""
+    return (val or "").strip().lower()
+
+
+def _is_fuller_name(current: str, proposed: str) -> bool:
+    """
+    Check if proposed name is a fuller version of current name.
+    e.g. "J" -> "Justin", "J." -> "Justin", "Rob" -> "Robert"
+    Returns True if proposed is longer and current looks like an abbreviation/initial.
+    """
+    c = current.strip().rstrip(".")
+    p = proposed.strip()
+    if not c or not p:
+        return False
+    if c == p:
+        return False
+    # Current is an initial (1-2 chars) and proposed starts with same letter
+    if len(c) <= 2 and p.lower().startswith(c[0].lower()):
+        return True
+    # Proposed is strictly longer and starts with current
+    if len(p) > len(c) and p.lower().startswith(c.lower()):
+        return True
+    return False
+
+
+def compute_work_diffs(work, raw_crossref: dict) -> dict:
+    """
+    Compare a Work ORM object against raw Crossref data.
+
+    Returns dict with keys: field_diffs, author_diffs, proposed_authors,
+    additional_authors.
+
+    Top-level Work fields: title, year, doi.
+    Data-blob fields: journal, volume, issue, pages.
+    """
+    parsed = _parse_crossref_message(raw_crossref, raw_crossref.get("DOI", ""))
+    data = work.data or {}
+
+    # --- Field diffs ---
+    field_diffs = []
+    # Top-level fields
+    for field in ("title", "year", "doi"):
+        current_val = getattr(work, field, None)
+        proposed_val = parsed.get(field)
+        if proposed_val and _normalize(str(proposed_val)) != _normalize(str(current_val or "")):
+            field_diffs.append({
+                "field": field,
+                "current": str(current_val) if current_val is not None else None,
+                "proposed": str(proposed_val),
+            })
+    # Data-blob fields
+    for field in ("journal", "volume", "issue", "pages"):
+        current_val = data.get(field)
+        proposed_val = parsed.get(field)
+        if proposed_val and _normalize(str(proposed_val)) != _normalize(str(current_val or "")):
+            field_diffs.append({
+                "field": field,
+                "current": str(current_val) if current_val is not None else None,
+                "proposed": str(proposed_val),
+            })
+
+    # --- Author diffs ---
+    cr_authors = raw_crossref.get("author", [])
+    work_authors = sorted(work.authors, key=lambda a: a.author_order)
+    author_diffs = []
+    proposed_authors = []
+    additional_authors = []
+
+    if len(work_authors) == 0 and cr_authors:
+        # Work has no authors — propose entire Crossref list
+        for i, a in enumerate(cr_authors):
+            proposed_authors.append({
+                "author_name": f"{a.get('family', '')} {a.get('given', '')}".strip(),
+                "author_order": i,
+                "given_name": a.get("given"),
+                "family_name": a.get("family"),
+                "middle_name": None,
+                "suffix": a.get("suffix"),
+            })
+    else:
+        # Compare matched authors by position
+        for i, wa in enumerate(work_authors):
+            if i >= len(cr_authors):
+                break
+            ca = cr_authors[i]
+            cr_given = ca.get("given", "")
+            cr_family = ca.get("family", "")
+
+            # Use structured names if available, else parse display name
+            w_given = wa.given_name or ""
+            w_family = wa.family_name or ""
+            if not w_family and wa.author_name:
+                parts = wa.author_name.split()
+                if len(parts) >= 2:
+                    w_family = parts[0]
+                    w_given = " ".join(parts[1:])
+                elif parts:
+                    w_family = parts[0]
+
+            # Check if Crossref has a fuller name
+            given_fuller = _is_fuller_name(w_given, cr_given)
+            family_fuller = _is_fuller_name(w_family, cr_family)
+
+            if given_fuller or family_fuller:
+                new_given = cr_given if given_fuller else w_given
+                new_family = cr_family if family_fuller else w_family
+                proposed_name = f"{new_family} {new_given}".strip()
+                author_diffs.append({
+                    "author_order": wa.author_order,
+                    "current_name": wa.author_name,
+                    "proposed_name": proposed_name,
+                })
+
+        # Crossref has more authors than work
+        if len(cr_authors) > len(work_authors) and len(work_authors) > 0:
+            for i in range(len(work_authors), len(cr_authors)):
+                a = cr_authors[i]
+                additional_authors.append({
+                    "author_name": f"{a.get('family', '')} {a.get('given', '')}".strip(),
+                    "author_order": i,
+                    "given_name": a.get("given"),
+                    "family_name": a.get("family"),
+                    "middle_name": None,
+                    "suffix": a.get("suffix"),
+                })
+
+    return {
+        "field_diffs": field_diffs,
+        "author_diffs": author_diffs,
+        "proposed_authors": proposed_authors,
+        "additional_authors": additional_authors,
     }

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.services.doi import lookup_doi
+from app.services.doi import lookup_doi, lookup_doi_raw, compute_work_diffs
 from app.services.fetch_pubs import fetch_new_publications
 
 router = APIRouter(prefix="/api/works", tags=["works"])
@@ -260,7 +260,7 @@ def update_work(
     old_preprint_doi = old_data.get("preprint_doi")
     old_published_doi = old_data.get("published_doi")
 
-    for field, value in payload.model_dump(exclude={"authors"}, exclude_none=True).items():
+    for field, value in payload.model_dump(exclude={"authors"}, exclude_unset=True).items():
         setattr(work, field, value)
 
     if payload.authors is not None:
@@ -443,3 +443,64 @@ def enrich_authors_bulk(
         "authors_updated": total_updated,
         "errors": errors,
     }
+
+
+# ---------------------------------------------------------------------------
+# Complete missing fields via Crossref
+# ---------------------------------------------------------------------------
+
+@router.post("/complete-fields", response_model=schemas.CompleteFieldsResponse)
+def complete_fields(
+    req: schemas.CompleteFieldsRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Fetch Crossref metadata for the given works and return all differences.
+    Read-only — no database writes.
+    """
+    import time
+
+    works = (
+        db.query(models.Work)
+        .filter(models.Work.id.in_(req.work_ids), models.Work.user_id == current_user.id)
+        .all()
+    )
+
+    diffs = []
+    skipped_no_match = 0
+    errors = 0
+
+    for work in works:
+        doi = work.doi
+        if not doi:
+            skipped_no_match += 1
+            continue
+
+        try:
+            raw = lookup_doi_raw(doi)
+            work_diffs = compute_work_diffs(work, raw)
+
+            # Only include works that have at least one diff
+            has_diffs = (
+                work_diffs["field_diffs"]
+                or work_diffs["author_diffs"]
+                or work_diffs["proposed_authors"]
+                or work_diffs["additional_authors"]
+            )
+            if has_diffs:
+                diffs.append(schemas.WorkDiff(
+                    work_id=work.id,
+                    title=work.title,
+                    doi=doi,
+                    **work_diffs,
+                ))
+            time.sleep(0.5)
+        except Exception:
+            errors += 1
+
+    return schemas.CompleteFieldsResponse(
+        diffs=diffs,
+        skipped_no_match=skipped_no_match,
+        errors=errors,
+    )
