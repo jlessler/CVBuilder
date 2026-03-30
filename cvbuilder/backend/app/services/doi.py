@@ -71,29 +71,76 @@ def lookup_doi(doi: str) -> dict:
     return _parse_crossref_message(ref, doi)
 
 
+def _strip_html(val: str) -> str:
+    """Remove HTML tags from a string."""
+    import re
+    return re.sub(r"<[^>]+>", "", val)
+
+
 def _normalize(val: str | None) -> str:
-    """Lowercase and strip whitespace for comparison."""
-    return (val or "").strip().lower()
+    """Lowercase, strip HTML tags, normalize unicode, and strip whitespace."""
+    import unicodedata
+    s = _strip_html((val or "")).strip()
+    s = unicodedata.normalize("NFKC", s)
+    return s.lower()
 
 
-def _is_fuller_name(current: str, proposed: str) -> bool:
-    """
-    Check if proposed name is a fuller version of current name.
-    e.g. "J" -> "Justin", "J." -> "Justin", "Rob" -> "Robert"
-    Returns True if proposed is longer and current looks like an abbreviation/initial.
-    """
-    c = current.strip().rstrip(".")
-    p = proposed.strip().rstrip(".")
+def _name_parts(name: str) -> list[str]:
+    """Split a name into parts, stripping dots: 'K. E.' -> ['K', 'E'], 'D.A.' -> ['D', 'A']."""
+    return [p for p in name.replace(".", " ").split() if p]
+
+
+def _part_is_fuller(current_part: str, proposed_part: str) -> bool:
+    """Check if a single name part is fuller: 'K' -> 'Kimberly' is True."""
+    c = current_part.strip().rstrip(".")
+    p = proposed_part.strip().rstrip(".")
     if not c or not p:
         return False
     if c.lower() == p.lower():
         return False
     # Current is an initial (1-2 chars) and proposed starts with same letter
-    if len(c) <= 2 and p.lower().startswith(c[0].lower()):
+    if len(c) <= 2 and p.lower().startswith(c[0].lower()) and len(p) > len(c):
         return True
     # Proposed is strictly longer and starts with current
     if len(p) > len(c) and p.lower().startswith(c.lower()):
         return True
+    return False
+
+
+def _strip_accents(s: str) -> str:
+    """Remove diacritical marks: 'Martínez' -> 'Martinez'."""
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
+def _has_better_accents(current: str, proposed: str) -> bool:
+    """Check if proposed has proper accents that current is missing.
+    'Martinez' vs 'Martínez' -> True.
+    """
+    if current == proposed:
+        return False
+    return _strip_accents(current).lower() == _strip_accents(proposed).lower() and current != proposed
+
+
+def _is_fuller_name(current: str, proposed: str) -> bool:
+    """
+    Check if proposed name is a fuller version of current name.
+    Compares part by part: 'K. E.' vs 'Kimberly E.' -> True (K -> Kimberly).
+    'D. A.' vs 'D.A.' -> False (same parts).
+    Also detects accent improvements: 'Martinez' -> 'Martínez'.
+    """
+    c_parts = _name_parts(current)
+    p_parts = _name_parts(proposed)
+    if not c_parts or not p_parts:
+        return False
+    # Check accent improvements on any part
+    for cp, pp in zip(c_parts, p_parts):
+        if _has_better_accents(cp, pp):
+            return True
+    # Check if any part is fuller
+    for cp, pp in zip(c_parts, p_parts):
+        if _part_is_fuller(cp, pp):
+            return True
     return False
 
 
@@ -115,22 +162,22 @@ def compute_work_diffs(work, raw_crossref: dict) -> dict:
     # Top-level fields
     for field in ("title", "year", "doi"):
         current_val = getattr(work, field, None)
-        proposed_val = parsed.get(field)
-        if proposed_val and _normalize(str(proposed_val)) != _normalize(str(current_val or "")):
+        proposed_val = _strip_html(str(parsed.get(field) or "")) or None
+        if proposed_val and _normalize(proposed_val) != _normalize(str(current_val or "")):
             field_diffs.append({
                 "field": field,
                 "current": str(current_val) if current_val is not None else None,
-                "proposed": str(proposed_val),
+                "proposed": proposed_val,
             })
     # Data-blob fields
     for field in ("journal", "volume", "issue", "pages"):
         current_val = data.get(field)
-        proposed_val = parsed.get(field)
-        if proposed_val and _normalize(str(proposed_val)) != _normalize(str(current_val or "")):
+        proposed_val = _strip_html(str(parsed.get(field) or "")) or None
+        if proposed_val and _normalize(proposed_val) != _normalize(str(current_val or "")):
             field_diffs.append({
                 "field": field,
                 "current": str(current_val) if current_val is not None else None,
-                "proposed": str(proposed_val),
+                "proposed": proposed_val,
             })
 
     # --- Author diffs ---

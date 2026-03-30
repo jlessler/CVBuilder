@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse, WorkDiff, CompleteFieldsResponse } from '../lib/api'
+import type { Work, WorkAuthor, DOILookupResponse, Profile, PublicationCandidate, SyncCheckResponse, WorkDiff, CompleteFieldsResponse, FieldDiff } from '../lib/api'
 import { Button, Card, Input, Modal, NavigableModal, PageHeader, Badge, Spinner, Textarea, Select, Checkbox } from '../components/ui'
 import { useItemNavigation } from '../hooks/useItemNavigation'
 import { Plus, Search, Trash2, Edit2, Copy, ExternalLink, GripVertical, RefreshCw, Pencil, AlertTriangle, Link2, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
@@ -308,6 +308,102 @@ function formToPayload(form: WorkForm) {
     data: Object.keys(data).length > 0 ? data : null,
     authors,
   }
+}
+
+type CitationSpan = { text: string; color?: 'green' | 'red' }
+
+function buildCitationPreview(
+  work: Work,
+  diff: WorkDiff,
+  accepted: Set<string>,
+): CitationSpan[] {
+  const spans: CitationSpan[] = []
+
+  // Helper: get effective value for a field given the diff and accepted set
+  const fieldVal = (field: string, currentVal: string | null | undefined): { text: string; color?: 'green' | 'red' } => {
+    const fd = diff.field_diffs.find(d => d.field === field)
+    if (!fd) return { text: currentVal || '' }
+    if (accepted.has(field)) return { text: fd.proposed || '', color: 'green' }
+    if (fd.current) return { text: fd.current, color: 'red' }
+    return { text: '' }
+  }
+
+  // Authors
+  const authorSpans: CitationSpan[] = []
+  if (accepted.has('proposed_authors') && diff.proposed_authors.length > 0) {
+    diff.proposed_authors.forEach((a, i) => {
+      if (i > 0) authorSpans.push({ text: ', ' })
+      authorSpans.push({ text: a.author_name, color: 'green' })
+    })
+  } else {
+    const workAuthors = [...work.authors].sort((a, b) => a.author_order - b.author_order)
+    workAuthors.forEach((a, i) => {
+      if (i > 0) authorSpans.push({ text: ', ' })
+      const ad = diff.author_diffs.find(d => d.author_order === a.author_order)
+      if (ad && accepted.has(`author_rename_${ad.author_order}`)) {
+        authorSpans.push({ text: ad.proposed_name, color: 'green' })
+      } else if (ad && !accepted.has(`author_rename_${ad.author_order}`)) {
+        authorSpans.push({ text: a.author_name, color: 'red' })
+      } else {
+        authorSpans.push({ text: a.author_name })
+      }
+    })
+    if (accepted.has('additional_authors') && diff.additional_authors.length > 0) {
+      diff.additional_authors.forEach(a => {
+        authorSpans.push({ text: ', ' })
+        authorSpans.push({ text: a.author_name, color: 'green' })
+      })
+    }
+  }
+  spans.push(...authorSpans)
+  if (authorSpans.length > 0) spans.push({ text: '. ' })
+
+  // Year
+  const yearVal = fieldVal('year', work.year?.toString())
+  if (yearVal.text) spans.push({ text: '(', }, { ...yearVal }, { text: '). ' })
+
+  // Title
+  const titleVal = fieldVal('title', work.title)
+  if (titleVal.text) spans.push({ text: '"' }, { ...titleVal }, { text: '." ' })
+
+  // Journal
+  const data = work.data || {}
+  const journalVal = fieldVal('journal', data.journal as string)
+  if (journalVal.text) {
+    spans.push({ text: '', color: journalVal.color }) // italic handled in render
+    spans.push({ ...journalVal })
+  }
+
+  // Volume(Issue)
+  const volVal = fieldVal('volume', data.volume as string)
+  const issueVal = fieldVal('issue', data.issue as string)
+  if (volVal.text) {
+    spans.push({ text: ' ' })
+    spans.push({ ...volVal })
+    if (issueVal.text) {
+      spans.push({ text: '(' })
+      spans.push({ ...issueVal })
+      spans.push({ text: ')' })
+    }
+  }
+
+  // Pages
+  const pagesVal = fieldVal('pages', data.pages as string)
+  if (pagesVal.text) {
+    spans.push({ text: ': ' })
+    spans.push({ ...pagesVal })
+  }
+
+  if (journalVal.text || volVal.text || pagesVal.text) spans.push({ text: '. ' })
+
+  // DOI
+  const doiVal = fieldVal('doi', work.doi)
+  if (doiVal.text) {
+    spans.push({ text: 'doi:' })
+    spans.push({ ...doiVal })
+  }
+
+  return spans
 }
 
 export function Publications() {
@@ -1443,8 +1539,26 @@ export function Publications() {
                 >&#9654;</button>
               </div>
 
-              {/* Work title */}
-              <div className="text-sm font-medium text-gray-900 truncate">{diff.title || '(untitled)'}</div>
+              {/* Citation preview */}
+              {(() => {
+                const currentWork = data.find(w => w.id === diff.work_id)
+                if (!currentWork) return null
+                const previewSpans = buildCitationPreview(currentWork, diff, accepted)
+                return (
+                  <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-3 leading-relaxed">
+                    {previewSpans.map((s, i) => (
+                      <span
+                        key={i}
+                        className={
+                          s.color === 'green' ? 'bg-green-100 text-green-800 rounded px-0.5' :
+                          s.color === 'red' ? 'bg-red-100 text-red-800 rounded px-0.5' :
+                          ''
+                        }
+                      >{s.text}</span>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {completeStats.skipped > 0 && completeIndex === 0 && (
                 <p className="text-xs text-amber-600">{completeStats.skipped} work(s) skipped (no DOI){completeStats.errors > 0 ? `, ${completeStats.errors} error(s)` : ''}</p>
