@@ -71,6 +71,110 @@ def lookup_doi(doi: str) -> dict:
     return _parse_crossref_message(ref, doi)
 
 
+def search_doi_by_metadata(
+    title: str,
+    first_author: str | None = None,
+    year: int | str | None = None,
+    journal: str | None = None,
+    volume: str | None = None,
+    issue: str | None = None,
+    pages: str | None = None,
+) -> str | None:
+    """
+    Search Crossref for a DOI matching the given metadata.
+
+    Returns a DOI string if a confident match is found, else None.
+    Requires title similarity >= 0.80 plus >= 2 corroborating signals,
+    or title similarity >= 0.95 standalone.
+    """
+    from app.services.fetch_pubs import _title_similarity
+
+    # Build query — Crossref bibliographic search
+    query_parts = [title]
+    if first_author:
+        query_parts.append(first_author)
+    query = " ".join(query_parts)
+
+    params = {"query.bibliographic": query, "rows": "5"}
+    if year:
+        params["filter"] = f"from-pub-date:{year},until-pub-date:{year}"
+
+    try:
+        response = httpx.get(
+            "https://api.crossref.org/works",
+            params=params,
+            timeout=15,
+            headers={"User-Agent": "CVBuilder/1.0"},
+        )
+        if response.status_code != 200:
+            return None
+    except httpx.RequestError:
+        return None
+
+    items = response.json().get("message", {}).get("items", [])
+    if not items:
+        return None
+
+    str_year = str(year) if year else None
+
+    for item in items:
+        # Title similarity check
+        cr_title = item.get("title", [""])[0] if isinstance(item.get("title"), list) else item.get("title", "")
+        if not cr_title:
+            continue
+        sim = _title_similarity(title, cr_title)
+        if sim < 0.80:
+            continue
+
+        # Count corroborating signals
+        signals = 0
+
+        # Year
+        cr_year = _year_from_date_parts(item)
+        if str_year and cr_year and str_year == cr_year:
+            signals += 1
+
+        # First author last name
+        if first_author:
+            cr_authors = item.get("author", [])
+            if cr_authors:
+                cr_family = cr_authors[0].get("family", "").lower()
+                if cr_family and cr_family == first_author.lower():
+                    signals += 1
+
+        # Journal
+        if journal:
+            cr_journal = item.get("container-title", [""])[0] if isinstance(item.get("container-title"), list) else item.get("container-title", "")
+            if cr_journal and cr_journal.lower().strip() == journal.lower().strip():
+                signals += 1
+
+        # Volume
+        if volume:
+            cr_vol = str(item.get("volume", "")).strip()
+            if cr_vol and cr_vol == str(volume).strip():
+                signals += 1
+
+        # Issue
+        if issue:
+            cr_issue = str(item.get("issue", "")).strip()
+            if cr_issue and cr_issue == str(issue).strip():
+                signals += 1
+
+        # Pages
+        if pages:
+            cr_pages = str(item.get("page", "")).strip()
+            if cr_pages and cr_pages == str(pages).strip():
+                signals += 1
+
+        # Decision
+        if sim >= 0.95:
+            return item.get("DOI")
+        if sim >= 0.80 and signals >= 2:
+            return item.get("DOI")
+
+    return None
+
+
 def _strip_html(val: str) -> str:
     """Remove HTML tags from a string."""
     import re

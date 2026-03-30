@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
-from app.services.doi import lookup_doi, lookup_doi_raw, compute_work_diffs
+from app.services.doi import lookup_doi, lookup_doi_raw, compute_work_diffs, search_doi_by_metadata
 from app.services.fetch_pubs import fetch_new_publications
 
 router = APIRouter(prefix="/api/works", tags=["works"])
@@ -459,14 +459,44 @@ def complete_fields(
     skipped_no_match = 0
     errors = 0
 
-    for work in works:
-        doi = work.doi
-        if not doi:
-            skipped_no_match += 1
-            continue
+    has_doi = [w for w in works if w.doi]
+    no_doi = [w for w in works if not w.doi]
 
+    # Phase 1: DOI discovery for works without DOIs
+    for work in no_doi:
         try:
-            raw = lookup_doi_raw(doi)
+            data = work.data or {}
+            authors = sorted(work.authors, key=lambda a: a.author_order)
+            first_author = authors[0].family_name if authors else None
+            discovered_doi = search_doi_by_metadata(
+                title=work.title or "",
+                first_author=first_author,
+                year=work.year,
+                journal=data.get("journal"),
+                volume=data.get("volume"),
+                issue=data.get("issue"),
+                pages=data.get("pages"),
+            )
+            if discovered_doi:
+                # Fetch full metadata and compute diffs (DOI itself will be a diff)
+                raw = lookup_doi_raw(discovered_doi)
+                work_diffs = compute_work_diffs(work, raw)
+                diffs.append(schemas.WorkDiff(
+                    work_id=work.id,
+                    title=work.title,
+                    doi=None,
+                    **work_diffs,
+                ))
+            else:
+                skipped_no_match += 1
+            time.sleep(0.5)
+        except Exception:
+            errors += 1
+
+    # Phase 2: Field completion for works with DOIs
+    for work in has_doi:
+        try:
+            raw = lookup_doi_raw(work.doi)
             work_diffs = compute_work_diffs(work, raw)
 
             # Only include works that have at least one diff
@@ -480,7 +510,7 @@ def complete_fields(
                 diffs.append(schemas.WorkDiff(
                     work_id=work.id,
                     title=work.title,
-                    doi=doi,
+                    doi=work.doi,
                     **work_diffs,
                 ))
             time.sleep(0.5)
