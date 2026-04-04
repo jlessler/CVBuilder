@@ -425,10 +425,15 @@ export function Publications() {
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncResult, setSyncResult] = useState<SyncCheckResponse | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
-  const [addingSelected, setAddingSelected] = useState(false)
+  const [syncIndex, setSyncIndex] = useState(0)
+  const [syncSaving, setSyncSaving] = useState(false)
+  const [syncDecisions, setSyncDecisions] = useState<Map<number, 'added' | 'ignored' | 'skipped'>>(new Map())
   const [editingCandidate, setEditingCandidate] = useState<number | null>(null)
   const [candidateForm, setCandidateForm] = useState<PublicationCandidate | null>(null)
+  // Ignored candidates management
+  const [ignoredOpen, setIgnoredOpen] = useState(false)
+  const [ignoredList, setIgnoredList] = useState<import('../lib/api').IgnoredCandidate[]>([])
+  const [ignoredLoading, setIgnoredLoading] = useState(false)
 
   // Mass review state
   const [reviewSelection, setReviewSelection] = useState<Set<number>>(new Set())
@@ -791,17 +796,13 @@ export function Publications() {
     setSyncLoading(true)
     setSyncResult(null)
     setSyncError(null)
-    setSelectedIndices(new Set())
+    setSyncIndex(0)
+    setSyncDecisions(new Map())
     setEditingCandidate(null)
     setCandidateForm(null)
     try {
       const res = await api.get<SyncCheckResponse>('/works/sync-check')
       setSyncResult(res.data)
-      setSelectedIndices(new Set(
-        res.data.candidates
-          .map((c, i) => c.match_warning ? null : i)
-          .filter((i): i is number => i !== null)
-      ))
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setSyncError(msg || 'Failed to fetch publications. Check your profile name/ORCID.')
@@ -810,28 +811,63 @@ export function Publications() {
     }
   }
 
-  async function handleAddSelected() {
-    if (!syncResult || selectedIndices.size === 0) return
-    setAddingSelected(true)
+  async function handleSyncAdd() {
+    if (!syncResult) return
+    const c = syncResult.candidates[syncIndex]
+    setSyncSaving(true)
     try {
-      const pubs = Array.from(selectedIndices).map(i => syncResult.candidates[i])
-      await api.post('/works/sync-add', { publications: pubs })
+      await api.post('/works/sync-add', { publications: [c] })
       qc.invalidateQueries({ queryKey: ['works'] })
-      setSyncOpen(false)
+      setSyncDecisions(prev => new Map(prev).set(syncIndex, 'added'))
+      advanceSync()
     } catch {
-      alert('Failed to add publications.')
+      alert('Failed to add publication.')
     } finally {
-      setAddingSelected(false)
+      setSyncSaving(false)
     }
   }
 
-  function toggleCandidate(idx: number) {
-    setSelectedIndices(prev => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
-      return next
-    })
+  async function handleSyncIgnore() {
+    if (!syncResult) return
+    const c = syncResult.candidates[syncIndex]
+    setSyncSaving(true)
+    try {
+      await api.post('/works/sync-ignore', {
+        source: c.source,
+        title: c.title,
+        doi: c.doi,
+        pmid: c.pmid,
+        year: c.year,
+      })
+      setSyncDecisions(prev => new Map(prev).set(syncIndex, 'ignored'))
+      advanceSync()
+    } catch {
+      alert('Failed to ignore publication.')
+    } finally {
+      setSyncSaving(false)
+    }
+  }
+
+  function handleSyncSkip() {
+    setSyncDecisions(prev => new Map(prev).set(syncIndex, 'skipped'))
+    advanceSync()
+  }
+
+  function advanceSync() {
+    if (!syncResult) return
+    // Find next unreviewed candidate after current index
+    for (let i = syncIndex + 1; i < syncResult.candidates.length; i++) {
+      if (!syncDecisions.has(i)) {
+        setSyncIndex(i)
+        setEditingCandidate(null)
+        setCandidateForm(null)
+        return
+      }
+    }
+    // All reviewed — go to summary (index = length means summary screen)
+    setSyncIndex(syncResult.candidates.length)
+    setEditingCandidate(null)
+    setCandidateForm(null)
   }
 
   function openCandidateEdit(idx: number) {
@@ -850,6 +886,27 @@ export function Publications() {
     })
     setEditingCandidate(null)
     setCandidateForm(null)
+  }
+
+  async function loadIgnoredList() {
+    setIgnoredLoading(true)
+    try {
+      const res = await api.get<import('../lib/api').IgnoredCandidate[]>('/works/sync-ignored')
+      setIgnoredList(res.data)
+    } catch {
+      alert('Failed to load ignored list.')
+    } finally {
+      setIgnoredLoading(false)
+    }
+  }
+
+  async function handleUnignore(id: number) {
+    try {
+      await api.delete(`/works/sync-ignored/${id}`)
+      setIgnoredList(prev => prev.filter(r => r.id !== id))
+    } catch {
+      alert('Failed to un-ignore.')
+    }
   }
 
   const wt = form.work_type
@@ -1274,7 +1331,7 @@ export function Publications() {
       {/* Find New Publications Modal */}
       <Modal
         open={syncOpen}
-        onClose={() => { if (!syncLoading && !addingSelected) setSyncOpen(false) }}
+        onClose={() => { if (!syncLoading && !syncSaving) setSyncOpen(false) }}
         title="Find New Publications"
       >
         {syncLoading && (
@@ -1293,9 +1350,13 @@ export function Publications() {
 
         {!syncLoading && syncResult && (
           <div className="space-y-4">
+            {/* Header */}
             <div className="text-sm text-gray-600">
               Found <strong>{syncResult.candidates.length}</strong> new publication{syncResult.candidates.length !== 1 ? 's' : ''}{' '}
               {syncResult.searched.length > 0 && <>across <em>{syncResult.searched.join(', ')}</em></>}
+              {(syncResult.ignored_count || 0) > 0 && (
+                <span className="text-gray-400"> ({syncResult.ignored_count} previously ignored)</span>
+              )}
             </div>
 
             {Object.keys(syncResult.errors).length > 0 && (
@@ -1309,34 +1370,66 @@ export function Publications() {
             {syncResult.candidates.length === 0 ? (
               <div className="py-8 text-center text-gray-400 text-sm">
                 No new publications found — your list is up to date!
+                {(syncResult.ignored_count || 0) > 0 && (
+                  <p className="mt-2">
+                    <button className="text-primary-600 hover:underline" onClick={() => { setIgnoredOpen(true); loadIgnoredList() }}>
+                      Manage {syncResult.ignored_count} ignored
+                    </button>
+                  </p>
+                )}
+              </div>
+            ) : syncIndex >= syncResult.candidates.length ? (
+              /* Summary screen */
+              <div className="py-8 text-center space-y-4">
+                <p className="text-sm font-medium text-gray-700">Review complete</p>
+                <div className="flex justify-center gap-6 text-sm">
+                  <span className="text-green-600">
+                    {Array.from(syncDecisions.values()).filter(d => d === 'added').length} added
+                  </span>
+                  <span className="text-amber-600">
+                    {Array.from(syncDecisions.values()).filter(d => d === 'ignored').length} ignored
+                  </span>
+                  <span className="text-gray-500">
+                    {Array.from(syncDecisions.values()).filter(d => d === 'skipped').length} skipped
+                  </span>
+                </div>
+                <Button onClick={() => setSyncOpen(false)}>Done</Button>
               </div>
             ) : (
-              <>
-                <div className="flex gap-3 text-xs">
-                  <button
-                    className="text-primary-600 hover:underline"
-                    onClick={() => setSelectedIndices(new Set(syncResult.candidates.map((_, i) => i)))}
-                  >
-                    Select all
-                  </button>
-                  <button
-                    className="text-gray-500 hover:underline"
-                    onClick={() => setSelectedIndices(new Set())}
-                  >
-                    Clear all
-                  </button>
-                </div>
+              /* Arrow-through single candidate view */
+              (() => {
+                const c = syncResult.candidates[syncIndex]
+                const decision = syncDecisions.get(syncIndex)
+                const hasWarning = !!c.match_warning
+                return (
+                  <>
+                    {/* Navigation */}
+                    <div className="flex items-center justify-between">
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                        disabled={syncIndex === 0}
+                        onClick={() => { setSyncIndex(syncIndex - 1); setEditingCandidate(null); setCandidateForm(null) }}
+                      >&#9664;</button>
+                      <span className="text-xs text-gray-500">{syncIndex + 1} of {syncResult.candidates.length}</span>
+                      <button
+                        className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                        disabled={syncIndex >= syncResult.candidates.length - 1}
+                        onClick={() => { setSyncIndex(syncIndex + 1); setEditingCandidate(null); setCandidateForm(null) }}
+                      >&#9654;</button>
+                    </div>
 
-                <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
-                  {syncResult.candidates.map((c, idx) => (
-                    <div key={idx}>
-                      <div className={`px-4 py-3 flex items-start gap-3 ${selectedIndices.has(idx) ? 'bg-white' : 'bg-gray-50 opacity-60'}`}>
-                        <input
-                          type="checkbox"
-                          className="mt-1 rounded flex-shrink-0"
-                          checked={selectedIndices.has(idx)}
-                          onChange={() => toggleCandidate(idx)}
-                        />
+                    {/* Decision badge for already-reviewed candidates */}
+                    {decision && (
+                      <div className="flex justify-center">
+                        <Badge color={decision === 'added' ? 'green' : decision === 'ignored' ? 'yellow' : 'gray'}>
+                          {decision.charAt(0).toUpperCase() + decision.slice(1)}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Single candidate card */}
+                    <div className="border border-gray-200 rounded-lg">
+                      <div className="px-4 py-3 flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge color={TYPE_COLOR[c.pub_type] || 'gray'}>{c.pub_type}</Badge>
@@ -1384,14 +1477,14 @@ export function Publications() {
                         <button
                           className="flex-shrink-0 text-gray-400 hover:text-gray-700 p-1"
                           title="Edit before importing"
-                          onClick={() => editingCandidate === idx ? (setEditingCandidate(null), setCandidateForm(null)) : openCandidateEdit(idx)}
+                          onClick={() => editingCandidate === syncIndex ? (setEditingCandidate(null), setCandidateForm(null)) : openCandidateEdit(syncIndex)}
                         >
                           <Pencil size={13} />
                         </button>
                       </div>
 
                       {/* Inline edit panel */}
-                      {editingCandidate === idx && candidateForm && (
+                      {editingCandidate === syncIndex && candidateForm && (
                         <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 space-y-3">
                           <div className="grid grid-cols-2 gap-3">
                             <Select
@@ -1461,28 +1554,78 @@ export function Publications() {
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
 
-            <div className="flex items-center justify-between pt-2 border-t">
-              <span className="text-xs text-gray-500">
-                {selectedIndices.size} of {syncResult.candidates.length} selected
-              </span>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setSyncOpen(false)} disabled={addingSelected}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleAddSelected}
-                  loading={addingSelected}
-                  disabled={selectedIndices.size === 0}
-                >
-                  Add Selected ({selectedIndices.size})
+                    {/* Action buttons */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <button
+                        className="text-xs text-primary-600 hover:underline"
+                        onClick={() => { setIgnoredOpen(true); loadIgnoredList() }}
+                      >
+                        Manage ignored
+                      </button>
+                      <div className="flex gap-2">
+                        {hasWarning ? (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={handleSyncAdd} loading={syncSaving} disabled={syncSaving}>
+                              Add
+                            </Button>
+                            <Button variant="secondary" size="sm" className="!text-amber-700 !border-amber-300 hover:!bg-amber-50" onClick={handleSyncIgnore} disabled={syncSaving}>
+                              Ignore
+                            </Button>
+                            <Button size="sm" onClick={handleSyncSkip} disabled={syncSaving}>
+                              {syncIndex < syncResult.candidates.length - 1 ? 'Skip & Next' : 'Skip & Finish'}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={handleSyncSkip} disabled={syncSaving}>
+                              Skip
+                            </Button>
+                            <Button variant="secondary" size="sm" className="!text-amber-700 !border-amber-300 hover:!bg-amber-50" onClick={handleSyncIgnore} disabled={syncSaving}>
+                              Ignore
+                            </Button>
+                            <Button size="sm" onClick={handleSyncAdd} loading={syncSaving} disabled={syncSaving}>
+                              {syncIndex < syncResult.candidates.length - 1 ? 'Add & Next' : 'Add & Finish'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )
+              })()
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Manage Ignored Candidates Modal */}
+      <Modal
+        open={ignoredOpen}
+        onClose={() => setIgnoredOpen(false)}
+        title="Ignored Publications"
+      >
+        {ignoredLoading ? (
+          <div className="py-8 flex justify-center"><Spinner /></div>
+        ) : ignoredList.length === 0 ? (
+          <div className="py-8 text-center text-gray-400 text-sm">No ignored publications.</div>
+        ) : (
+          <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
+            {ignoredList.map(row => (
+              <div key={row.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-900 font-medium truncate">{row.title_display || '(no title)'}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                    {row.year && <span>{row.year}</span>}
+                    <Badge color={SOURCE_COLOR[row.source] || 'gray'}>{row.source}</Badge>
+                    {row.ignored_at && <span>{new Date(row.ignored_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => handleUnignore(row.id)} className="flex-shrink-0">
+                  Un-ignore
                 </Button>
               </div>
-            </div>
+            ))}
           </div>
         )}
       </Modal>

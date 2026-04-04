@@ -67,23 +67,33 @@ sequenceDiagram
     FP->>FP: Dedup against existing DB works<br/>(exact match → drop, fuzzy → warn)
     FP->>FP: Enrich candidates missing metadata via Crossref
     FP-->>R: {candidates, searched_sources, errors}
-    R-->>FE: Candidate list with match_warnings
+    R->>R: Filter out ignored candidates (IgnoredCandidate table)
+    R-->>FE: Candidate list with match_warnings + ignored_count
 
-    Note over FE: User reviews candidates,<br/>toggles selections
+    Note over FE: User arrows through candidates one at a time,<br/>choosing Add / Ignore / Skip per candidate
 
-    FE->>R: POST /api/works/sync-add (selected candidates)
+    FE->>R: POST /api/works/sync-add (single candidate)
     R->>R: Create Work + WorkAuthor records<br/>Parse author names<br/>Sync cross-ref DOIs
-    R-->>FE: Created works
+    R-->>FE: Created work
+
+    FE->>R: POST /api/works/sync-ignore (candidate identity)
+    R->>R: Create IgnoredCandidate row (per-source dedup)
+    R-->>FE: Ignored row
+
+    Note over FE: Skipped candidates reappear on next sync.<br/>Ignored candidates are filtered server-side.
 ```
 
 **Key files:**
 - `services/fetch_pubs.py` — `fetch_new_publications()`, per-source fetchers, deduplication
-- `routers/works.py` — `/sync-check` and `/sync-add` endpoints
+- `routers/works.py` — `/sync-check`, `/sync-add`, `/sync-ignore`, `/sync-ignored` endpoints
+- `models.py` — `IgnoredCandidate` model for persistent ignore
 - `services/name_parser.py` — `parse_author_name()` for structured name extraction
 
 **Author matching:** PubMed and Crossref results are filtered to only include works where the user appears as author. Matching checks: last name (whole word) + first initial + middle initial guard.
 
 **Dedup logic:** Exact matches by DOI or normalized title+year are dropped. Fuzzy matches (title similarity ≥ 0.75 + year within 2 years or year unknown) are kept but flagged with warnings. Cross-ref DOIs (preprint ↔ published) are auto-linked.
+
+**Ignore logic:** Ignored candidates are stored per-source in the `ignored_candidates` table. Identity matching is source-specific: PubMed uses PMID, Crossref uses DOI, ORCID uses DOI (or normalized title+year as fallback). Ignored candidates are filtered from `sync-check` results server-side. Users can manage (list/un-ignore) via `GET /sync-ignored` and `DELETE /sync-ignored/{id}`.
 
 ## 3. DOI Enrichment & Complete Fields
 

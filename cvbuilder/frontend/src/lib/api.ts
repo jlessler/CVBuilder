@@ -499,6 +499,17 @@ export interface SyncCheckResponse {
   candidates: PublicationCandidate[]
   searched: string[]
   errors: Record<string, string>
+  ignored_count: number
+}
+
+export interface IgnoredCandidate {
+  id: number
+  source: string
+  doi: string | null
+  pmid: string | null
+  title_display: string | null
+  year: string | null
+  ignored_at: string | null
 }
 
 // ---- Section Definitions API ----

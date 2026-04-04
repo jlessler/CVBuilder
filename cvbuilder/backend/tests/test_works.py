@@ -303,6 +303,103 @@ def test_sync_check_with_profile(client, sample_profile, monkeypatch):
     assert "pubmed" in body["searched"]
 
 
+# ── sync-ignore / sync-ignored ─────────────────────────────────────────
+
+def test_sync_ignore_creates_row(client):
+    resp = client.post("/api/works/sync-ignore", json={
+        "source": "pubmed",
+        "title": "Paper to Ignore",
+        "pmid": "12345",
+        "year": "2024",
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["source"] == "pubmed"
+    assert body["title_display"] == "Paper to Ignore"
+    assert body["pmid"] == "12345"
+    assert body["id"] is not None
+
+
+def test_sync_ignore_deduplicates(client):
+    """Ignoring the same candidate twice returns the existing row."""
+    resp1 = client.post("/api/works/sync-ignore", json={
+        "source": "crossref",
+        "title": "Dup Paper",
+        "doi": "10.1234/test",
+    })
+    resp2 = client.post("/api/works/sync-ignore", json={
+        "source": "crossref",
+        "title": "Dup Paper",
+        "doi": "10.1234/test",
+    })
+    assert resp1.json()["id"] == resp2.json()["id"]
+
+
+def test_sync_ignored_list(client):
+    client.post("/api/works/sync-ignore", json={
+        "source": "pubmed", "title": "Ignored A", "pmid": "111",
+    })
+    client.post("/api/works/sync-ignore", json={
+        "source": "crossref", "title": "Ignored B", "doi": "10.999/b",
+    })
+    resp = client.get("/api/works/sync-ignored")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 2
+
+
+def test_unignore(client):
+    resp = client.post("/api/works/sync-ignore", json={
+        "source": "orcid", "title": "To Unignore", "doi": "10.555/x",
+    })
+    row_id = resp.json()["id"]
+    del_resp = client.delete(f"/api/works/sync-ignored/{row_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["ok"] is True
+    # Verify it's gone
+    list_resp = client.get("/api/works/sync-ignored")
+    assert all(r["id"] != row_id for r in list_resp.json())
+
+
+def test_unignore_404(client):
+    resp = client.delete("/api/works/sync-ignored/99999")
+    assert resp.status_code == 404
+
+
+def test_sync_check_filters_ignored(client, sample_profile, monkeypatch):
+    import asyncio
+
+    # First, ignore a candidate
+    client.post("/api/works/sync-ignore", json={
+        "source": "pubmed", "title": "Already Seen", "pmid": "77777", "year": "2023",
+    })
+
+    async def mock_fetch(db, name, orcid):
+        return {
+            "candidates": [
+                {"title": "Already Seen", "year": "2023", "source": "pubmed",
+                 "pmid": "77777", "pub_type": "papers", "authors": [],
+                 "authors_structured": [], "doi": None, "journal": None,
+                 "volume": None, "issue": None, "pages": None,
+                 "match_warning": None, "preprint_doi": None, "published_doi": None},
+                {"title": "Brand New Paper", "year": "2024", "source": "pubmed",
+                 "pmid": "88888", "pub_type": "papers", "authors": [],
+                 "authors_structured": [], "doi": None, "journal": None,
+                 "volume": None, "issue": None, "pages": None,
+                 "match_warning": None, "preprint_doi": None, "published_doi": None},
+            ],
+            "searched": ["pubmed"],
+            "errors": {},
+        }
+
+    monkeypatch.setattr("app.routers.works.fetch_new_publications", mock_fetch)
+    resp = client.get("/api/works/sync-check")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["candidates"]) == 1
+    assert body["candidates"][0]["title"] == "Brand New Paper"
+    assert body["ignored_count"] == 1
+
+
 # ── Crossref DOI reciprocal sync ────────────────────────────────────────
 
 def test_crossref_create_sets_reciprocal_published_doi(client):

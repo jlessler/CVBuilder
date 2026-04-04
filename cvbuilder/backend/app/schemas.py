@@ -188,9 +188,28 @@ class SyncCheckResponse(BaseModel):
     candidates: list[PublicationCandidate]
     searched: list[str]
     errors: dict[str, str] = {}
+    ignored_count: int = 0
 
 class SyncAddRequest(BaseModel):
     publications: list[PublicationCandidate]
+
+
+class IgnoreCandidateRequest(BaseModel):
+    source: str
+    title: str
+    doi: Optional[str] = None
+    pmid: Optional[str] = None
+    year: Optional[str] = None
+
+class IgnoredCandidateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    source: str
+    doi: Optional[str] = None
+    pmid: Optional[str] = None
+    title_display: Optional[str] = None
+    year: Optional[str] = None
+    ignored_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
 from app.services.doi import lookup_doi, lookup_doi_raw, compute_work_diffs, search_doi_by_metadata
-from app.services.fetch_pubs import fetch_new_publications
+from app.services.fetch_pubs import fetch_new_publications, _normalize_doi, _normalize_title
 
 router = APIRouter(prefix="/api/works", tags=["works"])
 
@@ -106,6 +106,30 @@ def doi_lookup(request: schemas.DOILookupRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _is_ignored(candidate, ignored_rows) -> bool:
+    """Check if a candidate matches any ignored row (per-source matching)."""
+    src = candidate.source
+    for row in ignored_rows:
+        if row.source != src:
+            continue
+        if src == "pubmed" and candidate.pmid and row.pmid:
+            if candidate.pmid == row.pmid:
+                return True
+        elif src == "crossref":
+            c_doi = _normalize_doi(candidate.doi)
+            if c_doi and c_doi == _normalize_doi(row.doi):
+                return True
+        elif src == "orcid":
+            c_doi = _normalize_doi(candidate.doi)
+            if c_doi and c_doi == _normalize_doi(row.doi):
+                return True
+            if (row.normalized_title and row.year
+                    and _normalize_title(candidate.title) == row.normalized_title
+                    and (candidate.year or "") == row.year):
+                return True
+    return False
+
+
 @router.get("/sync-check", response_model=schemas.SyncCheckResponse)
 async def sync_check(
     db: Session = Depends(get_db),
@@ -114,7 +138,19 @@ async def sync_check(
     profile = db.query(models.Profile).filter_by(user_id=current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found — add your name/ORCID first")
-    return await fetch_new_publications(db, profile.name, profile.orcid)
+    result = await fetch_new_publications(db, profile.name, profile.orcid)
+    # Filter out ignored candidates
+    ignored_rows = db.query(models.IgnoredCandidate).filter_by(
+        user_id=current_user.id
+    ).all()
+    if ignored_rows:
+        candidates = [schemas.PublicationCandidate(**c) if isinstance(c, dict) else c
+                      for c in result["candidates"]]
+        filtered = [c for c in candidates if not _is_ignored(c, ignored_rows)]
+        ignored_count = len(candidates) - len(filtered)
+        result["candidates"] = [c.model_dump() if hasattr(c, 'model_dump') else c for c in filtered]
+        result["ignored_count"] = ignored_count
+    return result
 
 
 @router.post("/sync-add", response_model=list[schemas.WorkOut])
@@ -185,6 +221,86 @@ def sync_add(
     for work in created:
         db.refresh(work)
     return created
+
+
+# ---------------------------------------------------------------------------
+# Sync ignore endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/sync-ignore", response_model=schemas.IgnoredCandidateOut)
+def sync_ignore(
+    req: schemas.IgnoreCandidateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    norm_doi = _normalize_doi(req.doi)
+    norm_title = _normalize_title(req.title) if req.title else None
+
+    # Deduplicate: check if already ignored (per-source matching)
+    existing = db.query(models.IgnoredCandidate).filter_by(
+        user_id=current_user.id, source=req.source
+    )
+    if req.source == "pubmed" and req.pmid:
+        existing = existing.filter_by(pmid=req.pmid).first()
+    elif req.source == "crossref" and norm_doi:
+        existing = existing.filter_by(doi=norm_doi).first()
+    elif req.source == "orcid":
+        if norm_doi:
+            existing = existing.filter_by(doi=norm_doi).first()
+        elif norm_title and req.year:
+            existing = existing.filter_by(
+                normalized_title=norm_title, year=req.year
+            ).first()
+        else:
+            existing = None
+    else:
+        existing = None
+
+    if existing:
+        return existing
+
+    row = models.IgnoredCandidate(
+        user_id=current_user.id,
+        source=req.source,
+        doi=norm_doi,
+        pmid=req.pmid,
+        normalized_title=norm_title,
+        year=req.year,
+        title_display=req.title,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.get("/sync-ignored", response_model=list[schemas.IgnoredCandidateOut])
+def list_ignored(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.IgnoredCandidate)
+        .filter_by(user_id=current_user.id)
+        .order_by(models.IgnoredCandidate.ignored_at.desc())
+        .all()
+    )
+
+
+@router.delete("/sync-ignored/{ignored_id}")
+def unignore(
+    ignored_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    row = db.query(models.IgnoredCandidate).filter_by(
+        id=ignored_id, user_id=current_user.id
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/{work_id}", response_model=schemas.WorkOut)

@@ -451,6 +451,20 @@ class CVInstanceSection(Base):
     )
 
 
+class IgnoredCandidate(Base):
+    """Tracks sync candidates the user has permanently dismissed."""
+    __tablename__ = "ignored_candidates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    source: Mapped[str] = mapped_column(String(100))  # "pubmed", "crossref", "orcid"
+    doi: Mapped[Optional[str]] = mapped_column(String(500))
+    pmid: Mapped[Optional[str]] = mapped_column(String(50))
+    normalized_title: Mapped[Optional[str]] = mapped_column(String(1000))
+    year: Mapped[Optional[str]] = mapped_column(String(20))
+    title_display: Mapped[Optional[str]] = mapped_column(Text)
+    ignored_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
 class CVInstanceItem(Base):
     __tablename__ = "cv_instance_items"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

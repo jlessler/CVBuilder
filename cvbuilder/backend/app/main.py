@@ -118,6 +118,24 @@ def _run_migrations():
         "ALTER TABLE profile ADD COLUMN middle_name VARCHAR(200)",
         "ALTER TABLE profile ADD COLUMN suffix VARCHAR(50)",
     ]
+
+    # Create ignored_candidates table if it doesn't exist
+    stmts.append(
+        "CREATE TABLE IF NOT EXISTS ignored_candidates ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "user_id INTEGER REFERENCES users(id), "
+        "source VARCHAR(100) NOT NULL, "
+        "doi VARCHAR(500), "
+        "pmid VARCHAR(50), "
+        "normalized_title VARCHAR(1000), "
+        "year VARCHAR(20), "
+        "title_display TEXT, "
+        "ignored_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+    )
+    stmts.append(
+        "CREATE INDEX IF NOT EXISTS ix_ignored_candidates_user_id "
+        "ON ignored_candidates(user_id)"
+    )
     # Add user_id column to all content tables
     for table in _USER_ID_TABLES:
         stmts.append(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)")
